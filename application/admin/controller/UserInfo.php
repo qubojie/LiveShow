@@ -62,6 +62,9 @@ class UserInfo extends CommandAction
      * 会员列表
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function index(Request $request)
     {
@@ -129,11 +132,9 @@ class UserInfo extends CommandAction
             ->where($card_name_where)
             ->where($user_status_where)
             ->field($u_column)
-            ->field('uc.card_name')
+            ->field('uc.card_name,uc.card_type,uc.created_at open_card_time')
             ->order("u.".$orderBy,$sort)
             ->paginate($pagesize,false,$config);
-
-
 
         $user_list = json_decode(json_encode($user_list),true);
 
@@ -142,7 +143,15 @@ class UserInfo extends CommandAction
         $user_list['filter']['keyword'] = $keyword;
 
         $data = $user_list['data'];
-        //dump($data);die;
+
+        //获取注册途径配置文件
+        $register_way_arr = config("user.register_way");
+
+        //会员状态配置文件
+        $user_status_arr = config("user.user_status");
+
+        //获取卡类型
+        $card_type_arr = config("card.type");
 
         for ($i=0;$i<count($data);$i++){
             $referrer_type = $data[$i]['referrer_type'];
@@ -150,10 +159,45 @@ class UserInfo extends CommandAction
             $avatar        = $data[$i]['avatar'];
             $uid           = $data[$i]['uid'];
 
-            //默认头像填充
+            /*默认头像填充 begin*/
             if (empty($avatar)){
                 $data[$i]['avatar'] = Env::get("DEFAULT_AVATAR_URL")."avatar.jpg";
             }
+            /*默认头像填充 off*/
+
+            /*卡种翻译 begin*/
+            $card_type_s = $data[$i]['card_type'];
+
+            foreach ($card_type_arr as $key => $value){
+                if ($card_type_s == $value["key"]){
+                    $data[$i]['card_type_name'] = $value["name"];
+                }
+            }
+            /*卡种翻译 off*/
+
+            /*注册途径 begin*/
+            $register_way_s = $data[$i]['register_way'];
+
+            foreach ($register_way_arr as $key => $value){
+                if ($register_way_s == $value["key"]){
+                    $data[$i]['register_way_name'] = $value["name"];
+                }
+            }
+            /*注册途径 off*/
+
+
+            /*会员状态翻译 begin*/
+            $user_status_s = $data[$i]['user_status'];
+            foreach ($user_status_arr as $key => $value){
+                if ($user_status_s == $value["key"]){
+                    $data[$i]['user_status_name'] = $value["name"];
+                }
+            }
+
+            /*会员状态翻译 off*/
+
+
+
 
             if ($referrer_type == 'user'){
                 //去用户表查找推荐人信息

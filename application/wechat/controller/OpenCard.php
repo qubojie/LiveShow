@@ -21,11 +21,12 @@ use think\Controller;
 use think\Db;
 use think\Exception;
 use think\Request;
+use think\Validate;
 
 class OpenCard extends Controller
 {
     /**
-     * h5点击去开卡,获取相应参数,
+     * 点击去开卡,获取相应参数,
      * @param Request $request
      * @return array
      */
@@ -55,6 +56,30 @@ class OpenCard extends Controller
         }
         if (empty($name)){
             return $this->com_return(false,config("params.NAME_NOT_EMPTY"));
+        }
+
+        //如果选择可开卡礼,则验证收货人信息
+        if (!empty($gift_id)){
+            $rule = [
+                "delivery_name|收货人姓名"   => "require",
+                "delivery_phone|收货人电话"  => "require|regex:1[3-8]{1}[0-9]{9}",
+                "delivery_area|区"          => "require",
+                "delivery_address|详细地址"  => "require",
+            ];
+
+            $request_res = [
+                "delivery_name"    => $delivery_name,
+                "delivery_phone"   => $delivery_phone,
+                "delivery_area"    => $delivery_area,
+                "delivery_address" => $delivery_address,
+            ];
+
+            $validate = new Validate($rule);
+
+            if (!$validate->check($request_res)){
+                return $common->com_return(false,$validate->getError(),null);
+            }
+
         }
 
         //判断用户是否已开卡

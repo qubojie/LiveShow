@@ -425,6 +425,14 @@ return [
             'failWithdraw'      => ['key' => '802', 'name' => '佣金提现失败'],
             'other'             => ['key' => '900', 'name' => '佣金账务调整'],
         ],
+
+        //注册途径  'h5'  'wxapp' 'app'  'web'
+        'register_way' => [
+            'h5'    => ['key' => 'h5',   'name' => 'h5'],
+            'wxapp' => ['key' => 'wxapp','name' => '小程序'],
+            'app'   => ['key' => 'app',  'name' => 'app'],
+            'web'   => ['key' => 'web',  'name' => 'web']
+        ],
     ],
 
     /*
@@ -476,7 +484,7 @@ return [
             'pending_payment'   => ['key' => '0', 'name' => '待付款'],
             'pending_ship'      => ['key' => '1', 'name' => '待发货'],
             'pending_receipt'   => ['key' => '2', 'name' => '待收货'],
-            'completed'         => ['key' => '3', 'name' => '确认收货'],
+            'completed'         => ['key' => '3', 'name' => '交易完成'],
             'cancel'            => ['key' => '9', 'name' => '交易取消'],
         ],
 

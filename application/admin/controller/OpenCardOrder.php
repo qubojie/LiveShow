@@ -121,9 +121,67 @@ class OpenCardOrder extends CommandAction
 
         $list = json_decode(json_encode($list),true);
 
-        for ($i = 0; $i<count($list['data']); $i++){
-            $vid = $list['data'][$i]['vid'];
+        //获取付款方式
+        $pay_type_arr = config("order.pay_method");
 
+        //获取卡类型
+        $card_type_arr = config("card.type");
+
+        //获取订单状态
+        $sale_status_arr = config("order.open_card_status");
+
+        //获取发货类型
+        $send_type_arr = config("order.send_type");
+
+        for ($i = 0; $i<count($list['data']); $i++){
+
+            /*默认头像 begin*/
+            $avatar = $list['data'][$i]['avatar'];
+            if (empty($avatar)){
+                $list['data'][$i]['avatar'] = Env::get("DEFAULT_AVATAR_URL")."avatar.jpg";
+            }
+            /*默认头像 off*/
+
+            /*支付类型翻译 begin*/
+            $pay_type = $list['data'][$i]['pay_type'];
+            foreach ($pay_type_arr as $key => $value){
+
+                if ($pay_type == $key){
+                    $list['data'][$i]['pay_type_name'] = $value['name'];
+                }
+            }
+            /*支付类型翻译 off*/
+
+            /*卡种翻译 begin*/
+            $card_type_s = $list['data'][$i]['card_type'];
+
+            foreach ($card_type_arr as $key => $value){
+                if ($card_type_s == $value["key"]){
+                    $list['data'][$i]['card_type_name'] = $value["name"];
+                }
+            }
+            /*卡种翻译 off*/
+
+            /*状态翻译 begin*/
+            $sale_status_s = $list['data'][$i]['sale_status'];
+            foreach ($sale_status_arr as $key => $value){
+                if ($sale_status_s == $value['key']){
+                    $list['data'][$i]['sale_status_name'] = $value['name'];
+                }
+            }
+            /*状态翻译 off*/
+
+            /*发货类型翻译 begin*/
+            $send_type_s = $list['data'][$i]['send_type'];
+            foreach ($send_type_arr as $key => $value){
+                if ($send_type_s == $value['key']){
+                    $list['data'][$i]['send_type_name'] = $value['name'];
+                }
+            }
+            /*发货类型翻译 off*/
+
+            /*用户操作日子 begin*/
+            $vid = $list['data'][$i]['vid'];
             $log_info = Db::name('sys_adminaction_log')
                 ->where('oid',$vid)
                 ->select();
@@ -140,8 +198,10 @@ class OpenCardOrder extends CommandAction
             }
 
             $list['data'][$i]['log_info'] = $log_info;
+            /*用户操作日子 off*/
 
         }
+
         $list['filter'] = [
             "status"     => $status,
             "keyword"    => $keyword,
@@ -300,8 +360,6 @@ class OpenCardOrder extends CommandAction
         $delivery_area    = $request->param('delivery_area','');//收货人区域
         $delivery_address = $request->param('delivery_address','');//收货人详细地址
 
-
-
         $reason           = $request->param('reason','');//操作原因
 
         $billCardFeesModel = new BillCardFees();
@@ -355,10 +413,7 @@ class OpenCardOrder extends CommandAction
 
             $res = $this->callBackPay("$Authorization","$notifyType","$vid","$payable_amount","$payable_amount","$reason","$pay_no");
 
-//            dump($res);die;
-
             $res= json_decode(json_encode(simplexml_load_string($res, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
-
 
             if ($res['return_code'] == "SUCCESS"){
                 //如果支付成功
@@ -376,12 +431,13 @@ class OpenCardOrder extends CommandAction
                 $is_ok = $billCardFeesModel
                     ->where('vid',$vid)
                     ->update($orderParams);
+
                 if ($is_ok !== false){
 
-                    //记日志
+                    /*//记日志
                     $action_user = $this->getLoginAdminId($request->header('Authorization'))['user_name'];
                     $action = config("useraction.deal_pay")['key'];
-                    $this->addSysAdminLog("","","$vid","$action","$reason","$action_user","$time");
+                    $this->addSysAdminLog("","","$vid","$action","$reason","$action_user","$time");*/
 
 
                     return $this->com_return(true,$res['return_msg']);
@@ -501,10 +557,10 @@ class OpenCardOrder extends CommandAction
                     ->update($orderParams);
                 if ($is_ok !== false){
 
-                    //记日志
+                    /*//记日志
                     $action_user = $this->getLoginAdminId($request->header('Authorization'))['user_name'];
                     $action = config("useraction.deal_pay")['key'];
-                    $this->addSysAdminLog("","","$vid","$action","$reason","$action_user","$time");
+                    $this->addSysAdminLog("","","$vid","$action","$reason","$action_user","$time");*/
 
                     return $this->com_return(true,$res['return_msg']);
                 }else{
@@ -560,10 +616,10 @@ class OpenCardOrder extends CommandAction
                     ->update($orderParams);
                 if ($is_ok !== false){
 
-                    //记日志
+                   /* //记日志
                     $action_user = $this->getLoginAdminId($request->header('Authorization'))['user_name'];
                     $action = config("useraction.deal_pay")['key'];
-                    $this->addSysAdminLog("","","$vid","$action","$reason","$action_user","$time");
+                    $this->addSysAdminLog("","","$vid","$action","$reason","$action_user","$time");*/
 
                     return $this->com_return(true,$res['return_msg']);
                 }else{

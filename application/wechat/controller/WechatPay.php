@@ -380,9 +380,8 @@ class WechatPay extends Controller
         //根据订单号获取订单信息
         $order_info = Db::name('bill_card_fees')
             ->where('vid',$vid)
-            ->field('uid,sale_status')
+            ->field('uid,sale_status,delivery_name')
             ->find();
-
 
         if (!empty($order_info)){
 
@@ -394,12 +393,22 @@ class WechatPay extends Controller
 
             $uid             = $order_info['uid'];//用户id
 
+            $delivery_name   = $order_info['delivery_name'];//收货人
+
+            //如果收货人为空,直接为交易完成,如果不为空,则为待发货状态
+            if (empty($delivery_name)){
+                $sale_status = config("order.open_card_status")['completed']['key'];
+            }else{
+                $sale_status = config("order.open_card_status")['pending_ship']['key'];
+            }
 
             Log::info("回调参数 -----  ".var_export($values,true));
 
             $common          = new Common();
             $cardCallbackObj = new CardCallback();
             $UUIDObj         = new UUIDUntil();
+
+
 
             Db::startTrans();
             try{
@@ -417,7 +426,7 @@ class WechatPay extends Controller
 
                 //⑥更新订单状态,
                 $billCardFeesParams = [
-                    'sale_status'    => config("order.open_card_status")['pending_ship']['key'],
+                    'sale_status'    => $sale_status,
                     'pay_time'       => strtotime($pay_time),
                     'payable_amount' => $payable_amount - $pay_money,
                     'deal_price'     => $pay_money,
