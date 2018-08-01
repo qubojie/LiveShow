@@ -1,0 +1,11 @@
+{
+  "name": "LiveShow",
+  "version": "1.0.0",
+  "description": "接口文档",
+  "title": "LiveShow",
+  "url" : "http://localhost/admin",
+  "sampleUrl" : "http://localhost/admin",
+  "template":{
+    "forceLanguage":"zh-cn"
+  }
+}

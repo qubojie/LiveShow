@@ -1,0 +1,11 @@
+{
+  "name": "LiveShow",
+  "version": "1.0.0",
+  "description": "接口文档",
+  "title": "LiveShow",
+  "url" : "https://ls.wxapp.api.yshvip.cn/admin",
+  "sampleUrl" : "https://ls.wxapp.api.yshvip.cn/admin",
+  "template":{
+    "forceLanguage":"zh-cn"
+  }
+}
