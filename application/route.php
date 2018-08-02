@@ -189,6 +189,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //取消预约
             Route::rule("cancelReservation","ManageReservation/cancelReservation",'post|options');
 
+            //我的客户列表
+            Route::rule("customerList","ManageInfo/customerList");
+
         });
 
     });
@@ -384,6 +387,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             //开卡订单分组
             Route::rule('orderType','OpenCardOrder/orderType','post/options');
 
+            //开卡礼寄送分组
+            Route::rule('giftShipType','OpenCardOrder/giftShipType','post/options');
+
             //订单列表
             Route::rule('index','OpenCardOrder/index','post/options');
 
@@ -392,6 +398,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
             //付款操作
             Route::rule('adminPay','OpenCardOrder/adminPay','post/options');
+
+            //快递公司列表
+            Route::rule('getLogisticsCompany','OpenCardOrder/getLogisticsCompany','post/options');
 
         });
 
@@ -650,6 +659,12 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             //添加系统设置
             Route::rule('create','setting/create','post|options');
 
+        });
+
+        //系统日志
+        Route::group(['name' => 'sysLog'],function (){
+            //系统日志列表
+            Route::rule('sysLogList','SysLog/sysLogList');
         });
     });
 

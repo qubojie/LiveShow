@@ -23,7 +23,20 @@ class OpenCardOrder extends CommandAction
      */
     public function orderType()
     {
-        $typeList = config("order.open_card_status");
+        $typeList = config("order.open_card_type");
+        $res = [];
+        foreach ($typeList as $key => $val){
+            $res[] = $val;
+        }
+        return $this->com_return(true,config("params.SUCCESS"),$res);
+    }
+
+    /**
+     * 开卡礼寄送分组
+     */
+    public function giftShipType()
+    {
+        $typeList = config("order.gift_ship_type");
         $res = [];
         foreach ($typeList as $key => $val){
             $res[] = $val;
@@ -98,7 +111,12 @@ class OpenCardOrder extends CommandAction
 
         $status_where = [];
         if ($status != NULL){
-            $status_where['bc.sale_status'] = ["eq",$status];
+            if ($status == config("order.open_card_type")['completed']['key']){
+                $status_where['bc.sale_status'] = ["IN",$status];
+            }else{
+                $status_where['bc.sale_status'] = ["eq",$status];
+
+            }
         }
 
         $get_column       = $billCardModel->get_column;
@@ -224,6 +242,7 @@ class OpenCardOrder extends CommandAction
         $vid                = $request->param('vid','');
         $send_type          = $request->param("send_type",'');//赠品发货类型   ‘express’ 快递 ‘salesman’销售代收
         $express_company    = $request->param('express_company','');//收货人物流公司
+        $express_code       = $request->param('express_code','');//物流公司编码
         $express_number     = $request->param('express_number','');//物流单号
         $delivery_name      = $request->param('delivery_name','');//收货人姓名
         $delivery_phone     = $request->param('delivery_phone','');//收货人电话
@@ -250,6 +269,7 @@ class OpenCardOrder extends CommandAction
             //快递发货
             $rule = [
                 "express_company|收货人物流公司"    => "require|max:50",
+                "express_code|物流公司编码"         => "require",
                 "express_number|物流单号"          => "require|unique:bill_card_fees|max:50",
                 "delivery_name|收货人姓名"         => "require",
                 "delivery_phone|收货人电话"        => "require|regex:1[3-8]{1}[0-9]{9}",
@@ -259,6 +279,7 @@ class OpenCardOrder extends CommandAction
 
             $check_params = [
                 "express_company"   => $express_company,
+                "express_code"      => $express_code,
                 "express_number"    => $express_number,
                 "delivery_name"     => $delivery_name,
                 "delivery_phone"    => $delivery_phone,
@@ -282,6 +303,7 @@ class OpenCardOrder extends CommandAction
                 "delivery_area"     => $delivery_area,
                 "delivery_address"  => $delivery_address,
                 "express_company"   => $express_company,
+                "express_code"      => $express_code,
                 "express_number"    => $express_number,
                 "updated_at"        => $time
 
@@ -707,5 +729,23 @@ class OpenCardOrder extends CommandAction
         curl_close($ch);
 
         return $data;
+    }
+
+    /**
+     * 获取快递公司列表
+     * @return false|mixed|PDOStatement|string|\think\Collection
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    function getLogisticsCompany()
+    {
+        $list = Db::name("mst_express")
+            ->where("is_enable",1)
+            ->where("is_delete",0)
+            ->field("express_id,express_code,express_name")
+            ->select();
+        $list = json_decode(json_encode($list),true);
+        return $this->com_return(true,config("params.SUCCESS"),$list);
     }
 }

@@ -395,11 +395,15 @@ class WechatPay extends Controller
 
             $delivery_name   = $order_info['delivery_name'];//收货人
 
+            $time           = time();
+
             //如果收货人为空,直接为交易完成,如果不为空,则为待发货状态
             if (empty($delivery_name)){
                 $sale_status = config("order.open_card_status")['completed']['key'];
+                $finish_time = $time;
             }else{
                 $sale_status = config("order.open_card_status")['pending_ship']['key'];
+                $finish_time = NULL;
             }
 
             Log::info("回调参数 -----  ".var_export($values,true));
@@ -422,8 +426,6 @@ class WechatPay extends Controller
 
                 $pay_money      = $values['total_fee'] / 100;//实付金额
 
-                $time           = time();
-
                 //⑥更新订单状态,
                 $billCardFeesParams = [
                     'sale_status'    => $sale_status,
@@ -432,6 +434,7 @@ class WechatPay extends Controller
                     'deal_price'     => $pay_money,
                     'pay_no'         => $pay_no,
                     'updated_at'     => $time,
+                    'finish_time'    => $finish_time
                 ];
 
 //                dump($billCardFeesParams);die;

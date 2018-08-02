@@ -8,6 +8,7 @@
 namespace app\wechat\controller;
 
 use app\admin\model\ManageSalesman;
+use app\admin\model\TableRevenue;
 use think\Controller;
 use think\Request;
 

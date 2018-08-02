@@ -25,9 +25,12 @@ class Log extends Controller
 
     /**
      * 用户操作日志列表
-     * @param $type 'uid gid oid'
-     * @param $val  '对用的值'
+     * @param $type
+     * @param $val
      * @return false|\PDOStatement|string|\think\Collection
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function log_list($type,$val)
     {
@@ -40,11 +43,4 @@ class Log extends Controller
         return $res;
     }
 
-    /*
-     * 删除日志
-     * */
-    public function log_delete()
-    {
-
-    }
 }

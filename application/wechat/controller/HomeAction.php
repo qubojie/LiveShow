@@ -7,6 +7,7 @@
  */
 namespace app\wechat\controller;
 
+use app\admin\model\TableRevenue;
 use think\Controller;
 use think\exception\HttpException;
 
@@ -82,5 +83,30 @@ class HomeAction extends Controller
             ->find();
 
         return $manageInfo;
+    }
+
+    /**
+     * 开台操作
+     * @param $trid
+     * @return array
+     */
+    protected function openTableAction($trid)
+    {
+        $tableRevenueModel = new TableRevenue();
+
+        $params = [
+            "status"     => config("order.table_reserve_status")['already_open']['key'],
+            "updated_at" => time()
+        ];
+
+        $is_ok = $tableRevenueModel
+            ->where('trid',$trid)
+            ->update($params);
+
+        if ($is_ok !== false){
+            return $this->com_return(true,config("SUCCESS"));
+        }else{
+            return $this->com_return(false,config("FAIL"));
+        }
     }
 }

@@ -269,6 +269,7 @@ return [
         "CHECK_SHIP_TYPE"       => "请选择发货类型",
         "INSTEAD_SALES_NAME"    => "请输入代收货人姓名",
         "EXIST_TALE"            => "该区域下存在吧台,不可删除",
+        "AREA_IS_EXIST"         => "当前位置该区域名称已存在",
         "SPENDING_ELT_SUBS"     => "最低消费不能低于定金",
         "PHONE_BIND_OTHER"      => "该手机号码已绑定其他账户",
         "RECHARGE_MONEY_INVALID"=> "储值金额无效",
@@ -279,8 +280,14 @@ return [
         "TABLE_IS_RESERVE"      => "很遗憾,该吧台已被其他顾客预约,请从新挑选",
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
         "PHONE_NOT_EXIST"       => "未找到相关会员信息",
+        "OPEN_TABLE_STATUS"     => [
+            "QrCodeINVALID" => "二维码无效",
+            "CANCELED"      => "预约已取消,请重新预约",
+            "UNPAY"         => "未支付定金,不可开台",
+            "ALREADYOPEN"   => "预约已开台,不可重复操作",
+            "CLEARTABLE"    => "桌已清台,不可扫码开台"
+        ],
      ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -486,6 +493,19 @@ return [
             'pending_receipt'   => ['key' => '2', 'name' => '待收货'],
             'completed'         => ['key' => '3', 'name' => '交易完成'],
             'cancel'            => ['key' => '9', 'name' => '交易取消'],
+        ],
+
+        //开卡订单列表分类
+        'open_card_type' => [
+            'pending_payment' => ['key' => '0',   'name' => '待付款'],
+            'completed'       => ['key' => '1,2,3', 'name' => '交易完成'],
+            'cancel'          => ['key' => '9',   'name' => '交易取消'],
+        ],
+        //开卡礼寄送分类
+        'gift_ship_type' => [
+            'pending_ship'      => ['key' => '1', 'name' => '待发货'],
+            'pending_receipt'   => ['key' => '2', 'name' => '待收货'],
+            'completed'         => ['key' => '3', 'name' => '已完成'],
         ],
 
         //预约定金类型

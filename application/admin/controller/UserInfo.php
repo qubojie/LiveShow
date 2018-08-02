@@ -128,11 +128,13 @@ class UserInfo extends CommandAction
         $user_list = $userModel
             ->alias('u')
             ->join('user_card uc','uc.uid = u.uid','LEFT')
+            ->join('mst_card_vip cv','cv.card_id = uc.card_id')
             ->where($where)
             ->where($card_name_where)
             ->where($user_status_where)
             ->field($u_column)
-            ->field('uc.card_name,uc.card_type,uc.created_at open_card_time')
+//            ->field('uc.card_name,uc.card_type,uc.created_at open_card_time')
+            ->field('cv.card_name,cv.card_type,uc.created_at open_card_time')
             ->order("u.".$orderBy,$sort)
             ->paginate($pagesize,false,$config);
 

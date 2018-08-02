@@ -43,7 +43,7 @@ class SortName extends Controller
             if($asc>=-11847 and $asc<=-11056)return "Y";
             if($asc>=-11055 and $asc<=-10247)return "Z";
         }else if(ord($s)>=48 and ord($s)<=57){ //数字开头
-            switch(iconv_substr($s,0,1,'utf-8')){
+            /*switch(iconv_substr($s,0,1,'utf-8')){
                 case 1:return "Y";
                 case 2:return "E";
                 case 3:return "S";
@@ -54,7 +54,9 @@ class SortName extends Controller
                 case 8:return "B";
                 case 9:return "J";
                 case 0:return "L";
-            }
+            }*/
+
+            return "ZZ";
         }else if(ord($s)>=65 and ord($s)<=90){ //大写英文开头
             return substr($s,0,1);
         }else if(ord($s)>=97 and ord($s)<=122){ //小写英文开头

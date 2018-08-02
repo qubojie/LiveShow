@@ -7,6 +7,7 @@
  */
 namespace app\admin\controller;
 
+use app\admin\model\ManageSalesman;
 use app\admin\model\MstCardVip;
 use app\admin\model\MstTable;
 use app\admin\model\MstTableArea;
@@ -55,32 +56,47 @@ class TableArea extends CommandAction
         $tableAreaCardModel = new MstTableAreaCard();
 
         $cardModel = new MstCardVip();
+        $salesmanModel = new ManageSalesman();
 
         for ($i = 0; $i < count($list['data']); $i++){
 
+            //区域负责人
+            $sid = $list['data'][$i]['sid'];
+            $area_manager_res = $salesmanModel
+                ->where('sid',$sid)
+                ->field("sales_name")
+                ->find();
+            $area_manager_res = json_decode(json_encode($area_manager_res),true);
+            $area_manager = $area_manager_res['sales_name'];
+            $list['data'][$i]['area_manager'] = $area_manager;
+
             //获取区域与卡绑定关系
             $area_id     = $list['data'][$i]['area_id'];
+
             $card_id_res = $tableAreaCardModel
                 ->where("area_id",$area_id)
                 ->select();
 
             $card_id_res = json_decode(json_encode($card_id_res),true);
 
-            for ($m = 0; $m < count($card_id_res); $m++){
+            if (!empty($card_id_res)){
+                for ($m = 0; $m < count($card_id_res); $m++){
 
-                //获取卡的名字
-                $card_id = $card_id_res[$m]['card_id'];
-                $card_name_res = $cardModel
-                    ->where('card_id',$card_id)
-                    ->field("card_name")
-                    ->find();
+                    //获取卡的名字
+                    $card_id = $card_id_res[$m]['card_id'];
+                    $card_name_res = $cardModel
+                        ->where('card_id',$card_id)
+                        ->field("card_name")
+                        ->find();
 
-                $card_name_res = json_decode(json_encode($card_name_res),true);
+                    $card_name_res = json_decode(json_encode($card_name_res),true);
 
-                $card_name     = $card_name_res['card_name'];
-
-                $list['data'][$i]['card_id'][$m]['card_id'] = $card_id;
-                $list['data'][$i]['card_id'][$m]['card_name'] = $card_name;
+                    $card_name     = $card_name_res['card_name'];
+                    $list['data'][$i]['card_id'][$m]['card_id'] = $card_id;
+                    $list['data'][$i]['card_id'][$m]['card_name'] = $card_name;
+                }
+            }else{
+                $list['data'][$i]['card_id'] = [];
             }
         }
 
@@ -164,11 +180,10 @@ class TableArea extends CommandAction
         $location_id    = $request->param('location_id','');//位置id
         $area_title     = $request->param('area_title','');
         $area_desc      = $request->param('area_desc','');
-        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
+//        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
         $sort           = $request->param('sort','100');//排序
         $is_enable      = $request->param('is_enable',0);//是否启用预定  0否 1是
 
-//        $card_ids       = $request->param("card_id","");//区域绑定卡
         $sid            = $request->param("sid","");//服务负责人id
 
         if (empty($sort)) $sort = 100;
@@ -177,18 +192,16 @@ class TableArea extends CommandAction
             "location_id|位置id"     => "require",
             "area_title|区域名称"     => "require|max:30",
             "area_desc|区域描述"      => "max:200",
-            "turnover_limit|最低消费" => "number",
+//            "turnover_limit|最低消费" => "number",
             "sort|排序"              => "number",
-//            "card_id|区域绑定卡"      => "require",
             "sid|服务负责人id"        => "require",
         ];
         $check_data = [
             "location_id"    => $location_id,
             "area_title"     => $area_title,
             "area_desc"      => $area_desc,
-            "turnover_limit" => $turnover_limit,
+//            "turnover_limit" => $turnover_limit,
             "sort"           => $sort,
-//            "card_id"        => $card_ids,
             "sid"            => $sid,
         ];
 
@@ -198,13 +211,25 @@ class TableArea extends CommandAction
             return $this->com_return(false,$validate->getError());
         }
 
+        //查询当前位置下是否存在该区域
+
+        $is_exist = $tableAreaModel
+            ->where('location_id',$location_id)
+            ->where("area_title",$area_title)
+            ->count();
+
+        if ($is_exist > 0){
+            return $this->com_return(false,config("params.AREA_IS_EXIST"));
+        }
+
+
         $time = time();
 
         $insert_data = [
             'location_id'     => $location_id,
             'area_title'      => $area_title,
             'area_desc'       => $area_desc,
-            'turnover_limit'  => $turnover_limit,
+//            'turnover_limit'  => $turnover_limit,
             'sort'            => $sort,
             'sid'             => $sid,
             'is_enable'       => $is_enable,
@@ -272,11 +297,10 @@ class TableArea extends CommandAction
         $location_id    = $request->param('location_id','');//位置id
         $area_title     = $request->param('area_title','');
         $area_desc      = $request->param('area_desc','');
-        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
+//        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
         $sort           = $request->param('sort','100');//排序
         $is_enable      = $request->param('is_enable',0);//是否启用预定  0否 1是
 
-//        $card_ids       = $request->param("card_id","");//区域绑定卡
         $sid            = $request->param("sid","");//服务负责人id
 
         if (empty($sort)) $sort = 100;
@@ -286,9 +310,8 @@ class TableArea extends CommandAction
             "location_id|位置id"     => "require",
             "area_title|区域名称"     => "require|max:30",
             "area_desc|区域描述"      => "max:200",
-            "turnover_limit|最低消费" => "number",
+//            "turnover_limit|最低消费" => "number",
             "sort|排序"              => "number",
-//            "card_id|区域绑定卡"      => "require",
             "sid|服务负责人id"        => "require",
         ];
         $check_data = [
@@ -296,9 +319,8 @@ class TableArea extends CommandAction
             "location_id"    => $location_id,
             "area_title"     => $area_title,
             "area_desc"      => $area_desc,
-            "turnover_limit" => $turnover_limit,
+//            "turnover_limit" => $turnover_limit,
             "sort"           => $sort,
-//            "card_id"        => $card_ids,
             "sid"            => $sid,
         ];
 
@@ -312,7 +334,7 @@ class TableArea extends CommandAction
             "location_id"    => $location_id,
             'area_title'     => $area_title,
             'area_desc'      => $area_desc,
-            'turnover_limit' => $turnover_limit,
+//            'turnover_limit' => $turnover_limit,
             'sort'           => $sort,
             'sid'            => $sid,
             'is_enable'      => $is_enable,

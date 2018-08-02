@@ -13,6 +13,7 @@ use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\services\Sms;
 use app\wechat\model\BillCardFees;
+use app\wechat\model\JobUser;
 use app\wechat\model\UserAccount;
 use app\wechat\model\UserAccountCashGift;
 use app\wechat\model\UserCard;
@@ -27,6 +28,9 @@ class MyInfo extends CommonAction
      * 用户中心
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function index(Request $request)
     {
@@ -35,6 +39,7 @@ class MyInfo extends CommonAction
         $userModel = new User();
         $giftVoucherModel = new UserGiftVoucher();
         $levelModel = new MstUserLevel();
+        $jobUserModel = new JobUser();
 
 
         $user_info = $userModel
@@ -46,21 +51,43 @@ class MyInfo extends CommonAction
         $uid         = $user_info['uid'];
         $user_status = $user_info['user_status'];
 
+        $userJobInfo = $jobUserModel
+            ->where('uid',$uid)
+            ->field("job_balance,job_freeze,job_cash,consume_amount,referrer_num")
+            ->find();
+
+        $userJobInfo = json_decode(json_encode($userJobInfo),true);
+
+        if (!empty($userJobInfo)){
+            foreach ($userJobInfo as $key => $val){
+                $user_info["$key"] = $val;
+            }
+        }else{
+            $user_info["job_balance"] = 0;
+            $user_info["job_freeze"] = 0;
+            $user_info["job_cash"] = 0;
+            $user_info["consume_amount"] = 0;
+            $user_info["referrer_num"] = 0;
+        }
+
+
+
         if ($user_status == 2){
             //获取用户的开卡信息
             $userCardModel = new UserCard();
             $cardInfo = $userCardModel
-                ->where('uid',$uid)
-                ->field('updated_at',true)
+                ->alias("uc")
+                ->join("mst_card_vip cv","cv.card_id = uc.card_id")
+                ->field("cv.card_id,cv.card_type,cv.card_name,cv.card_image,cv.card_amount,cv.card_deposit,cv.card_desc,cv.card_equities,uc.created_at open_card_time")
+                ->where('uc.uid',$uid)
                 ->find();
+            $cardInfo = json_decode(json_encode($cardInfo),true);
+
             if (!empty($cardInfo)){
-                $cardInfo = json_decode(json_encode($cardInfo),true);
                 foreach ($cardInfo as $key => $val){
                     $user_info["$key"] = $val;
                 }
-
             }
-
         }
 
         $level_info =$levelModel
@@ -87,12 +114,15 @@ class MyInfo extends CommonAction
      * 我的钱包明细
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function wallet(Request $request)
     {
-        $token = $request->header('Token','');
-        $userModel = new User();
-        $cashGiftModel = new UserAccountCashGift();
+        $token            = $request->header('Token','');
+        $userModel        = new User();
+        $cashGiftModel    = new UserAccountCashGift();
         $userAccountModel = new UserAccount();
 
         $uid_res = $userModel
@@ -113,7 +143,6 @@ class MyInfo extends CommonAction
         $res['account']   = $account;
         $res['cash_gift'] = $cash_gift;
 
-
         return $this->com_return(true,config("SUCCESS"),$res);
     }
 
@@ -122,6 +151,9 @@ class MyInfo extends CommonAction
      * 礼品券列表
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function giftVoucher(Request $request)
     {
@@ -151,6 +183,9 @@ class MyInfo extends CommonAction
      * 用户获取开卡未支付订单信息
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function getUserOpenCardInfo(Request $request)
     {
@@ -193,6 +228,9 @@ class MyInfo extends CommonAction
      * 我的预约列表
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function reservationOrder(Request $request)
     {

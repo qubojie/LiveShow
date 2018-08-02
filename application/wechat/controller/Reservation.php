@@ -68,11 +68,15 @@ class Reservation extends CommonAction
         $uid            = $this->tokenGetUserInfo($token)['uid'];//获取uid
         $user_card_info = $this->uidGetCardInfo($uid);//根据uid获取卡id
 
-        if (empty($user_card_info)){
+        /*if (empty($user_card_info)){
             return $this->com_return(false,config("params.NOT_OPEN_CARD"));//卡已失效,或者未开卡
-        }
+        }*/
 
-        $user_card_id = $user_card_info['card_id'];
+        if (!empty($user_card_info)){
+            $user_card_id = $user_card_info['card_id'];
+        }else{
+            $user_card_id = "";
+        }
 
         $publicActionObj = new PublicAction();
 

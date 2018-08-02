@@ -53,7 +53,7 @@ class SalesUser extends CommandAction
 
         $where = [];
         if (!empty($keyword)){
-            $where['ms.sid|ms.name|ms.id_no|ms.province|ms.city|ms.country'] = ["like","%$keyword%"];
+            $where['ms.sid|ms.sales_name|ms.phone|ms.id_no|ms.province|ms.city|ms.country|md.department_title|mst.stype_name'] = ["like","%$keyword%"];
         }
 
         if (empty($pagesize)){

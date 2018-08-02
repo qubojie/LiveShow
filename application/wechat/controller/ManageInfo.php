@@ -10,6 +10,8 @@ namespace app\wechat\controller;
 use app\admin\model\ManageSalesman;
 use app\admin\model\MstTableImage;
 use app\admin\model\TableRevenue;
+use app\admin\model\User;
+use app\common\controller\SortName;
 use think\Config;
 use think\Request;
 use think\Validate;
@@ -151,5 +153,83 @@ class ManageInfo extends HomeAction
             }
         }
         return $this->com_return(true,config("params.SUCCESS"),$list);
+    }
+
+    /**
+     * 我的客户列表
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function customerList(Request $request)
+    {
+        $token = $request->header("Token","");
+
+        $manageInfo  = $this->tokenGetManageInfo($token);
+
+        $sid = $manageInfo['sid'];
+
+        $sortNameObj = new SortName();
+
+        $userModel = new User();
+
+        $user_num = $userModel
+            ->where("referrer_id",$sid)
+            ->count();
+
+        $user_list = $userModel
+            ->alias("u")
+            ->where("referrer_id",$sid)
+            ->field("u.uid,u.phone,u.email,u.name,u.nickname,u.avatar,u.sex,u.city,u.province,u.register_way,u.lastlogin_time,u.user_status")
+            ->select();
+
+        $user_list = json_decode(json_encode($user_list),true);
+
+        $user_name = [];
+
+        for ($i = 0; $i <count($user_list); $i++){
+            $re_name     = $user_list[$i]['name'];
+
+            $nickname =  $user_list[$i]['nickname'];
+
+            $phone =  $user_list[$i]['phone'];
+
+            if (!empty($re_name)){
+                $user_list[$i]['look_name'] = $re_name;
+            }else{
+                if (!empty($nickname)){
+                    $user_list[$i]['look_name'] = $nickname;
+                }else{
+                    $user_list[$i]['look_name'] = $phone;
+                }
+            }
+        }
+
+        $charArray=array();
+        foreach ($user_list as $name ){
+
+            $char = $sortNameObj->getFirstChar($name['look_name']);
+
+            $nameArray = array();
+
+            if(isset($charArray[$char])){
+
+                $nameArray = $charArray[$char];
+
+            }
+
+            array_push($nameArray,$name);
+            $charArray[$char] = $nameArray;
+
+        }
+
+        ksort($charArray);
+
+
+        $charArray["userNumCount"] = $user_num;
+
+        return $this->com_return(true,'成功',$charArray);
     }
 }

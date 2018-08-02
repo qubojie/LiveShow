@@ -7,9 +7,9 @@
  */
 namespace app\admin\model;
 
-use think\Controller;
+use think\Model;
 
-class SysLog extends Controller
+class SysLog extends Model
 {
     /**
      * 关联到模型的数据表
