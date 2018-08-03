@@ -23,10 +23,26 @@ class OpenCardOrder extends CommandAction
      */
     public function orderType()
     {
+        $billCardModel = new BillCardFees();
+
+
+
         $typeList = config("order.open_card_type");
+
         $res = [];
+
         foreach ($typeList as $key => $val){
+            if ($val["key"] == config("order.open_card_status")['pending_payment']['key']){
+                $count = $billCardModel
+                    ->where("sale_status",config("order.open_card_status")['pending_payment']['key'])
+                    ->count();//未付款总记录数
+
+                $val["count"] = $count;
+            }else{
+                $val["count"] = 0;
+            }
             $res[] = $val;
+
         }
         return $this->com_return(true,config("params.SUCCESS"),$res);
     }
@@ -36,9 +52,22 @@ class OpenCardOrder extends CommandAction
      */
     public function giftShipType()
     {
+        $billCardModel = new BillCardFees();
+
         $typeList = config("order.gift_ship_type");
         $res = [];
         foreach ($typeList as $key => $val){
+
+            if ($val["key"] == config("order.open_card_status")['pending_ship']['key']){
+                $count = $billCardModel
+                    ->where("sale_status",config("order.open_card_status")['pending_ship']['key'])
+                    ->count();//待发货
+
+                $val["count"] = $count;
+            }else{
+                $val["count"] = 0;
+            }
+
             $res[] = $val;
         }
         return $this->com_return(true,config("params.SUCCESS"),$res);
@@ -67,7 +96,15 @@ class OpenCardOrder extends CommandAction
         $card_type  = $request->param("card_type","");//卡的类型
 
         $begin_time = $request->param('begin_time',"");//开始时间
+
         $end_time   = $request->param('end_time',"");//结束时间
+
+        $gift_ship = $request->param('gift_ship',"");//是否是发货管理请求
+
+        $gift_ship_where = [];
+        if ($gift_ship == "gift_ship"){
+            $gift_ship_where['delivery_name'] = ['neq',""];
+        }
 
         $time_where = [];
         if (!empty($begin_time) && empty($end_time)){
@@ -132,6 +169,7 @@ class OpenCardOrder extends CommandAction
             ->where($pay_type_where)
             ->where($card_type_where)
             ->where($time_where)
+            ->where($gift_ship_where)
             ->field($get_column)
             ->field($user_column)
             ->field($card_gift_column)
@@ -152,6 +190,15 @@ class OpenCardOrder extends CommandAction
         $send_type_arr = config("order.send_type");
 
         for ($i = 0; $i<count($list['data']); $i++){
+            /*名字电话编辑 on*/
+            $name = $list['data'][$i]['name'];
+            $phone = $list['data'][$i]['phone'];
+            if (!empty($name)){
+                $list['data'][$i]['phone_name'] = $name . " " . $phone;
+            }else{
+                $list['data'][$i]['phone_name'] = $phone;
+            }
+            /*名字电话编辑 off*/
 
             /*默认头像 begin*/
             $avatar = $list['data'][$i]['avatar'];

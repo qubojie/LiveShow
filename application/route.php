@@ -32,11 +32,14 @@ Route::group(['name' => 'sys'],function (){
     //定时处理未支付超出指定时间的订单
     Route::rule('changeOrderStatus','index/ChangeStatus/changeOrderStatus');
 
-
+    //自动收货完成订单
     Route::rule('AutoFinishTime','index/ChangeStatus/AutoFinishTime');
 
     //定时取消未支付预约吧台订单
     Route::rule('AutoCancelTableRevenue','index/ChangeStatus/AutoCancelTableRevenue');
+
+    //自动取消未支付单据
+    Route::rule('AutoCancelBillRefill','index/ChangeStatus/AutoCancelBillRefill');
 
 });
 
@@ -139,6 +142,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
         //礼品券列表
         Route::rule('giftVoucher','myInfo/giftVoucher','post|options');
 
+        //充值
+        Route::group(['name' => 'Recharge'],function (){
+            //充值列表
+            Route::rule('index','Recharge/rechargeList','post|options');
+
+            //充值确认
+            Route::rule('rechargeConfirm','Recharge/rechargeConfirm','post|options');
+
+
+        });
+
         //个人信息
         Route::group(['name' => 'myCenter'],function (){
 
@@ -218,6 +232,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
     //后台导航栏菜单
     Route::rule('menus','menus/index','post|options');
+
+    //菜单小红点
+    Route::rule('menuRedDot','menus/menuRedDot','post|options');
 
     //后台导航栏所有列表
     Route::rule('menusLists','menus/lists','post|options');
@@ -404,12 +421,35 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
         });
 
+
+        //充值金额设置
+        Route::group(['name' => 'refillAmount'],function (){
+            //充值金额列表
+            Route::rule('index','refillAmount/index','post|options');
+
+            //充值金额添加
+            Route::rule('add','refillAmount/add','post/options');
+
+            //充值金额编辑
+            Route::rule('edit','refillAmount/edit','post/options');
+
+            //充值金额删除
+            Route::rule('delete','refillAmount/delete','post/options');
+
+            //充值金额是否启用
+            Route::rule('enable','refillAmount/enable','post/options');
+
+            //充值金额排序
+            Route::rule('sortEdit','refillAmount/sortEdit','post/options');
+
+        });
     });
 
     //会籍销售管理
     Route::group(['name' => 'sales'],function (){
         //营销人员类型设置
         Route::group(['name' => 'salesType'],function (){
+
             //营销人员类型列表
             Route::rule("index",'salesType/index','post/options');
 
@@ -443,6 +483,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
         //营销人员管理
         Route::group(['name' => 'salesUser'],function (){
+            //人员状态分组
+            Route::rule("salesmanStatus",'salesUser/salesmanStatus','post/options');
+
             //营销人员列表
             Route::rule("index",'salesUser/index','post/options');
 

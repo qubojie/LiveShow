@@ -37,12 +37,22 @@ class ManageAuth extends Controller
 
         $manage_column = $manageSalesmanModel->manage_column;
 
-        $manageIsExist = $manageSalesmanModel
+        $manageInfo = $manageSalesmanModel
             ->where('phone',$phone)
             ->where('password',$password)
-            ->count();
+            ->find();
 
-        if ($manageIsExist){
+        $manageInfo = json_decode(json_encode($manageInfo),true);
+
+        if (!empty($manageInfo)){
+
+            $quitStatue = config("salesman.salesman_status")['resignation']['key'];
+
+            $statue = $manageInfo['statue'];
+
+            if ($statue == $quitStatue){
+                return $this->com_return(false,"离职员工,不可登陆");
+            }
 
             $remember_token = $this->jm_token($password.time());
 

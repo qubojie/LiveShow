@@ -336,7 +336,7 @@ class TableInfo extends CommandAction
             "subscription_l2"   => $subscription_l2,
             "subscription_l3"   => $subscription_l3,
 //            "people_max" => $people_max,
-            "table_desc"     => $table_desc,
+            "table_desc"        => $table_desc,
         ];
 
         $validate = new Validate($rule);
@@ -421,23 +421,41 @@ class TableInfo extends CommandAction
     {
         $tableModel = new MstTable();
 
-        $table_id  = $request->param('table_id','');//酒桌id
+        $table_ids  = $request->param('table_id','');//酒桌id
 
         $delete_data = [
             'is_delete'  => 1,
             'updated_at' => time()
         ];
 
-        $is_ok = $tableModel
-            ->where('table_id',$table_id)
-            ->update($delete_data);
+        $id_array = explode(",",$table_ids);
 
-        if ($is_ok !== false){
-            return $this->com_return(true,config("params.SUCCESS"));
-        }else{
-            return $this->com_return(false,config("params.FAIL"));
+        Db::startTrans();
+
+        $is_ok = false;
+
+        try{
+
+            foreach ($id_array as $table_id){
+                $is_ok = $tableModel
+                    ->where('table_id',$table_id)
+                    ->update($delete_data);
+            }
+
+            if ($is_ok !== false){
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
+
+            }else{
+
+                return $this->com_return(true,config("params.FAIL"));
+
+            }
+
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false, $e->getMessage());
         }
-
     }
 
     /**

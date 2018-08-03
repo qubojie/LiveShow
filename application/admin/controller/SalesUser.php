@@ -18,6 +18,33 @@ use think\Validate;
 class SalesUser extends CommandAction
 {
     /**
+     * 人员状态分组
+     * @return array
+     */
+    public function salesmanStatus()
+    {
+        $salesmanModel = new ManageSalesman();
+
+        $statusList = config("salesman.salesman_status");
+
+        $res = [];
+
+        foreach ($statusList as $key => $val){
+            if ($val["key"] == config("salesman.salesman_status")['pending']['key']){
+                $count = $salesmanModel
+                    ->where("statue",config("salesman.salesman_status")['pending']['key'])
+                    ->count();//未付款总记录数
+                $val["count"] = $count;
+            }else{
+                $val["count"] = 0;
+            }
+            $res[] = $val;
+        }
+        return $this->com_return(true,config("params.SUCCESS"),$res);
+    }
+
+
+    /**
      * 人员列表
      * @param Request $request
      * @return array
@@ -45,10 +72,10 @@ class SalesUser extends CommandAction
             $department_where['ms.department_id'] = ["eq","$department_id"];
         }
 
-        $status_where = [];
-        if (!empty($status)){
-            $status_where['ms.statue'] = ["eq","$status"];
+        if (empty($status)){
+            $status = 0;
         }
+        $status_where['ms.statue'] = ["eq","$status"];
 
 
         $where = [];
@@ -68,7 +95,6 @@ class SalesUser extends CommandAction
             "page" => $nowPage,
         ];
 
-        //
         $salesman_list = $manageSalesmanModel
             ->alias("ms")
             ->where($where)
@@ -99,16 +125,16 @@ class SalesUser extends CommandAction
 
             //更改营销人员状态
             if ($salesman_list['data'][$i]['statue'] == config("salesman.salesman_status")['pending']['key']){
-                $salesman_list['data'][$i]['statue'] = config("salesman.salesman_status")['pending']['name'];
+                $salesman_list['data'][$i]['statue_name'] = config("salesman.salesman_status")['pending']['name'];
             }
             if ($salesman_list['data'][$i]['statue'] == config("salesman.salesman_status")['working']['key']){
-                $salesman_list['data'][$i]['statue'] = config("salesman.salesman_status")['working']['name'];
+                $salesman_list['data'][$i]['statue_name'] = config("salesman.salesman_status")['working']['name'];
             }
             if ($salesman_list['data'][$i]['statue'] == config("salesman.salesman_status")['suspended']['key']){
-                $salesman_list['data'][$i]['statue'] = config("salesman.salesman_status")['suspended']['name'];
+                $salesman_list['data'][$i]['statue_name'] = config("salesman.salesman_status")['suspended']['name'];
             }
             if ($salesman_list['data'][$i]['statue'] == config("salesman.salesman_status")['resignation']['key']){
-                $salesman_list['data'][$i]['statue'] = config("salesman.salesman_status")['resignation']['name'];
+                $salesman_list['data'][$i]['statue_name'] = config("salesman.salesman_status")['resignation']['name'];
             }
 
         }
@@ -376,11 +402,11 @@ class SalesUser extends CommandAction
         $status = $request->param("status","");
         $reason = $request->param("reason","");//操作原因
 
-        if ($status == 1){
+        if ($status == config("salesman.salesman_status")['working']['key']){
             $action = config("useraction.verify_passed")['name'];
-        }elseif ($status == 2){
+        }elseif ($status == config("salesman.salesman_status")['suspended']['key']){
             $action = config("useraction.suspended")['name'];
-        }elseif ($status == 9){
+        }elseif ($status == config("salesman.salesman_status")['resignation']['key']){
             $action = config("useraction.resignation")['name'];
         }else{
             $action = "empty";

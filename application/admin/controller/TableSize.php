@@ -57,7 +57,7 @@ class TableSize extends CommandAction
 
         $rule = [
             "size_title|容量标题"  => "require|max:30|unique:mst_table_size",
-            "size_desc|容量描述"   => "require|max:200",
+            "size_desc|容量描述"   => "max:200",
             "sort|排序"           => "number",
         ];
         $check_data = [
@@ -109,7 +109,7 @@ class TableSize extends CommandAction
         $rule = [
             "size_id|容量id"  => "require",
             "size_title|容量标题"  => "require|max:30|unique:mst_table_size",
-            "size_desc|容量描述"   => "require|max:200",
+            "size_desc|容量描述"   => "max:200",
             "sort|排序"           => "number",
         ];
         $check_data = [

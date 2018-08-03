@@ -62,6 +62,14 @@ class ManageReservation extends HomeAction
             return $this->com_return(false,$validate->getError(),null);
         }
 
+        /*权限判断 on*/
+        $manageInfo = $this->tokenGetManageInfo($token);
+        $statue     = $manageInfo['statue'];
+
+        if ($statue != \config("salesman.salesman_status")['working']['key']){
+            return $this->com_return(false,\config("params.MANAGE_INFO")['UsrLMT']);
+        }
+        /*权限判断 off*/
 
         $pagesize = $request->param("pagesize",config('XCXPAGESIZE'));//显示个数,不传时为10
 
@@ -149,7 +157,15 @@ class ManageReservation extends HomeAction
             return $this->com_return(false,$validate->getError());
         }
 
-//        dump($customerPhone);die;
+        /*权限判断 on*/
+        $manageInfo = $this->tokenGetManageInfo($token);
+        $statue     = $manageInfo['statue'];
+
+        if ($statue != \config("salesman.salesman_status")['working']['key']){
+            return $this->com_return(false,\config("params.MANAGE_INFO")['UsrLMT']);
+        }
+        /*权限判断 off*/
+
 
         //根据客户电话 获取客户id
         $userInfo = $this->phoneGetCustomerInfo($customerPhone,$token);
@@ -183,7 +199,7 @@ class ManageReservation extends HomeAction
      */
     public function cancelReservation(Request $request)
     {
-        $remember_token = $request->header("Token",'');
+        $token = $request->header("Token",'');
 
         $trid           = $request->param("trid","");//台位id
 
@@ -191,9 +207,15 @@ class ManageReservation extends HomeAction
             return $this->com_return(false,\config("params.PARAM_NOT_EMPTY"));
         }
 
-        /*$manageInfo = $this->tokenGetManageInfo($remember_token);
 
-        dump($manageInfo);die;*/
+        /*权限判断 on*/
+        $manageInfo = $this->tokenGetManageInfo($token);
+        $statue     = $manageInfo['statue'];
+
+        if ($statue != \config("salesman.salesman_status")['working']['key']){
+            return $this->com_return(false,\config("params.MANAGE_INFO")['UsrLMT']);
+        }
+        /*权限判断 off*/
 
 
         //获取当前台位信息

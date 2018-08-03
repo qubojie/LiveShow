@@ -10,6 +10,7 @@ namespace app\index\controller;
 use app\admin\model\TableRevenue;
 use app\wechat\controller\OpenCard;
 use app\wechat\model\BillCardFees;
+use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
 use think\Controller;
 use think\Db;
@@ -19,7 +20,7 @@ use think\Log;
 class ChangeStatus extends Controller
 {
     /**
-     * 系统自动取消订单
+     * 系统自动取消开卡订单
      * @return BillCardFees|bool|string
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
@@ -44,7 +45,6 @@ class ChangeStatus extends Controller
                 $time = time();
                 if ($auto_cancel_time < $time){
                     //时间超出
-                    //dump(123);die;
                     $params = [
                         'sale_status' => 9,
                         'cancel_user' => 'sys',
@@ -70,9 +70,9 @@ class ChangeStatus extends Controller
                         ->update($user_params);
 
                     if ($is_ok && $user_ok){
-                        $is_ok = true;
+                        $is_ok = 1;
                     }else{
-                        $is_ok = false;
+                        $is_ok = 2;
                     }
 
                 }else{
@@ -129,7 +129,7 @@ class ChangeStatus extends Controller
                 }
             }
 
-            return true;
+            return 1;
 
         }catch (Exception $e){
             return $e->getMessage();
@@ -146,12 +146,9 @@ class ChangeStatus extends Controller
     public static function AutoCancelTableRevenue()
     {
         //查找未支付的订单
-
         $list = Db::name('table_revenue')
             ->where('status',config("order.table_reserve_status")['pending_payment']['key'])
             ->select();
-
-        Db::startTrans();
 
         try{
 
@@ -190,9 +187,6 @@ class ChangeStatus extends Controller
             $tableRevenueModel = new TableRevenue();
             $billSubscriptionModel = new BillSubscription();
 
-
-
-
             for ($i = 0; $i < count($list); $i++){
                 $subscription_type = $list[$i]['subscription_type'];//定金类型   0无订金   1订金   2订单
                 $subscription      = $list[$i]['subscription'];//订金金额
@@ -205,13 +199,9 @@ class ChangeStatus extends Controller
                 $billSubscriptionReturn = true;
 
                 if ($now_time > $auto_cancel_time_s){
-                    dump("超时,为正数----".($now_time - $auto_cancel_time_s));
-
                     $tableRevenueReturn = $tableRevenueModel
                         ->where('trid',$trid)
                         ->update($table_params);
-
-
 
                     if ($subscription_type == config("order.subscription_type")['subscription']['key']){
                         //如果为定金,执行定金状态变更
@@ -226,16 +216,49 @@ class ChangeStatus extends Controller
                 }
 
                 if ($tableRevenueReturn !== false && $billSubscriptionReturn !== false){
-                    Db::commit();
                 }
 
             }
 
-            return true;
+            return 1;
 
         }catch (Exception $e){
-            Db::rollback();
             return $e->getMessage();
+        }
+
+    }
+
+    /**
+     * 系统自动取消未支付充值单据
+     * @return int|string
+     */
+    public static function AutoCancelBillRefill()
+    {
+        $now_time = time();//当前时间
+
+        //获取系统设置自动取消时间
+        $cardObj = new OpenCard();
+
+        $reserve_subscription_auto_time   = $cardObj->getSysSettingInfo("reserve_subscription_auto_time");
+
+        $reserve_subscription_auto_time_s = $reserve_subscription_auto_time * 60;//自动取消等待秒数
+
+        $billRefillParams = [
+            "status"     => config("order.recharge_status")['cancel']['key'],
+            "updated_at" => $now_time
+        ];
+
+        $billRefillModel = new BillRefill();
+
+        $list = $billRefillModel
+            ->where('status',config("order.recharge_status")['pending_payment']['key'])
+            ->where("created_at","lt",$now_time - $reserve_subscription_auto_time_s )
+            ->update($billRefillParams);
+
+        if ($list){
+            return 1;
+        }else{
+            return "什么都没做";
         }
 
     }

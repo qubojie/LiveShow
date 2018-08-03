@@ -7,8 +7,10 @@
  */
 namespace app\admin\controller;
 
+use app\admin\model\ManageSalesman;
 use app\admin\model\SysAdminUser;
 use app\admin\model\SysMenu;
+use app\wechat\model\BillCardFees;
 use think\Controller;
 use think\Exception;
 use think\Request;
@@ -210,5 +212,42 @@ class Menus extends CommandAction
         }
 
         return $common->com_return(true,"获取成功",$result);
+    }
+
+
+    /**
+     * 小红点统计
+     */
+    public function menuRedDot()
+    {
+        $billCardModel = new BillCardFees();
+
+        $salesmanModel = new ManageSalesman();
+
+        $needShipCount = $billCardModel
+            ->where("sale_status",config("order.open_card_status")['pending_ship']['key'])
+            ->count();//待发货
+
+        $needPayCount = $billCardModel
+            ->where("sale_status",config("order.open_card_status")['pending_payment']['key'])
+            ->count();//未付款总记录数
+
+        $needVerifyCount = $salesmanModel
+            ->where("statue",config("salesman.salesman_status")['pending']['key'])
+            ->count();//未付款总记录数
+
+        $is_show = $needShipCount + $needPayCount;
+
+        $sales_is_show = $needVerifyCount;
+
+        $res = [
+            "member"        => $is_show,
+            "openCardOrder" => $needPayCount,
+            "giftSend"      => $needShipCount,
+            "sales"         => $sales_is_show,
+            "salesUser"     => $needVerifyCount
+        ];
+
+        return $this->com_return(true,config("params.SUCCESS"),$res);
     }
 }

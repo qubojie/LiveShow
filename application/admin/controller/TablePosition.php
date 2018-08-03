@@ -58,7 +58,7 @@ class TablePosition extends CommandAction
 
         $rule = [
             "location_title|位置名称"  => "require|max:30|unique:mst_table_location",
-            "location_desc|位置描述"   => "require|max:200",
+            "location_desc|位置描述"   => "max:200",
             "sort|排序"               => "number",
         ];
         $check_data = [
@@ -110,7 +110,7 @@ class TablePosition extends CommandAction
         $rule = [
             "location_id|位置id"      => "require",
             "location_title|位置名称"  => "require|max:30|unique:mst_table_location",
-            "location_desc|位置描述"   => "require|max:200",
+            "location_desc|位置描述"   => "max:200",
             "sort|排序"               => "number",
         ];
         $check_data = [

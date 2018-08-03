@@ -257,7 +257,7 @@ return [
         "LONG_NOT_ENOUGH"       => "长度不够",
         "PARAM_NOT_EMPTY"       => "非法操作",
         "PASSWORD_DIF"          => "密码不一致",
-        "PASSWORD_PP"          => "密码不匹配",
+        "PASSWORD_PP"           => "密码不匹配",
         "ACCOUNT_PASSWORD_DIF"  => "账号密码不匹配",
         'SUCCESS'               => "成功",
         'FAIL'                  => "失败",
@@ -281,11 +281,14 @@ return [
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
         "PHONE_NOT_EXIST"       => "未找到相关会员信息",
         "OPEN_TABLE_STATUS"     => [
-            "QrCodeINVALID" => "二维码无效",
-            "CANCELED"      => "预约已取消,请重新预约",
-            "UNPAY"         => "未支付定金,不可开台",
-            "ALREADYOPEN"   => "预约已开台,不可重复操作",
-            "CLEARTABLE"    => "桌已清台,不可扫码开台"
+            "QrCodeINVALID"     => "二维码无效",
+            "CANCELED"          => "预约已取消,请重新预约",
+            "UNPAY"             => "未支付定金,不可开台",
+            "ALREADYOPEN"       => "预约已开台,不可重复操作",
+            "CLEARTABLE"        => "桌已清台,不可扫码开台"
+        ],
+        "MANAGE_INFO"           => [
+            "UsrLMT"            => "权限不足",
         ],
      ],
 
@@ -449,7 +452,7 @@ return [
     */
     'salesman' => [
         'salesman_status' => [
-            'pending'       => ['key' => '0','name' => '入职待审核'],
+            'pending'       => ['key' => '0','name' => '待审核'],
             'working'       => ['key' => '1','name' => '在职'],
             'suspended'     => ['key' => '2','name' => '停职'],
             'resignation'   => ['key' => '9','name' => '离职'],
@@ -497,9 +500,9 @@ return [
 
         //开卡订单列表分类
         'open_card_type' => [
-            'pending_payment' => ['key' => '0',   'name' => '待付款'],
+            'pending_payment' => ['key' => '0',     'name' => '待付款'],
             'completed'       => ['key' => '1,2,3', 'name' => '交易完成'],
-            'cancel'          => ['key' => '9',   'name' => '交易取消'],
+            'cancel'          => ['key' => '9',     'name' => '交易取消'],
         ],
         //开卡礼寄送分类
         'gift_ship_type' => [
@@ -546,10 +549,25 @@ return [
             'cash'    => ['key' => 'cash',   'name' => '现金'],
         ],
 
+        //支付场景
+        'pay_scene' => [
+            'open_card'  => ['key' => 'open_card', 'name' => '开卡支付'],
+            'reserve'    => ['key' => 'reserve',   'name' => '预约定金支付'],
+            'point_list' => ['key' => 'point_list','name' => '点单支付'],
+            'recharge'   => ['key' => 'recharge',  'name' => '充值'],
+        ],
+
         //赠品发货类型
         'send_type' => [
             'express'  => ['key' => 'express', 'name' => '快递'],
             'salesman' => ['key' => 'salesman', 'name' => '销售'],
+        ],
+
+        //充值状态
+        'recharge_status' => [
+            'pending_payment' => ['key' => '0',     'name' => '待付款'],
+            'completed'       => ['key' => '1',     'name' => '已付款'],
+            'cancel'          => ['key' => '9',     'name' => '已取消'],
         ],
     ],
 

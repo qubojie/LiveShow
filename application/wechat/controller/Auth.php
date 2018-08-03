@@ -215,7 +215,7 @@ class Auth extends Controller
                 ->alias('ms')
                 ->join('mst_salesman_type mst','mst.stype_id = ms.stype_id')
                 ->where('ms.phone',$referrer_phone)
-                ->where('ms.statue','1')
+                ->where('ms.statue',config("salesman.salesman_status")['working']['key'])
                 ->field('ms.sid,mst.stype_key')
                 ->find();
 

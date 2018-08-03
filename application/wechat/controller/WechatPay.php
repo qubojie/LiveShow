@@ -116,9 +116,37 @@ class WechatPay extends Controller
 
         $openId = $request->param('openid','');
 
+        $scene  = $request->param("scene","");//支付场景
+
         if (empty($vid)){
             return $this->com_return(false,'订单号不能为空');
         }
+
+
+        /*if ($scene == config("order.pay_scene")['open_card']['key']){
+
+            //获取开卡订单金额
+            $payable_amount = $this->getOrderPayableAmount($vid);
+
+        }
+
+        if ($scene == config("order.pay_scene")['reserve']['key']){
+
+            //这里去处理预约定金回调逻辑
+            //获取订台金额
+            $payable_amount = $this->getSubscriptionPayableAmount($vid);
+
+        }
+
+
+        if ($scene == config("order.pay_scene")['recharge']['key']){
+
+            //这里去处理预约定金回调逻辑
+            //获取订台金额
+            //$payable_amount = $this->getSubscriptionPayableAmount($vid);
+
+        }*/
+
 
         $headL= substr($vid,0,2);
 
@@ -147,7 +175,7 @@ class WechatPay extends Controller
             'total_fee'    => $payable_amount * 100,
         ];
 
-        $result = JsapiPay::getParams2($params,$openId);
+        $result = JsapiPay::getParams2($params,$openId,$scene);
 
         return $result;
     }
@@ -257,6 +285,8 @@ class WechatPay extends Controller
 
         $notifyType = $this->request->param('notifyType',"");
 
+        $attach     = $this->request->param('attach',"");//支付场景包名
+
         if ($notifyType == 'adminCallback'){
 
             $values = $this->request->param();
@@ -271,8 +301,36 @@ class WechatPay extends Controller
 
         $order_id = $values['out_trade_no'];
 
-        $headL= substr($order_id,0,2);
+        /*$attach   = $values['attach'];//获取回调支付包名
 
+        if ($attach == config("order.pay_scene")['open_card']['key']){
+
+            //这里去处理开卡回调逻辑
+            $res = $this->openCardNotify($values,$notifyType);
+            echo $res;die;
+
+        }
+
+        if ($attach == config("order.pay_scene")['reserve']['key']){
+
+            //这里去处理预约定金回调逻辑
+            //获取订台金额
+            $res = $this->payDeposit($values,$notifyType);
+            echo $res;die;
+
+        }
+
+
+        if ($attach == config("order.pay_scene")['recharge']['key']){
+
+            //这里去处理预约定金回调逻辑
+            //获取订台金额
+        }*/
+
+
+
+
+        $headL= substr($order_id,0,2);
 
         if ($headL == "SU"){
             //这里去处理预约定金回调逻辑
@@ -281,11 +339,103 @@ class WechatPay extends Controller
             echo $res;die;
 
         }else{
-            //这里去处理开卡回调逻辑
-            $res = $this->openCardNotify($values,$notifyType);
-            echo $res;die;
+            if ($headL == "RF"){
+                //这里去处理充值回调逻辑
+                $res = $this->recharge($values,$notifyType);
+                echo $res;die;
+
+            }else{
+                //这里去处理开卡回调逻辑
+                $res = $this->openCardNotify($values,$notifyType);
+                echo $res;die;
+            }
+
         }
     }
+
+    /**
+     * 充值回调
+     * @param array $values
+     * @param string $notyfyType
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    protected function recharge($values = array(),$notyfyType = "")
+    {
+        $reid = $values['out_trade_no'];
+
+        /*'appid' => 'wxf23099114472fbe6',
+          'attach' => '公众号支付',
+          'bank_type' => 'COMM_CREDIT',
+          'cash_fee' => '100',
+          'fee_type' => 'CNY',
+          'is_subscribe' => 'N',
+          'mch_id' => '1507786841',
+          'nonce_str' => 'jqdzarqu48pmlmfa24qpom6nn0s5oyol',
+          'openid' => 'oDgH15SkR5bOqfoG2CS4iKJXndN0',
+          'out_trade_no' => 'V1807161054462077A6F',
+          'result_code' => 'SUCCESS',
+          'return_code' => 'SUCCESS',
+          'sign' => '51B15A80BDA18F37FD1C32D3D72EFE2A',
+          'time_end' => '20180716105502',
+          'total_fee' => '100',
+          'trade_type' => 'JSAPI',
+          'transaction_id' => '4200000122201807160565649815',*/
+
+        //获取订单信息
+        $order_info = Db::name("bill_refill")
+            ->where('rfid',$reid)
+            ->find();
+
+        if (empty($order_info)){
+            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[订单不存在!!!]]></return_msg> </xml>';
+            die;
+        }
+
+        $status = $order_info['status'];
+
+        if ($status == '1'){
+            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[订单已支付]]></return_msg> </xml>';
+            die;
+        }
+
+        $uid  = $order_info['uid'];
+
+        $time = time();
+
+        $rechargeCallBackObj  = new RechargeCallBack();
+
+        Db::startTrans();
+
+        try{
+            $cash_fee       = $values['cash_fee'];
+            $total_fee      = $values['total_fee'];
+            $out_trade_no   = $values['out_trade_no'];
+            $transaction_id = $values['transaction_id'];
+
+            //更新充值单据状态
+            $updateBillRefillParams = [
+                "pay_type"   => config("order.pay_method")['wxpay']['key'],
+                "pay_time"   => $time,
+                "pay_no"     => $transaction_id,
+                "amount"     => $cash_fee,
+                "status"     => config("order.recharge_status")['completed']['key'],
+                "updated_at" => $time
+            ];
+
+            //更新用户充值单据状态
+            $updateRechargeReturn = $rechargeCallBackObj->updateBillRefill($updateBillRefillParams,"$out_trade_no");
+
+        }catch (Exception $e){
+            Log::info("定金支付回调出错----- ".$e->getMessage());
+            Db::rollback();
+            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$e->getMessage().']]></return_msg> </xml>';
+            die;
+
+        }
+    }
+
 
     /**
      * 预约定金缴纳回调

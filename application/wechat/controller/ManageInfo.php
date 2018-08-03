@@ -46,6 +46,15 @@ class ManageInfo extends HomeAction
             return $this->com_return(false,$validate->getError(),null);
         }
 
+        /*权限判断 on*/
+        $manageInfo = $this->tokenGetManageInfo($remember_token);
+        $statue     = $manageInfo['statue'];
+
+        if ($statue != \config("salesman.salesman_status")['working']['key']){
+            return $this->com_return(false,\config("params.MANAGE_INFO")['UsrLMT']);
+        }
+        /*权限判断 off*/
+
         $old_password = sha1($old_password);
 
         $manageModel = new ManageSalesman();

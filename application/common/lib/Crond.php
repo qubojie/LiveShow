@@ -12,6 +12,7 @@ use think\Config;
 use think\console\Command;
 use think\console\Input;
 use think\console\Output;
+use think\Db;
 use think\Log;
 
 class Crond extends Command
@@ -52,6 +53,7 @@ class Crond extends Command
 
         if (!empty($exe_method))
         {
+            Db::startTrans();
             foreach ($exe_method as $method)
             {
                 if(!is_callable($method))
@@ -73,7 +75,8 @@ class Crond extends Command
 
                 if (!is_dir($dateTimeFile)) @mkdir($dateTimeFile);
 
-                if ($res === true){
+                if ($res === 1){
+                    Db::commit();
                     Log::info("返回的数据".var_export($res,true));
                     //记录执行成功日志
                     error_log(date('Y-m-d H:i:s')." {$method}(), 执行时间: {$runtime} , 执行成功 \n",3,$dateTimeFile.date("d").".log");
@@ -85,6 +88,7 @@ class Crond extends Command
                     error_log(date('Y-m-d H:i:s')." {$method}(), 执行时间: {$runtime} , 记录执行失败日志 \n",3,$dateTimeFile.date("d").".log");
                 }
             }
+
 
             $time_total = microtime(true) - $GLOBALS['_beginTime'];
             echo "total:{$time_total}\n";
