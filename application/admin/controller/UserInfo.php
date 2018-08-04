@@ -128,7 +128,7 @@ class UserInfo extends CommandAction
         $user_list = $userModel
             ->alias('u')
             ->join('user_card uc','uc.uid = u.uid','LEFT')
-            ->join('mst_card_vip cv','cv.card_id = uc.card_id')
+            ->join('mst_card_vip cv','cv.card_id = uc.card_id','LEFT')
             ->where($where)
             ->where($card_name_where)
             ->where($user_status_where)
@@ -197,9 +197,6 @@ class UserInfo extends CommandAction
             }
 
             /*会员状态翻译 off*/
-
-
-
 
             if ($referrer_type == 'user'){
                 //去用户表查找推荐人信息
@@ -294,7 +291,7 @@ class UserInfo extends CommandAction
         $common = new Common();
         $userModel = new User();
 
-        $uid = $request->param('uid','');
+        $uid    = $request->param('uid','');
         $status = $request->param('status','0');
         if (empty($uid)){
             return $common->com_return(false,config('PARAM_NOT_EMPTY'));

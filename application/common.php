@@ -60,3 +60,22 @@ function getTimeWeek($time, $i = 0){
 
     return $weekArray[date("w", $time + $oneD * $i)];
 }
+
+
+/*获取默认头像*/
+function getSysSetting($key)
+{
+    $sysSettingModel = new \app\admin\model\SysSetting();
+
+    $value_res = $sysSettingModel
+        ->where('key',$key)
+        ->field("value")
+        ->find();
+
+    $value_res = json_decode(json_encode($value_res),true);
+
+    $value = $value_res['value'];
+
+    return $value;
+
+}

@@ -12,7 +12,10 @@ use app\admin\model\MstTableImage;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\SortName;
+use app\wechat\model\BcUserInfo;
 use think\Config;
+use think\Db;
+use think\Exception;
 use think\Request;
 use think\Validate;
 
@@ -240,5 +243,89 @@ class ManageInfo extends HomeAction
         $charArray["userNumCount"] = $user_num;
 
         return $this->com_return(true,'成功',$charArray);
+    }
+
+    /**
+     * 编辑客户信息
+     * @param Request $request
+     * @return array
+     */
+    public function customerEdit(Request $request)
+    {
+        $uid       = $request->param("uid","");//用户id
+        $phone     = $request->param("phone","");//电话
+        $name      = $request->param("name","");//用户姓名
+        $sex       = $request->param("sex","");//性别
+        $wx_number = $request->param("wx_number","");//微信号
+        $email     = $request->param("email","");//邮箱
+
+        $car_no    = $request->param("car_no","");//车牌号
+
+        $remarks   = $request->param("remarks","");//备注
+
+        $rule = [
+            "uid|用户id"  => "require",
+            "phone|电话"  => "require",
+            "name|姓名"   => "require",
+            "sex|性别"    => "require",
+        ];
+
+        $check_data = [
+            "uid"   => $uid,
+            "phone" => $phone,
+            "name"  => $name,
+            "sex"   => $sex,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($check_data)){
+            return $this->com_return(false,$validate->getError());
+        }
+
+        $userModel = new User();
+        $userInfoModel = new BcUserInfo();
+
+        $updateUserParams = [
+            "phone"     => $phone,
+            "name"      => $name,
+            "sex"       => $sex,
+            "wx_number" => $wx_number,
+            "email"     => $email,
+            "updated_at"=> time()
+        ];
+
+        $updateUserInfoParams = [
+            "car_no"    => $car_no,
+            "updated_at"=> time()
+        ];
+
+        Db::startTrans();
+        try{
+            $updateUserReturn = $userModel
+                ->where('uid',$uid)
+                ->update($updateUserParams);
+
+            if (!empty($car_no)){
+
+                $updateUserInfoReturn = $userInfoModel
+                    ->where("uid",$uid)
+                    ->update($updateUserInfoParams);
+            }else{
+                $updateUserInfoReturn = true;
+            }
+
+            if ($updateUserReturn !== false && $updateUserInfoReturn !== false){
+
+                return $this->com_return(true,\config("params.SUCCESS"));
+
+            }else{
+                return $this->com_return(false,\config("params.FAIL"));
+            }
+
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage());
+        }
     }
 }

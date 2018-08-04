@@ -437,10 +437,6 @@ class OpenCardOrder extends CommandAction
             'vid|订单号'                      => 'require',
             'payable_amount|线上应付且未付金额' => 'require',
             'pay_type|支付方式'                => 'require',
-//            'delivery_name|收货人姓名'         => 'require',
-//            'delivery_phone|收货人电话'        => 'regex:1[3-8]{1}[0-9]{9}',
-//            'delivery_area|收货人区域'         => 'require',
-//            'delivery_address|收货人详细地址'   => 'require',
             'reason|操作原因'                  => 'require',
         ];
 
@@ -448,10 +444,6 @@ class OpenCardOrder extends CommandAction
             "vid"               => $vid,
             "payable_amount"    => $payable_amount,
             "pay_type"          => $pay_type,
-//            "delivery_name"     => $delivery_name,
-//            "delivery_phone"    => $delivery_phone,
-//            "delivery_area"     => $delivery_area,
-//            "delivery_address"  => $delivery_address,
             "reason"            => $reason,
         ];
 
@@ -474,6 +466,7 @@ class OpenCardOrder extends CommandAction
                 'pay_no' => $pay_no
             ];
 
+            //支付的回单号验证
             $pay_validate = new Validate($pay_rule);
 
             if (!$pay_validate->check($check_pay_params)){

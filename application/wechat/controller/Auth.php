@@ -88,7 +88,7 @@ class Auth extends Controller
         }
 
         if (empty($headimgurl)){
-            $headimgurl = Env::get("DEFAULT_AVATAR_URL")."avatar.jpg";
+            $headimgurl = getSysSetting("sys_default_avatar");
         }
 
         $is_pp = $this->checkVerifyCode($phone,$code);
@@ -115,8 +115,6 @@ class Auth extends Controller
             //不是内部人员
             $return_msg = config("ADD_SUCCESS");
         }
-
-
 
         if ($is_exist <= 0){
             //未注册用户
@@ -510,7 +508,6 @@ class Auth extends Controller
             ->where('uid',$uid)
             ->field('referrer_id,referrer_type')
             ->find();
-
 
         $user_info = json_decode(json_encode($user_info),true);
 

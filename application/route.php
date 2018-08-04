@@ -206,6 +206,10 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //我的客户列表
             Route::rule("customerList","ManageInfo/customerList");
 
+            //编辑客户信息
+            Route::rule("customerEdit","ManageInfo/customerEdit","post|options");
+
+
         });
 
     });

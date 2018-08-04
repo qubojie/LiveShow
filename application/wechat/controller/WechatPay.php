@@ -400,11 +400,30 @@ class WechatPay extends Controller
             die;
         }
 
-        $uid  = $order_info['uid'];
+        $uid       = $order_info['uid'];
+        $cash_gift = $order_info['cash_gift'];//赠送礼金数
 
         $time = time();
 
+
+        $userOldMoneyInfo = Db::name('user')
+            ->where('uid',$uid)
+            ->field('account_balance,account_deposit,account_cash_gift,account_point')
+            ->find();
+//        dump($userOldMoneyInfo);die;
+
+        //用户钱包可用余额
+        $account_balance = $userOldMoneyInfo['account_balance'];
+
+        //用户钱包押金余额
+        $account_deposit = $userOldMoneyInfo['account_deposit'];
+
+        //用户礼金余额
+        $account_cash_gift = $userOldMoneyInfo['account_cash_gift'];
+
         $rechargeCallBackObj  = new RechargeCallBack();
+
+        $cardCallBackObj      = new CardCallback();
 
         Db::startTrans();
 
@@ -425,17 +444,77 @@ class WechatPay extends Controller
             ];
 
             //更新用户充值单据状态
-            $updateRechargeReturn = $rechargeCallBackObj->updateBillRefill($updateBillRefillParams,"$out_trade_no");
+            $updateRechargeReturn  = $rechargeCallBackObj->updateBillRefill($updateBillRefillParams,"$out_trade_no");
 
+            //更新用户余额参数
+            $updateUserParams = [
+                "account_balance"   => $cash_fee + $account_balance,
+                "account_cash_gift" => $account_cash_gift + $cash_gift,
+                "updated_at"        =>  $time
+            ];
+
+            //更新用户余额数据
+            $updateUserReturn        = $cardCallBackObj->updateUserInfo($updateUserParams,$uid);
+
+            //余额明细参数
+            $insertUserAccountParams = [
+                "uid"          => $uid,
+                "balance"      => $cash_fee,
+                "last_balance" => $cash_fee + $account_balance,
+                "change_type"  => '2',
+                "action_user"  => 'sys',
+                "action_type"  => config('user.account')['recharge']['key'],
+                "oid"          => $reid,
+                "deal_amount"  => $cash_fee,
+                "action_desc"  => "余额充值",
+                "created_at"   => $time,
+                "updated_at"   => $time
+            ];
+
+            //插入用户充值明细
+            $insertUserAccountReturn = $cardCallBackObj->updateUserAccount($insertUserAccountParams);
+
+            if ($cash_gift > 0){
+                //如果礼金数额大于0 则插入用户充值明细
+
+                //变动后的礼金总余额
+                $last_cash_gift = $cash_gift + $account_cash_gift;
+
+                $userAccountCashGiftParams = [
+                    'uid'            => $uid,
+                    'cash_gift'      => $cash_gift,
+                    'last_cash_gift' => $last_cash_gift,
+                    'change_type'    => '2',
+                    'action_user'    => 'sys',
+                    'action_type'    => config('user.gift_cash')['recharge_give']['key'],
+                    'action_desc'    => config('user.gift_cash')['recharge_give']['name'],
+                    'oid'            => $reid,
+                    'created_at'     => $time,
+                    'updated_at'     => $time
+                ];
+
+                //给用户添加礼金明细
+                $userAccountCashGiftReturn = $cardCallBackObj->updateUserAccountCashGift($userAccountCashGiftParams);
+            }else{
+                $userAccountCashGiftReturn = true;
+            }
+
+            if ($updateRechargeReturn && $updateUserReturn && $insertUserAccountReturn && $userAccountCashGiftReturn){
+                Db::commit();
+                Log::info("充值支付回调成功");
+                echo '<xml> <return_code><![CDATA[SUCCESS]]></return_code> <return_msg><![CDATA[OK]]></return_msg> </xml>';
+                die;
+            }else{
+                echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[出错了]]></return_msg> </xml>';
+                die;
+            }
         }catch (Exception $e){
-            Log::info("定金支付回调出错----- ".$e->getMessage());
+            Log::info("充值支付回调出错----- ".$e->getMessage());
             Db::rollback();
             echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$e->getMessage().']]></return_msg> </xml>';
             die;
-
         }
     }
-
 
     /**
      * 预约定金缴纳回调

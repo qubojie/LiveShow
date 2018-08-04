@@ -120,7 +120,8 @@ class SalesUser extends CommandAction
 
             //处理默认头像
             if (empty($salesman_list['data'][$i]['avatar'])){
-                $salesman_list['data'][$i]['avatar'] = Env::get("DEFAULT_AVATAR_URL")."avatar.jpg";
+//                $salesman_list['data'][$i]['avatar'] = Env::get("DEFAULT_AVATAR_URL")."avatar.jpg";
+                $salesman_list['data'][$i]['avatar'] = getSysSetting("sys_default_avatar");
             }
 
             //更改营销人员状态
@@ -222,6 +223,12 @@ class SalesUser extends CommandAction
 
         if (!$validate->check($request_res)){
             return $common->com_return(false,$validate->getError(),null);
+        }
+
+        if (empty($avatar)){
+
+            $avatar = getSysSetting("sys_default_avatar");
+
         }
 
         $UUIDUntil = new UUIDUntil();

@@ -420,6 +420,7 @@ return [
         'gift_cash' => [
             'exchange_plus'    => ['key' => '100', 'name' => '赠券兑换礼金'],
             'open_card_reward' => ['key' => '101', 'name' => '开卡赠送礼金'],
+            'recharge_give'    => ['key' => '102', 'name' => '充值赠送礼金'],
             'consume'          => ['key' => '200', 'name' => '礼金消费'],
             'recommend_reward' => ['key' => '800', 'name' => '推荐会员赠送礼金'],
             'other'            => ['key' => '900', 'name' => '其他原因调整'],
