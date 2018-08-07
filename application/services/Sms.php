@@ -14,7 +14,41 @@ use think\Controller;
 class Sms extends Controller
 {
     /**
+     * 发送短信信息
+     * @param $phone
+     * @return array
+     */
+    public function sendMsg($phone)
+    {
+        if (empty($phone)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+
+        $message = config('sms.sms_verify_code').config('sms.sign');
+
+        $sms = new LuoSiMaoSms();
+
+        $msg = " 预定成功 ";
+
+        $res = $sms->send($phone, str_replace('%code%', $msg, $message));
+
+        if ($res){
+            if (isset($res['error']) && $res['error'] == 0){
+                //缓存验证码
+                return $this->com_return(true, config("sms.send_success"));
+            }else{
+                return $this->com_return(false, $res['msg']);
+            }
+        }else{
+            return $this->com_return(false, config("sms.send_fail"));
+        }
+
+    }
+
+    /**
      * 发送验证码
+     * @param $phone
+     * @return array
      */
     public function sendVerifyCode($phone)
     {

@@ -396,6 +396,9 @@ class OpenCardOrder extends CommandAction
      * 收款操作
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function adminPay(Request $request)
     {
@@ -435,16 +438,16 @@ class OpenCardOrder extends CommandAction
 
         $public_rule = [
             'vid|订单号'                      => 'require',
-            'payable_amount|线上应付且未付金额' => 'require',
+            'payable_amount|付款金额'         => 'require',
             'pay_type|支付方式'                => 'require',
-            'reason|操作原因'                  => 'require',
+//            'reason|操作原因'                  => 'require',
         ];
 
         $check_public_params = [
             "vid"               => $vid,
             "payable_amount"    => $payable_amount,
             "pay_type"          => $pay_type,
-            "reason"            => $reason,
+//            "reason"            => $reason,
         ];
 
         $validate = new Validate($public_rule);
@@ -454,6 +457,24 @@ class OpenCardOrder extends CommandAction
         }
 
         $time = time();
+
+        if (empty($pay_bank_time)){
+            $pay_bank_time = $time;
+        }
+
+        //获取当前订单状态
+        $orderInfo = Db::name('bill_card_fees')
+            ->where('vid',$vid)
+            ->field('uid,sale_status,delivery_name')
+            ->find();
+
+        $orderInfo = json_decode(json_encode($orderInfo),true);
+
+        \think\Log::info("订单状态".var_export($orderInfo,true));
+
+        if ($orderInfo['sale_status'] == config("order.open_card_status")['pending_ship']['key'] || $orderInfo['sale_status'] == config("order.open_card_status")['pending_receipt']['key'] || $orderInfo['sale_status'] == config("order.open_card_status")['completed']['key'] ){
+            return $this->com_return(false,config("params.ORDER")['completed']);
+        }
 
         //如果是微信支付
         if ($pay_type == config('order.pay_method')['wxpay']['key']){
@@ -483,10 +504,10 @@ class OpenCardOrder extends CommandAction
                 $orderParams = [
                     'pay_type'         => $pay_type,
                     'pay_no'           => $pay_no,
-                    'delivery_name'    => $delivery_name,
-                    'delivery_phone'   => $delivery_phone,
-                    'delivery_area'    => $delivery_area,
-                    'delivery_address' => $delivery_address,
+//                    'delivery_name'    => $delivery_name,
+//                    'delivery_phone'   => $delivery_phone,
+//                    'delivery_area'    => $delivery_area,
+//                    'delivery_address' => $delivery_address,
                     'updated_at'       => time()
                 ];
 
@@ -538,10 +559,10 @@ class OpenCardOrder extends CommandAction
                 $orderParams = [
                     'pay_type'         => $pay_type,
                     'pay_no'           => $pay_no,
-                    'delivery_name'    => $delivery_name,
-                    'delivery_phone'   => $delivery_phone,
-                    'delivery_area'    => $delivery_area,
-                    'delivery_address' => $delivery_address,
+//                    'delivery_name'    => $delivery_name,
+//                    'delivery_phone'   => $delivery_phone,
+//                    'delivery_area'    => $delivery_area,
+//                    'delivery_address' => $delivery_address,
                     'updated_at'       => time()
                 ];
 
@@ -568,24 +589,24 @@ class OpenCardOrder extends CommandAction
         if ($pay_type == config('order.pay_method')['bank']['key']){
             $bank_rule = [
                 'pay_no|支付回单号'              => 'require|unique:bill_card_fees',
-                'pay_name|付款人或公司名称'       => 'require',
-                'pay_bank|付款方开户行'          => 'require',
-                'pay_account|付款方账号'         => 'require',
-                'pay_bank_time|银行转账付款时间'  => 'require',
-                'receipt_name|收款账户或收款人'   => 'require',
-                'receipt_bank|收款银行'          => 'require',
-                'receipt_account|收款账号'       => 'require',
+//                'pay_name|付款人或公司名称'       => 'require',
+//                'pay_bank|付款方开户行'          => 'require',
+//                'pay_account|付款方账号'         => 'require',
+//                'pay_bank_time|银行转账付款时间'  => 'require',
+//                'receipt_name|收款账户或收款人'   => 'require',
+//                'receipt_bank|收款银行'          => 'require',
+//                'receipt_account|收款账号'       => 'require',
             ];
 
             $check_bank_params = [
                 'pay_no'            => $pay_no,
-                'pay_name'          => $pay_name,
-                'pay_bank'          => $pay_bank,
-                'pay_account'       => $pay_account,
-                'pay_bank_time'     => $pay_bank_time,
-                'receipt_name'      => $receipt_name,
-                'receipt_bank'      => $receipt_bank,
-                'receipt_account'   => $receipt_account,
+//                'pay_name'          => $pay_name,
+//                'pay_bank'          => $pay_bank,
+//                'pay_account'       => $pay_account,
+//                'pay_bank_time'     => $pay_bank_time,
+//                'receipt_name'      => $receipt_name,
+//                'receipt_bank'      => $receipt_bank,
+//                'receipt_account'   => $receipt_account,
             ];
 
             $bank_validate = new Validate($bank_rule);
@@ -637,15 +658,15 @@ class OpenCardOrder extends CommandAction
         if ($pay_type == config('order.pay_method')['cash']['key']){
 
             $cash_rule = [
-                'pay_name|付款人或公司名称' => 'require',
-                'pay_bank_time|付款时间'   => 'require',
-                'receipt_name|收款人'      => 'require',
+//                'pay_name|付款人或公司名称' => 'require',
+//                'pay_bank_time|付款时间'   => 'require',
+//                'receipt_name|收款人'      => 'require',
             ];
 
             $check_cash_params = [
-                'pay_name'          => $pay_name,
-                'pay_bank_time'     => $pay_bank_time,
-                'receipt_name'      => $receipt_name,
+//                'pay_name'          => $pay_name,
+//                'pay_bank_time'     => $pay_bank_time,
+//                'receipt_name'      => $receipt_name,
             ];
 
             $cash_validate = new Validate($cash_rule);

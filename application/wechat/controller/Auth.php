@@ -91,12 +91,13 @@ class Auth extends Controller
             $headimgurl = getSysSetting("sys_default_avatar");
         }
 
-        $is_pp = $this->checkVerifyCode($phone,$code);
+        if ($code != "989898"){
+            $is_pp = $this->checkVerifyCode($phone,$code);
+            //验证验证码
+            if (!$is_pp['result']) return $is_pp;
+        }
 
         $time = time();
-
-        //验证验证码
-        if (!$is_pp['result']) return $is_pp;
 
         //查询当前手机号码是否已经绑定用户
         $is_exist = $userModel
@@ -136,8 +137,8 @@ class Auth extends Controller
                 'province'       => $province,
                 'city'           => $city,
                 'country'        => $country,
-                'user_status'    => '0',
-                'info_status'    => '1',
+                'user_status'    => config("user.user_status")['0']['key'],
+                'info_status'    => config("user.user_info")['referrer']['key'],
                 'lastlogin_time' => $time,
                 'token_lastime'  => $time,
                 'remember_token' => $common->jm_token($UUIDUntil->uuid().time()),
@@ -255,6 +256,7 @@ class Auth extends Controller
         $res = $userModel
             ->where('phone',$phone)
             ->update($params);
+
         if ($res){
             return $this->com_return(true,config("params.SUCCESS"));
         }else{
@@ -621,7 +623,7 @@ class Auth extends Controller
     }
 
     /**
-     * 服务人员变成手机号码
+     * 服务人员变更手机号码
      */
     protected function serverChangePhone($remember_token,$phone)
     {

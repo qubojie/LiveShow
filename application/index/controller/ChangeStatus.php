@@ -28,8 +28,12 @@ class ChangeStatus extends Controller
      */
     public static function changeOrderStatus()
     {
+        $sale_status = config("order.open_card_status")['pending_payment']['key'];
+        $pay_type    = config("order.pay_method")['cash']['key'];
+
         $bill_list = Db::name('bill_card_fees')
-            ->where('sale_status','0')
+            ->where('sale_status',$sale_status)
+            ->where('pay_type','neq',$pay_type)
             ->select();
 
         try{

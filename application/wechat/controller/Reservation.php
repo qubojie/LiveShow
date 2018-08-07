@@ -47,14 +47,14 @@ class Reservation extends CommonAction
         $appointment = $request->param("appointment","");//预约时间
 
         $rule = [
-            "location_id|位置"      => "require",
-            "size_id|人数范围"      => "require",
+//            "location_id|位置"      => "require",
+//            "size_id|人数范围"      => "require",
             "appointment|预约时间"  => "require",
         ];
 
         $request_res = [
-            "location_id"   => $location_id,
-            "size_id"       => $size_id,
+//            "location_id"   => $location_id,
+//            "size_id"       => $size_id,
             "appointment"   => $appointment,
         ];
 
@@ -207,7 +207,6 @@ class Reservation extends CommonAction
 
                 if ($is_subscription){
                     //如果收取定金
-//                    dump("未付款收取定金");die;
                     $table_params = [
                         "status"        => \config("order.table_reserve_status")['cancel']['key'],
                         "cancel_user"   => "user",

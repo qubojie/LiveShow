@@ -39,6 +39,12 @@ class OpenCard extends Controller
 
         $time = time();
 
+        $pay_type         = $request->param("pay_type","");//支付方式
+
+        if (empty($pay_type)){
+            $pay_type = config("order.pay_method")['wxpay']['key'];
+        }
+
         $uid              = $request->param("uid","");//用户id
         $name             = $request->param('name',"");//用户真实姓名
         $card_id          = $request->param("card_id","");//卡id
@@ -49,7 +55,7 @@ class OpenCard extends Controller
         $delivery_address = $request->param("delivery_address","");//详细地址
 
 
-        $card_amount      = $request->param("card_amount","");//详细地址
+        $card_amount      = $request->param("card_amount","");//开卡金额
 
         if (empty($uid)){
             return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
@@ -202,7 +208,7 @@ class OpenCard extends Controller
                 'order_amount'    => $card_amount,//订单金额
                 'discount'        => $discount,//折扣,暂且为0
                 'payable_amount'  => $card_amount - $discount,//线上应付且未付金额
-                'pay_type'        => config("order.pay_method")['wxpay']['key'],
+                'pay_type'        => $pay_type,
                 'is_settlement'   => $referrer_type == "empty" ? 1 : 0 ,//是否结算佣金
                 'commission_ratio'=> $commission_ratio,//下单时的佣金比例   百分比整数     没有推荐人的自动为0
                 'commission'      => ($card_amount - $discount) * $commission_ratio / 100,

@@ -17,6 +17,7 @@ namespace app\admin\controller;
 
 use app\admin\model\SysAdminUser;
 use app\admin\model\SysLog;
+use app\admin\model\User;
 use think\Controller;
 use think\Db;
 use think\exception\HttpException;
@@ -140,5 +141,27 @@ class CommandAction extends Controller
     public function jm_token($str)
     {
         return md5(sha1($str).time());
+    }
+
+    /**
+     * 根据电话号码获取用户信息
+     * @param $phone
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function userPhoneGetInfo($phone)
+    {
+        $userModel = new User();
+
+        $column = $userModel->column;
+
+        $userInfo = $userModel
+            ->where("phone",$phone)
+            ->field($column)->find();
+        $userInfo = json_decode(json_encode($userInfo),true);
+
+        return $userInfo;
     }
 }

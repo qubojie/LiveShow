@@ -56,4 +56,27 @@ class TableRevenue extends Model
         'created_at',           //数据创建时间
         'updated_at',           //最后更新时间
     ];
+
+    public $revenue_column = [
+        "tr.trid",
+        "tr.uid",
+        "tr.is_join",
+        "tr.parent_trid",
+        "tr.table_id",
+        "tr.table_no",
+        "tr.area_id",
+        "tr.status",
+        "tr.reserve_time",
+        "tr.ssid",
+        "tr.ssname",
+        "tr.is_subscription",
+        "tr.subscription_type",
+        "tr.subscription",
+        "tr.turnover_num",
+        "tr.turnover",
+        "tr.is_refund",
+        "tr.refund_num",
+        "tr.refund_amount",
+        "tr.refund_amount"
+    ];
 }

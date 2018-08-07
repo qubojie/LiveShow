@@ -8,7 +8,9 @@ use app\admin\controller\CommandAction;
 use app\admin\controller\Common;
 use app\admin\model\MstCardVip;
 use app\common\controller\UUIDUntil;
+use app\services\Sms;
 use app\wechat\model\BillCardFees;
+use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
 use think\Controller;
 use think\Db;
@@ -157,6 +159,12 @@ class WechatPay extends Controller
             $payable_amount = $this->getSubscriptionPayableAmount($vid);
 
 
+        }elseif ($headL == "RF"){
+
+            //获取充值金额
+            $payable_amount = $this->getBillRefillAmount($vid);
+            Log::info("充值金额 --- ".$payable_amount);
+
         }else{
             //这里去处理开卡回调逻辑
 
@@ -174,6 +182,8 @@ class WechatPay extends Controller
             'out_trade_no' => $vid,
             'total_fee'    => $payable_amount * 100,
         ];
+
+        Log::info("充值组装参数 --- ".var_export($params,true));
 
         $result = JsapiPay::getParams2($params,$openId,$scene);
 
@@ -363,7 +373,7 @@ class WechatPay extends Controller
      */
     protected function recharge($values = array(),$notyfyType = "")
     {
-        $reid = $values['out_trade_no'];
+        $rfid = $values['out_trade_no'];
 
         /*'appid' => 'wxf23099114472fbe6',
           'attach' => '公众号支付',
@@ -385,7 +395,7 @@ class WechatPay extends Controller
 
         //获取订单信息
         $order_info = Db::name("bill_refill")
-            ->where('rfid',$reid)
+            ->where('rfid',$rfid)
             ->find();
 
         if (empty($order_info)){
@@ -428,8 +438,8 @@ class WechatPay extends Controller
         Db::startTrans();
 
         try{
-            $cash_fee       = $values['cash_fee'];
-            $total_fee      = $values['total_fee'];
+            $cash_fee       = $values['cash_fee'] / 100;
+            $total_fee      = $values['total_fee'] / 100;
             $out_trade_no   = $values['out_trade_no'];
             $transaction_id = $values['transaction_id'];
 
@@ -440,6 +450,9 @@ class WechatPay extends Controller
                 "pay_no"     => $transaction_id,
                 "amount"     => $cash_fee,
                 "status"     => config("order.recharge_status")['completed']['key'],
+                "review_time"=> $time,
+                "review_user"=> "系统自动",
+                "review_desc"=>"微信系统收款",
                 "updated_at" => $time
             ];
 
@@ -464,7 +477,7 @@ class WechatPay extends Controller
                 "change_type"  => '2',
                 "action_user"  => 'sys',
                 "action_type"  => config('user.account')['recharge']['key'],
-                "oid"          => $reid,
+                "oid"          => $rfid,
                 "deal_amount"  => $cash_fee,
                 "action_desc"  => "余额充值",
                 "created_at"   => $time,
@@ -488,7 +501,7 @@ class WechatPay extends Controller
                     'action_user'    => 'sys',
                     'action_type'    => config('user.gift_cash')['recharge_give']['key'],
                     'action_desc'    => config('user.gift_cash')['recharge_give']['name'],
-                    'oid'            => $reid,
+                    'oid'            => $rfid,
                     'created_at'     => $time,
                     'updated_at'     => $time
                 ];
@@ -502,6 +515,22 @@ class WechatPay extends Controller
             if ($updateRechargeReturn && $updateUserReturn && $insertUserAccountReturn && $userAccountCashGiftReturn){
                 Db::commit();
                 Log::info("充值支付回调成功");
+
+                //如果是后台操作订单支付成功,记录相关操作日志
+                $adminCommonAction = new CommandAction();
+
+                $action  = config("useraction.deal_pay")['key'];
+
+                $reason = $values['reason'];//操作原因描述
+
+                $adminToken = $this->request->header("Authorization","");
+
+                //获取当前登录管理员
+                $action_user = $this->getLoginAdminId($adminToken)['user_name'];
+
+                $adminCommonAction->addSysAdminLog("$uid","","$rfid","$action","$reason","$action_user","$time");
+
+
                 echo '<xml> <return_code><![CDATA[SUCCESS]]></return_code> <return_msg><![CDATA[OK]]></return_msg> </xml>';
                 die;
             }else{
@@ -575,6 +604,29 @@ class WechatPay extends Controller
             $changeTableRevenueReturn = $subscriptionCallBackObj->changeTableRevenueInfo($updateTableRevenueParams,$trid,$uid);
 
             if ($changeBillSubscriptionReturn && $changeTableRevenueReturn){
+
+                //根据订单,查看是否是服务人员预定
+                $reserve_way_res = Db::name("table_revenue")
+                    ->where("trid",$trid)
+                    ->field("reserve_way")
+                    ->find();
+                $reserve_way_res = json_decode(json_encode($reserve_way_res),true);
+
+                $reserve_way = $reserve_way_res['reserve_way'];
+
+                if ($reserve_way == config("order.reserve_way")['service']['key'] || $reserve_way == config("order.reserve_way")['manage']['key']){
+                    //调起短信推送
+                    //获取用户电话
+                    $authObj = new Auth();
+                    $userInfo = $authObj->getUserInfo($uid);
+                    $userInfo = json_decode(json_encode($userInfo),true);
+                    $phone = $userInfo['phone'];
+
+                    $smsObj = new Sms();
+
+                    $smsObj->sendMsg($phone);
+                }
+
                 Db::commit();
                 Log::info("定金支付回调成功");
                 echo '<xml> <return_code><![CDATA[SUCCESS]]></return_code> <return_msg><![CDATA[OK]]></return_msg> </xml>';
@@ -641,8 +693,6 @@ class WechatPay extends Controller
             $cardCallbackObj = new CardCallback();
             $UUIDObj         = new UUIDUntil();
 
-
-
             Db::startTrans();
             try{
                 $payable_amount = $values['cash_fee'] / 100;//订单实际需要支付金额
@@ -655,12 +705,16 @@ class WechatPay extends Controller
 
                 $pay_money      = $values['total_fee'] / 100;//实付金额
 
+                $pay_type       = config("order.pay_method")['wxpay']['key'];
+
+
                 //⑥更新订单状态,
                 $billCardFeesParams = [
                     'sale_status'    => $sale_status,
                     'pay_time'       => strtotime($pay_time),
                     'payable_amount' => $payable_amount - $pay_money,
                     'deal_price'     => $pay_money,
+                    'pay_type'       => $pay_type,
                     'pay_no'         => $pay_no,
                     'updated_at'     => $time,
                     'finish_time'    => $finish_time
@@ -678,7 +732,6 @@ class WechatPay extends Controller
 
                 //获取卡的信息
                 $billCardFeesDetail = $cardCallbackObj->getBillCardFeesDetail($vid);
-
 
                 $card_id = $billCardFeesDetail['card_id'];
 
@@ -1313,6 +1366,32 @@ class WechatPay extends Controller
         }else{
             return false;
         }
+    }
+
+    /**
+     * 获取充值金额
+     * @param $rfid
+     * @return bool|mixed
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getBillRefillAmount($rfid)
+    {
+        $billRefillModel = new BillRefill();
+
+        $info = $billRefillModel
+            ->where('rfid',$rfid)
+            ->where('status',0)
+            ->field("amount")
+            ->find();
+
+        if (!empty($info)) {
+            return  $info['amount'];
+        }else{
+            return false;
+        }
+
     }
 
 }

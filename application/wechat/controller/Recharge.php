@@ -87,33 +87,6 @@ class Recharge extends CommonAction
             return $this->com_return(false,$validate->getError(),null);
         }
 
-        $manageSalesmanModel = new ManageSalesman();
-
-        $referrer_id   = config("salesman.salesman_type")[3]['key'];
-        $referrer_type = config("salesman.salesman_type")[3]['name'];
-
-        if (!empty($referrer_phone)){
-            //根据电话号码获取推荐营销信息
-            $manageInfo = $manageSalesmanModel
-                ->alias('ms')
-                ->join('mst_salesman_type mst','mst.stype_id = ms.stype_id')
-                ->where('ms.phone',$referrer_phone)
-                ->where('ms.statue',config("salesman.salesman_status")['working']['key'])
-                ->field('ms.sid,mst.stype_key')
-                ->find();
-
-            $manageInfo = json_decode(json_encode($manageInfo),true);
-
-            if (!empty($manageInfo)){
-
-                //只给营销记录,其他都算平台
-                if ($manageInfo['stype_key'] == config("salesman.salesman_type")[0]['key'] ||$manageInfo['stype_key'] == config("salesman.salesman_type")[0]['key'] ) {
-                    $referrer_id   = $manageInfo['sid'];
-                    $referrer_type = $manageInfo['stype_key'];
-                }
-            }
-        }
-
         $userInfo = $this->tokenGetUserInfo($token);
 
         if (empty($userInfo)){
@@ -124,43 +97,11 @@ class Recharge extends CommonAction
 
         $pay_type = config("order.pay_method")['wxpay']['key'];
 
-        $status = config("order.recharge_status")['pending_payment']['key'];
+        $publicAction = new PublicAction();
 
-        $time = time();
+        $res = $publicAction->rechargePublicAction($uid,$amount,$cash_gift,$pay_type,$referrer_phone);
 
-        $UUID = new UUIDUntil();
+        return $res;
 
-        //插入用户充值单据表
-        $rfid = $UUID->generateReadableUUID("RF");
-
-        $billRefillParams = [
-            "rfid"          => $rfid,
-            "referrer_type" => $referrer_type,
-            "referrer_id"   => $referrer_id,
-            "uid"           => $uid,
-            "pay_type"      => $pay_type,
-            "amount"        => $amount,
-            "cash_gift"     => $cash_gift,
-            "status"        => $status,
-            "created_at"    => $time,
-            "updated_at"    => $time
-        ];
-
-        $billRefillModel = new BillRefill();
-
-        $res = $billRefillModel
-            ->insert($billRefillParams);
-
-        $return_data = [
-            "rfid"   => $rfid,
-            "amount" => $amount
-        ];
-
-        if ($res){
-            return $this->com_return(true,config("params.SUCCESS"),$return_data);
-
-        }else{
-            return $this->com_return(false,config("params.FAIL"));
-        }
     }
 }

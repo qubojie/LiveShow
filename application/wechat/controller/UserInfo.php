@@ -129,12 +129,23 @@ class UserInfo extends Controller
             $constellation = $nxs['constellation'];
             $params['astro'] = $constellation;
         }
+
+        if (!empty($interest)){
+            //如果用户填写了兴趣等标签,则更新用户信息状态为已完善
+            $this->updateInfoStatus($phone);
+        }
+
         return $this->insertUserInfo($params);
     }
 
-    /*
+    /**
      * 根据电话号码获取当前用户uid
-     * */
+     * @param $phone
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
     public function getUid($phone)
     {
         $common = new Common();
@@ -211,6 +222,26 @@ class UserInfo extends Controller
 
         $data = [
             'sex' => $sex
+        ];
+
+        $is_ok = $userModel->where('phone',$phone)->update($data);
+
+        if ($is_ok){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    /**
+     * 更新用户信息状态为已完善
+     */
+    public function updateInfoStatus($phone)
+    {
+        $userModel = new User();
+
+        $data = [
+            'info_status' => config("user.user_info")['complete']['key']
         ];
 
         $is_ok = $userModel->where('phone',$phone)->update($data);

@@ -44,15 +44,15 @@ class ManageReservation extends HomeAction
 
         $rule = [
             "customerPhone|客户电话" => "require|regex:1[3-8]{1}[0-9]{9}",
-            "location_id|位置"       => "require",
-            "size_id|人数范围"       => "require",
+//            "location_id|位置"       => "require",
+//            "size_id|人数范围"       => "require",
             "appointment|预约时间"   => "require",
         ];
 
         $request_res = [
             "customerPhone" => $customerPhone,
-            "location_id"   => $location_id,
-            "size_id"       => $size_id,
+//            "location_id"   => $location_id,
+//            "size_id"       => $size_id,
             "appointment"   => $appointment,
         ];
 
@@ -128,8 +128,6 @@ class ManageReservation extends HomeAction
 
         $time           = $request->param('time','');//时间
 
-        $sales_phone    = "";//营销电话
-
 
         $rule = [
             "customerPhone|客户电话"  => "require",
@@ -138,7 +136,6 @@ class ManageReservation extends HomeAction
             "subscription|预约定金"   => "require",
             "date|日期"              => "require",
             "time|时间"              => "require",
-            "sales_phone|营销电话"    => "regex:1[3-8]{1}[0-9]{9}",
         ];
 
         $check_data = [
@@ -148,7 +145,6 @@ class ManageReservation extends HomeAction
             "subscription"   => $subscription,
             "date"           => $date,
             "time"           => $time,
-            "sales_phone"    => $sales_phone
         ];
 
         $validate = new Validate($rule);
@@ -284,7 +280,6 @@ class ManageReservation extends HomeAction
 
 
             }else {
-                //如果是已付款状态
                 //如果是已付款状态
                 //获取系统设置的最晚取消时间
                 $cardObj = new OpenCard();

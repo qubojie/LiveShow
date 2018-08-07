@@ -280,6 +280,7 @@ return [
         "TABLE_IS_RESERVE"      => "很遗憾,该吧台已被其他顾客预约,请从新挑选",
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
         "PHONE_NOT_EXIST"       => "未找到相关会员信息",
+        "TODAY_NOT_HAVA_TABLE"  => "今日无预约",
         "OPEN_TABLE_STATUS"     => [
             "QrCodeINVALID"     => "二维码无效",
             "CANCELED"          => "预约已取消,请重新预约",
@@ -289,6 +290,9 @@ return [
         ],
         "MANAGE_INFO"           => [
             "UsrLMT"            => "权限不足",
+        ],
+        "ORDER"                 => [
+            "completed"         => "订单已支付,请勿重复操作"
         ],
      ],
 
@@ -465,6 +469,7 @@ return [
             3 => ['key' => 'platform', 'name' => '平台推荐'],
             4 => ['key' => 'boss',     'name' => '董事长'],
             5 => ['key' => 'service',  'name' => '服务人员'],
+            6 => ['key' => 'reserve',  'name' => '前台']
         ],
     ],
 

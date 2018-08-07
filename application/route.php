@@ -142,6 +142,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
         //礼品券列表
         Route::rule('giftVoucher','myInfo/giftVoucher','post|options');
 
+        //获取预约时退款提示信息
+        Route::rule('getReserveWaringInfo','PublicAction/getReserveWaringInfo');
+
         //充值
         Route::group(['name' => 'Recharge'],function (){
             //充值列表
@@ -648,6 +651,26 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
         });
     });
 
+    //财务管理
+    Route::group(['name' => 'finance'],function (){
+
+        //充值单据管理
+        Route::group(['name' => 'refillOrder'],function (){
+            //单据状态组获取
+            Route::rule('orderStatus','Recharge/orderStatus');
+
+            //充值单据列表
+            Route::rule('index','Recharge/order','post|options');
+
+            //新增充值信息
+            Route::rule('addRecharge','Recharge/addRechargeOrder','post|options');
+
+            //充值收款操作
+            Route::rule('receipt','Recharge/receipt','post|options');
+        });
+
+    });
+
     //系统设置
     Route::group(['name' => 'system'],function (){
 
@@ -715,4 +738,30 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
         });
     });
 
+});
+
+//前台管理路由群组
+Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
+
+    //基础操作
+    Route::group(['name' => 'auth'],function (){
+        //登陆
+        Route::rule('login','Auth/login');
+    });
+
+    //堂吃
+    Route::group(['name' => 'diningRoom'],function (){
+
+        //首页
+        Route::rule('index','DiningRoom/todayTableInfo','post|options');
+
+        //桌位详情
+        Route::rule('tableInfo','DiningRoom/tableInfo','post|options');
+
+    });
+
+    //预定
+    Route::group(['name' => 'reserve'],function (){
+
+    });
 });

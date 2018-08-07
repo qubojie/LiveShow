@@ -15,6 +15,7 @@ use app\admin\model\MstTableReserveDate;
 use app\admin\model\MstTableSize;
 use app\admin\model\TableRevenue;
 use app\common\controller\UUIDUntil;
+use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
 use think\Config;
 use think\Controller;
@@ -46,6 +47,16 @@ class PublicAction extends Controller
            $where_card['tac.card_id'] = ["eq",$user_card_id];
         }*/
 
+        $size_where = [];
+        if (!empty($size_id)){
+            $size_where['t.size_id'] = $size_id;
+        }
+
+        $location_where = [];
+        if (!empty($location_id)){
+            $location_where['ta.location_id'] = $location_id;
+        }
+
         $res = $tableModel
             ->alias("t")
             ->join("mst_table_area ta","ta.area_id = t.area_id")//区域
@@ -55,8 +66,8 @@ class PublicAction extends Controller
             ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品相
             ->where('t.is_enable',1)
             ->where('t.is_delete',0)
-            ->where('t.size_id',$size_id)
-            ->where('ta.location_id',$location_id)
+            ->where($size_where)
+            ->where($location_where)
 //            ->where($where_card)
             ->group("t.table_id")
             ->order('t.sort')
@@ -533,8 +544,6 @@ class PublicAction extends Controller
     }
 
 
-
-
     /**
      * 筛选条件获取
      * @return array
@@ -637,6 +646,108 @@ class PublicAction extends Controller
             }
         }
         return $arr;
+    }
+
+
+
+    /**
+     * 充值公共部分
+     * @param $uid
+     * @param $amount
+     * @param $cash_gift
+     * @param $status
+     * @param $pay_type
+     * @param string $referrer_phone
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function rechargePublicAction($uid,$amount,$cash_gift,$pay_type,$referrer_phone = '')
+    {
+        $manageSalesmanModel = new ManageSalesman();
+
+        $referrer_id   = config("salesman.salesman_type")[3]['key'];
+        $referrer_type = config("salesman.salesman_type")[3]['name'];
+
+        if (!empty($referrer_phone)){
+            //根据电话号码获取推荐营销信息
+            $manageInfo = $manageSalesmanModel
+                ->alias('ms')
+                ->join('mst_salesman_type mst','mst.stype_id = ms.stype_id')
+                ->where('ms.phone',$referrer_phone)
+                ->where('ms.statue',config("salesman.salesman_status")['working']['key'])
+                ->field('ms.sid,mst.stype_key')
+                ->find();
+
+            $manageInfo = json_decode(json_encode($manageInfo),true);
+
+            if (!empty($manageInfo)){
+
+                //只给营销记录,其他都算平台
+                if ($manageInfo['stype_key'] == config("salesman.salesman_type")[0]['key'] ||$manageInfo['stype_key'] == config("salesman.salesman_type")[0]['key'] ) {
+                    $referrer_id   = $manageInfo['sid'];
+                    $referrer_type = $manageInfo['stype_key'];
+                }
+            }
+        }
+
+        $time = time();
+
+        $UUID = new UUIDUntil();
+
+        //插入用户充值单据表
+        $rfid = $UUID->generateReadableUUID("RF");
+
+        $billRefillParams = [
+            "rfid"          => $rfid,
+            "referrer_type" => $referrer_type,
+            "referrer_id"   => $referrer_id,
+            "uid"           => $uid,
+            "pay_type"      => $pay_type,
+            "amount"        => $amount,
+            "cash_gift"     => $cash_gift,
+            "status"        => config("order.recharge_status")['pending_payment']['key'],
+            "created_at"    => $time,
+            "updated_at"    => $time
+        ];
+
+        $billRefillModel = new BillRefill();
+
+        $res = $billRefillModel
+            ->insert($billRefillParams);
+
+        $return_data = [
+            "rfid"   => $rfid,
+            "amount" => $amount
+        ];
+
+        if ($res){
+            return $this->com_return(true,config("params.SUCCESS"),$return_data);
+
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
+    }
+
+
+    /**
+     * 获取预约时,温馨提示信息
+     */
+    public function getReserveWaringInfo()
+    {
+        //获取当前退款和不退款的设置信息
+        $openCardObj = new OpenCard();
+
+        $reserve_refund_flag = $openCardObj->getSysSettingInfo("reserve_refund_flag");
+
+        if ($reserve_refund_flag){
+            $info = $openCardObj->getSysSettingInfo("reserve_warning_no");
+        }else{
+            $info = $openCardObj->getSysSettingInfo("reserve_warning");
+        }
+
+        return $this->com_return(true,\config("params.SUCCESS"),$info);
     }
 
 

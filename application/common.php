@@ -62,7 +62,14 @@ function getTimeWeek($time, $i = 0){
 }
 
 
-/*获取默认头像*/
+/**
+ * 获取默认头像
+ * @param $key
+ * @return mixed
+ * @throws \think\db\exception\DataNotFoundException
+ * @throws \think\db\exception\ModelNotFoundException
+ * @throws \think\exception\DbException
+ */
 function getSysSetting($key)
 {
     $sysSettingModel = new \app\admin\model\SysSetting();
