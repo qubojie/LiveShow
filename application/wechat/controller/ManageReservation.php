@@ -450,7 +450,7 @@ class ManageReservation extends HomeAction
 
         $uid = $UUIDUntil->generateReadableUUID("U");
 
-        $password = sha1("000000");
+        $password = sha1(\config("DEFAULT_PASSWORD"));
 
         $register_way = "wxapp";
 
@@ -463,15 +463,15 @@ class ManageReservation extends HomeAction
         $time = time();
 
         $params = [
-            "uid" => $uid,
-            "phone" => $phone,
-            "password" => $password,
-            "register_way" => $register_way,
-            "user_status" => $user_status,
+            "uid"           => $uid,
+            "phone"         => $phone,
+            "password"      => $password,
+            "register_way"  => $register_way,
+            "user_status"   => $user_status,
             "referrer_type" => $referrer_type,
-            "referrer_id" => $referrer_id,
-            "created_at" => $time,
-            "updated_at" => $time
+            "referrer_id"   => $referrer_id,
+            "created_at"    => $time,
+            "updated_at"    => $time
         ];
 
         $userModel = new User();

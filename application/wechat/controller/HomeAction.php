@@ -86,7 +86,7 @@ class HomeAction extends Controller
     }
 
     /**
-     * 开台操作
+     * 变更台位状态操作
      * @param $trid
      * @return array
      */

@@ -47,6 +47,28 @@ function arrIntToString($arr){
     return $arr;
 }
 
+/**
+ * 递归方式把数组或字符串 null转换为空''字符串
+ * @param $arr
+ * @return array|string
+ */
+function _unsetNull($arr){
+    if ($arr !== null){
+        if (is_array($arr)){
+            if (!empty($arr)){
+                foreach ($arr as $key => $val){
+                   if ($val === null)  $arr[$key] = '';
+                   else  $arr[$key] = _unsetNull($val);//递归,再去执行
+                }
+            }else $arr = '';
+
+        }else if ($arr === null)  $arr = '';
+
+    }else $arr = '';
+
+    return $arr;
+}
+
 
 /**
  * 获取某个时间戳的周几，以及未来几天以后的周几
@@ -63,6 +85,30 @@ function getTimeWeek($time, $i = 0){
 
 
 /**
+ * 删除数组中指定的key
+ * @param $arr
+ * @param $keys '多个以逗号隔开'
+ * @return mixed
+ */
+function array_remove($arr, $keys){
+
+    $key_arr = explode(",",$keys);
+
+    for ($i = 0; $i < count($key_arr); $i ++){
+        $key = $key_arr[$i];
+        if (!array_key_exists($key, $arr)) {
+            return $arr;
+        }
+        $keys = array_keys($arr);
+        $index = array_search($key, $keys);
+        if ($index !== FALSE) {
+            array_splice($arr, $index, 1);
+        }
+    }
+    return $arr;
+}
+
+ /**
  * 获取默认头像
  * @param $key
  * @return mixed

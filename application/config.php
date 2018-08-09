@@ -238,6 +238,8 @@ return [
         'list_rows' => 15,
     ],
 
+    "DEFAULT_PASSWORD" => "000000",
+
     /*
     |--------------------------------------------------------------------------
     | 分页-自配
@@ -256,6 +258,7 @@ return [
         "PASSWORD_NOT_EMPTY"    => "密码不能为空",
         "LONG_NOT_ENOUGH"       => "长度不够",
         "PARAM_NOT_EMPTY"       => "非法操作",
+        "ABNORMAL_ACTION"       => "异常操作",
         "PASSWORD_DIF"          => "密码不一致",
         "PASSWORD_PP"           => "密码不匹配",
         "ACCOUNT_PASSWORD_DIF"  => "账号密码不匹配",
@@ -293,6 +296,15 @@ return [
         ],
         "ORDER"                 => [
             "completed"         => "订单已支付,请勿重复操作"
+        ],
+        "REVENUE"               => [
+            "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
+            "STATUS_NO_OPEN"    => "当前状态不可开台",
+            "STATUS_NO_EDIT"    => "当前状态不可编辑",
+            "NO_OPEN_SPELLING"  => "吧台当前状态不可进行拼台操作",
+            "USER_HAVE_TABLE"   => "用户已有开台,不可进行开拼操作",
+            "NOT_OPEN_NO_TURN"  => "当前用户未开台,不可进行转台操作",
+            "TABLE_NOT_LDLE"    => "转至的台位已被占用,不可进行转台操作",
         ],
      ],
 
@@ -362,6 +374,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'user' => [
+        'default_sex' => "先生",
         //用户状态
         'user_status' => [
             0 => ['key' => '0','name' => '注册会员'],
@@ -526,9 +539,9 @@ return [
 
         //预定途经
         'reserve_way' => [
-            'client'    => ['key' => 'client',  'name' => '客户预订（小程序）'],
-            'service'   => ['key' => 'service', 'name' => '服务端预定（内部小程序）'],
-            'manage'    => ['key' => 'manage',  'name' => '管理端预定（pc管理端暂保留）'],
+            'client'    => ['key' => 'client',  'name' => '客户预订'],
+            'service'   => ['key' => 'service', 'name' => '服务端预定'],
+            'manage'    => ['key' => 'manage',  'name' => '管理端预定'],
         ],
 
         //预约定金支付状态
@@ -574,6 +587,18 @@ return [
             'pending_payment' => ['key' => '0',     'name' => '待付款'],
             'completed'       => ['key' => '1',     'name' => '已付款'],
             'cancel'          => ['key' => '9',     'name' => '已取消'],
+        ],
+
+        //桌子变更操作类型
+        'table_action_type' => [
+            'open_table'     => ['key' => '10', 'name' => '开台'],
+            'turn_to'        => ['key' => '21', 'name' => '换去'],
+            'turn_come'      => ['key' => '22', 'name' => '换来'],
+            'spelling_to'    => ['key' => '31', 'name' => '拼去'],
+            'spelling_com'   => ['key' => '32', 'name' => '拼来'],
+            'clean_table'    => ['key' => '40', 'name' => '清台'],
+            'revenue_table'  => ['key' => '80', 'name' => '预约'],
+            'cancel_revenue' => ['key' => '90', 'name' => '取消预约'],
         ],
     ],
 

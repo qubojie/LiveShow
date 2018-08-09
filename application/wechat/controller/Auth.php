@@ -128,7 +128,7 @@ class Auth extends Controller
             $insert_data = [
                 'uid'            => $uid,
                 'phone'          => $phone,
-                'password'       => sha1('000000'),
+                'password'       => sha1(config("DEFAULT_PASSWORD")),
                 'register_way'   => $register_way,
                 'wxid'           => $openid,
                 'nickname'       => $nickname,

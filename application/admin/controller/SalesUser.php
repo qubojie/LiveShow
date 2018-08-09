@@ -165,8 +165,8 @@ class SalesUser extends CommandAction
 //        $id_img1        = $request->param("id_img1","");//身份证正面照片
 //        $id_img2        = $request->param("id_img2","");//身份证反面照片
         $phone          = $request->param("phone","");//电话号码 必须唯一 未来可用于登录 实名验证等使用
-        $password       = $request->param("password","000000");//密码
-        $password_confirmation       = $request->param("password_confirmation","000000");//确认密码
+        $password       = $request->param("password",config("DEFAULT_PASSWORD"));//密码
+        $password_confirmation       = $request->param("password_confirmation",config("DEFAULT_PASSWORD"));//确认密码
         $wxid           = $request->param("wxid","");//微信id(openId/unionId)
         $nickname       = $request->param("nickname","");//昵称
         $avatar         = $request->param("avatar","");//头像
@@ -182,7 +182,7 @@ class SalesUser extends CommandAction
 
 
         if (empty($password)){
-            $password = $password_confirmation = "000000";
+            $password = $password_confirmation = config("DEFAULT_PASSWORD");
         }
         if (empty($sex)) {
             $sex = "1";

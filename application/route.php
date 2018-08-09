@@ -547,6 +547,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
             //是否启用
             Route::rule("enable",'tableInfo/enable','post/options');
+
+            //台位排序
+            Route::rule("sortEdit",'tableInfo/sortEdit','post/options');
         });
 
         //特殊日期设置
@@ -758,10 +761,39 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
         //桌位详情
         Route::rule('tableInfo','DiningRoom/tableInfo','post|options');
 
+        //手机号码检索
+        Route::rule('phoneRetrieval','DiningRoom/phoneRetrieval','post|options');
+
+        //开台
+        Route::rule('openTable','DiningRoom/openTable','post|options');
+
+        //补全已开台用户信息
+        Route::rule('supplementInfo','DiningRoom/supplementRevenueInfo','post|options');
+
+        //开拼
+        Route::rule('openSpelling','DiningRoomTurnSpelling/openSpelling','post|options');
+
+        //获取今日已开台的主桌
+        Route::rule('alreadyOpenTable','DiningRoomTurnSpelling/alreadyOpenTable','post|options');
+
+        //转拼
+        Route::rule('turnSpelling','DiningRoomTurnSpelling/turnSpelling','post|options');
+
+        //转台
+        Route::rule('turnTable','DiningRoomTurnSpelling/turnTable','post|options');
+
+
+
+
+
+
+
     });
 
     //预定
     Route::group(['name' => 'reserve'],function (){
+
+
 
     });
 });

@@ -14,6 +14,7 @@ use app\wechat\model\UserCard;
 use think\Controller;
 use think\Request;
 use think\exception\HttpException;
+use think\Response;
 
 class CommonAction extends Controller
 {
@@ -46,14 +47,16 @@ class CommonAction extends Controller
                     if ($time < $over_time){
 
                     }else{
-                        throw new HttpException(403,'登陆失效');
+                        abort(403,"登陆失效");
                     }
                 }else{
-                    throw new HttpException(403,'登陆失效');
+                    abort(403,"登陆失效");
+
                 }
 
             }else{
-                throw new HttpException(403,'登陆失效');
+                abort(403,"登陆失效");
+
             }
         }
     }

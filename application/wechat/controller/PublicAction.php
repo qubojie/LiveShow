@@ -123,8 +123,8 @@ class PublicAction extends Controller
 
             if (!empty($dateList)){
                 //是特殊日期
-                $turnover_limit = $res[$i]['turnover_limit_l3'];//预约最低消费
-                $subscription   = $res[$i]['subscription_l3'];//预约定金
+                $turnover_limit = $res[$i]['turnover_limit_l3'];//特殊日期预约最低消费
+                $subscription   = $res[$i]['subscription_l3'];//特殊日期预约定金
 
 
             }else{
@@ -139,15 +139,15 @@ class PublicAction extends Controller
 
                 $is_bh = strpos("$reserve_subscription_week","$today_week");
 
-                if ($is_bh){
+                if ($is_bh !== false){
                     //如果包含,则获取特殊星期的押金和低消
-                    $turnover_limit = $res[$i]['turnover_limit_l2'];//预约最低消费
-                    $subscription   = $res[$i]['subscription_l2'];//预约定金
+                    $turnover_limit = $res[$i]['turnover_limit_l2'];//周末日期预约最低消费
+                    $subscription   = $res[$i]['subscription_l2'];//周末日期预约定金
 
                 }else{
                     //如果不包含
-                    $turnover_limit = $res[$i]['turnover_limit_l1'];//预约最低消费
-                    $subscription   = $res[$i]['subscription_l1'];//预约定金
+                    $turnover_limit = $res[$i]['turnover_limit_l1'];//平时预约最低消费
+                    $subscription   = $res[$i]['subscription_l1'];//平时预约定金
                 }
             }
             /*特殊日期 匹配特殊定金 off*/

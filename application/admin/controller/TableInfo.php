@@ -300,7 +300,7 @@ class TableInfo extends CommandAction
         $subscription_l3   = $request->param('subscription_l3',0);//假日押金
 //        $people_max     = $request->param("people_max",'');//最大预定人数上限
         $table_desc        = $request->param('table_desc','');//台位描述
-        $sort              = $request->param('sort','');//台位描述
+        $sort              = $request->param('sort','');//台位排序
         $is_enable         = $request->param('is_enable',0);//排序
 
         $image_group       = $request->param('image_group',"");//图片组,以逗号隔开
@@ -476,6 +476,41 @@ class TableInfo extends CommandAction
 
         $update_data = [
             'is_enable'  => $is_enable,
+            'updated_at' => time()
+        ];
+
+        $is_ok = $tableModel
+            ->where('table_id',$table_id)
+            ->update($update_data);
+
+        if ($is_ok !== false){
+            return $this->com_return(true,config("params.SUCCESS"));
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
+    }
+
+    /**
+     * 台位排序
+     * @param Request $request
+     * @return array
+     */
+    public function sortEdit(Request $request)
+    {
+        $tableModel = new MstTable();
+
+        $sort       = (int)$request->param("sort","");
+        $table_id   = $request->param("table_id","");
+
+        if (empty($table_id)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+        if (empty($sort)){
+            $sort = 100;
+        }
+
+        $update_data = [
+            'sort'       => $sort,
             'updated_at' => time()
         ];
 
