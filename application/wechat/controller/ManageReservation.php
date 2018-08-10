@@ -337,11 +337,18 @@ class ManageReservation extends HomeAction
                         //如果退款时,未超时,则退还定金
 //                        dump("已付款,收取定金,未超时");die;
 
-                        $billInfo = $this->getBillSubscriptionInfo($trid);
+                        $billInfo     = $this->getBillSubscriptionInfo($trid);
                         $subscription = $billInfo['subscription'];
                         $suid         = $billInfo['suid'];
+                        $pay_type     = $billInfo['pay_type'];
 
-                        $payRes = $this->callBackPay($suid,$subscription,$subscription);
+                        //微信支付时,走退款接口
+                        if ($pay_type == \config("order.pay_method")['wxpay']['key']){
+                            $payRes = $this->callBackPay($suid,$subscription,$subscription);
+                        }else{
+                            $payRes = true;
+                        }
+
 
                         if (!empty($payRes)){
 

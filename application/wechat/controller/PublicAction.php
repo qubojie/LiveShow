@@ -9,6 +9,8 @@ namespace app\wechat\controller;
 
 use app\admin\model\ManageSalesman;
 use app\admin\model\MstTable;
+use app\admin\model\MstTableAppearance;
+use app\admin\model\MstTableArea;
 use app\admin\model\MstTableImage;
 use app\admin\model\MstTableLocation;
 use app\admin\model\MstTableReserveDate;
@@ -553,8 +555,9 @@ class PublicAction extends Controller
      */
     public function reserveCondition()
     {
+        /*获取位置和小区选项 on*/
+
         $tableLocationModel = new MstTableLocation();
-        //获取位置选项
         $table_location = $tableLocationModel
             ->where("is_delete",0)
             ->order("sort")
@@ -562,6 +565,27 @@ class PublicAction extends Controller
             ->select();
 
         $table_location = json_decode(json_encode($table_location),true);
+
+        $tableAreaModel = new MstTableArea();
+
+        for ($i = 0; $i <count($table_location); $i++){
+            $location_id = $table_location[$i]['location_id'];
+
+            $table_area_info = $tableAreaModel
+                ->where("location_id",$location_id)
+                ->where("is_enable",1)
+                ->where("is_delete",0)
+                ->field("area_id,area_title,area_desc")
+                ->order("sort")
+                ->select();
+            $table_area_info = json_decode(json_encode($table_area_info),true);
+
+            $table_location[$i]["area_group"] = $table_area_info;
+
+        }
+
+        /*获取位置和小区选项 off*/
+
 
         $tableSizeModel = new MstTableSize();
         //获取容量选项
@@ -572,6 +596,16 @@ class PublicAction extends Controller
             ->select();
 
         $table_size = json_decode(json_encode($table_size),true);
+
+        //获取品相选项
+        $tableAppearanceModel = new MstTableAppearance();
+        $table_appearance = $tableAppearanceModel
+            ->where("is_delete",0)
+            ->order("sort")
+            ->field('appearance_id,appearance_title,appearance_desc')
+            ->select();
+
+        $table_appearance = json_decode(json_encode($table_appearance),true);
 
         //获取日期选项
         $openCardObj = new OpenCard();
@@ -587,7 +621,7 @@ class PublicAction extends Controller
 
         $date_select = [];
 
-        for ($i = 0; $i < $reserve_before_day; $i++){
+        for ($i = 0; $i < ($reserve_before_day + 1); $i++){
             $date_time = $today + $date_s * $i;
 
             $date_select[$i]["date"] = $date_time;
@@ -600,10 +634,11 @@ class PublicAction extends Controller
 
         $time_arr = $this->timeToPart($reserve_time_frame_arr[0],$reserve_time_frame_arr[1]);
 
-        $res['table_location'] = $table_location;
-        $res['table_size'] = $table_size;
-        $res['date_select'] = $date_select;
-        $res['time_select'] = $time_arr;
+        $res['table_location']   = $table_location;
+        $res['table_size']       = $table_size;
+        $res['table_appearance'] = $table_appearance;
+        $res['date_select']      = $date_select;
+        $res['time_select']      = $time_arr;
 
         return $this->com_return(true,config("params.SUCCESS"),$res);
     }

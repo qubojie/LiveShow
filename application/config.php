@@ -305,6 +305,9 @@ return [
             "USER_HAVE_TABLE"   => "用户已有开台,不可进行开拼操作",
             "NOT_OPEN_NO_TURN"  => "当前用户未开台,不可进行转台操作",
             "TABLE_NOT_LDLE"    => "转至的台位已被占用,不可进行转台操作",
+            "DATE_NOT_EMPTY"    => "日期不能为空",
+            "TURN_OBJ_NO_SELF"  => "转至对象不能是自身",
+            "XD_TABLE_FALL"     => "用户权限不足以预定本桌"
         ],
      ],
 

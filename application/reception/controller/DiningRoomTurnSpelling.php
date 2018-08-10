@@ -65,8 +65,8 @@ class DiningRoomTurnSpelling extends CommonAction
             ->where('table_id',$table_id)
             ->where("status",config("order.table_reserve_status")['already_open']['key'])
             ->where(function ($query){
-                $query->where('tr.parent_trid',Null);
-                $query->whereOr('tr.parent_trid','');
+                $query->where('parent_trid',Null);
+                $query->whereOr('parent_trid','');
             })
             ->field("trid")
             ->find();
@@ -82,7 +82,7 @@ class DiningRoomTurnSpelling extends CommonAction
         /*营销信息 on*/
         $referrer_id   = config("salesman.salesman_type")['3']['key'];
         $referrer_type = config("salesman.salesman_type")['3']['key'];
-        $referrer_name = config("salesman.salesman_type")['3']['key'];
+        $referrer_name = config("salesman.salesman_type")['3']['name'];
         if (!empty($sales_phone)){
             //获取营销信息
             $manageInfo = $this->phoneGetSalesmanInfo($sales_phone);
@@ -134,15 +134,21 @@ class DiningRoomTurnSpelling extends CommonAction
 
         //查看当前用户是否有已开台
         //查看当前桌台是否是开台状态,只有开台状态的桌子才能被开拼
-        $table_is_open = $tableRevenueModel
-            ->where('uid',$uid)
-            ->where("status",config("order.table_reserve_status")['already_open']['key'])
-            ->count();
+        if (!empty($uid)){
+            $table_is_open = $tableRevenueModel
+                ->where('uid',$uid)
+                ->where("status",config("order.table_reserve_status")['already_open']['key'])
+                ->count();
+        }else{
+            $table_is_open = 0;
+        }
+
 
         if ($table_is_open > 0){
             //当前用户已开台,不可进行开拼操作
             return $this->com_return(false,config("params.REVENUE")['USER_HAVE_TABLE']);
         }
+
 
         $publicObj = new PublicAction();
 
@@ -256,7 +262,7 @@ class DiningRoomTurnSpelling extends CommonAction
             $status = config("order.table_reserve_status")['already_open']['key'];
             $res = $tableRevenueModel
                 ->alias("tr")
-                ->join("user u","u.uid = tr.uid")
+                ->join("user u","u.uid = tr.uid","LEFT")
                 ->whereTime("tr.reserve_time","today")
                 ->where("tr.status",$status)
                 ->where(function ($query){
@@ -325,6 +331,10 @@ class DiningRoomTurnSpelling extends CommonAction
 
         if (!$validate->check($request_res)){
             return $this->com_return(false,$validate->getError());
+        }
+
+        if ($now_trid == $to_trid){
+            return $this->com_return(false,config("params.REVENUE")['TURN_OBJ_NO_SELF']);
         }
 
         /*当前桌台的主要信息 on*/

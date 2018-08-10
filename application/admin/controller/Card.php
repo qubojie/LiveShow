@@ -276,7 +276,7 @@ class Card extends CommandAction
         $card_id        = $request->param("card_id","");//卡id
         $gift_info      = $request->param("gift_info","");//礼品id组,以逗号隔开
         $voucher_info   = $request->param("voucher_info","");//礼券id组,以逗号隔开
-        $card_type      = $request->param("card_type","");//卡片类型必须 ‘vip’会籍卡      ‘value’ 储值卡
+//        $card_type      = $request->param("card_type","");//卡片类型必须 ‘vip’会籍卡      ‘value’ 储值卡
         $card_name      = $request->param("card_name","");//VIP卡名称必须
         $card_image     = $request->param("card_image","");//VIP卡背景图必须
         $card_no_prefix = $request->param("card_no_prefix","LV");//卡号前缀必须
@@ -295,7 +295,7 @@ class Card extends CommandAction
 
         $rule = [
             "card_id|卡id"                    => "require",
-            "card_type|卡片类型"               => "require|max:10",
+//            "card_type|卡片类型"               => "require|max:10",
             "card_name|VIP卡名称"              => "require|max:30|unique:mst_card_vip",
             "card_image|VIP卡背景图"           => "require",
             "card_no_prefix|卡号前缀"          => "require|max:2",
@@ -313,7 +313,7 @@ class Card extends CommandAction
 
         $check_params = [
             "card_id"       => $card_id,
-            "card_type"     => $card_type,
+//            "card_type"     => $card_type,
             "card_name"     => $card_name,
             "card_image"    => $card_image,
             "card_no_prefix"=> $card_no_prefix,
@@ -337,7 +337,7 @@ class Card extends CommandAction
         }
 
         $data = [
-            "card_type"      => $card_type,
+//            "card_type"      => $card_type,
             "card_name"      => $card_name,
             "card_image"     => $card_image,
             "card_no_prefix" => $card_no_prefix,

@@ -291,9 +291,9 @@ class DiningRoom extends CommonAction
 
         $spellingRevenueInfo = $tableRevenueModel
             ->alias("tr")
-            ->join("user u","u.uid = tr.uid")
+            ->join("user u","u.uid = tr.uid","LEFT")
             ->join("user_card uc","uc.uid = tr.uid","LEFT")
-            ->join("mst_user_level ul","ul.level_id = u.level_id")
+            ->join("mst_user_level ul","ul.level_id = u.level_id","LEFT")
             ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
             ->where('tr.table_id',$table_id)
             ->where("tr.status","IN",$status_str)
@@ -375,7 +375,7 @@ class DiningRoom extends CommonAction
 
         $referrer_id   = config("salesman.salesman_type")['3']['key'];
         $referrer_type = config("salesman.salesman_type")['3']['key'];
-        $referrer_name = config("salesman.salesman_type")['3']['key'];
+        $referrer_name = config("salesman.salesman_type")['3']['name'];
         if (!empty($sales_phone)){
             //获取营销信息
             $manageInfo = $this->phoneGetSalesmanInfo($sales_phone);
@@ -550,7 +550,7 @@ class DiningRoom extends CommonAction
        /*营销信息获取 on*/
         $referrer_id   = config("salesman.salesman_type")['3']['key'];
         $referrer_type = config("salesman.salesman_type")['3']['key'];
-        $referrer_name = config("salesman.salesman_type")['3']['key'];
+        $referrer_name = config("salesman.salesman_type")['3']['name'];
         if (!empty($sales_phone)){
             //获取营销信息
             $manageInfo = $this->phoneGetSalesmanInfo($sales_phone);

@@ -781,17 +781,22 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
         //转台
         Route::rule('turnTable','DiningRoomTurnSpelling/turnTable','post|options');
-
-
-
-
-
-
-
     });
 
     //预定
-    Route::group(['name' => 'reserve'],function (){
+    Route::group(['name' => 'reservation'],function (){
+
+        //预定列表
+        Route::rule('index','Reservation/index','post|options');
+
+        //桌位详情
+        Route::rule('tableDetails','Reservation/tableDetails','post|options');
+
+        //预约确认
+        Route::rule('reservationConfirm','Reservation/createReservation','post|options');
+
+        //取消预约
+        Route::rule('cancelReservation','Reservation/cancelReservation','post|options');
 
 
 
