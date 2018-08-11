@@ -212,6 +212,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //编辑客户信息
             Route::rule("customerEdit","ManageInfo/customerEdit","post|options");
 
+            //清台
+            Route::rule("cleanTable","TableAction/cleanTable","post|options");
+
 
         });
 

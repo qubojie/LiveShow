@@ -155,6 +155,36 @@ class DiningRoomTurnSpelling extends CommonAction
         $insertTableRevenueReturn = $publicObj->insertSpellingTable("$parent_trid","$table_id","$uid","$time","$referrer_id","$referrer_name");
 
         if ($insertTableRevenueReturn){
+
+            /*登陆管理人员信息 on*/
+            $token = $request->header("Token",'');
+
+            $manageInfo = $this->tokenGetManageInfo($token);
+
+            $stype_name = $manageInfo["stype_name"];
+            $sales_name = $manageInfo["sales_name"];
+
+            $adminUser = $stype_name . " ". $sales_name;
+            /*登陆管理人员信息 off*/
+
+            /*获取桌台信息 on*/
+            $tableInfo = $publicObj->tableIdGetInfo($table_id);
+
+            $table_no = $tableInfo['table_no'];
+            /*获取桌台信息 off*/
+
+            /*记录开台日志 on*/
+            $spelling_to  = config("order.table_action_type")['spelling_to']['key'];//拼去
+            $spelling_com = config("order.table_action_type")['spelling_com']['key'];//拼来
+
+            $spelling_to_desc  = "去开拼".$table_no."桌";
+            $spelling_com_desc = "来开拼".$table_no."桌";
+
+            insertTableActionLog(microtime(true) * 10000,"$spelling_to","","","$sales_name",$spelling_to_desc,"$table_id","$table_no");
+
+            insertTableActionLog(microtime(true) * 10000,"$spelling_com","$table_id","$table_no","$sales_name",$spelling_com_desc,"","");
+            /*记录开台日志 off*/
+
             //开拼成功
             return $this->com_return(true,config("params.SUCCESS"));
         }else{
@@ -414,6 +444,98 @@ class DiningRoomTurnSpelling extends CommonAction
                 ->update($parent_params);
 
             if ($updateNowTridReturn !== false && $updateParentTridReturn !== false){
+
+
+                /*如果要转的台位的本身是拼桌,检测是否更新他原本的父桌的拼桌状态*/
+                $is_join = $nowTableInfo['is_join'];
+
+                $parent_trid = $nowTableInfo['parent_trid'];
+
+                if ($is_join && empty($parent_trid)){
+
+                    //如果是拼台状态
+                    //查看该父台位是否还有子台位
+                    $tableChildInfo = $tableRevenueModel
+                        ->where("parent_trid",$now_trid)
+                        ->whereTime("reserve_time","today")
+                        ->field("trid")
+                        ->select();
+                    $tableChildInfo = json_decode(json_encode($tableChildInfo),true);
+
+                    for ($m = 0; $m < count($tableChildInfo); $m ++){
+
+                        $trids = $tableChildInfo[$m]['trid'];
+
+                        $child_table_no = $new_table_no ." - ".($m + 1);
+
+                        $updateParentParams = [
+                            "table_id"    => $table_id,
+                            "table_no"    => $child_table_no,
+                            "parent_trid" => $to_trid,
+                            "updated_at"  => time()
+                        ];
+                        $updateParent = $tableRevenueModel
+                            ->where("trid",$trids)
+                            ->update($updateParentParams);
+                    }
+
+                }
+
+                /*if ($is_join && !empty($parent_trid)){
+                    //如果是拼台状态
+                    //查看该父台位是否还有子台位
+                    $tableChildInfo = $tableRevenueModel
+                        ->where("parent_trid",$parent_trid)
+                        ->whereTime("reserve_time","today")
+                        ->count();
+
+                    if ($tableChildInfo == 0){
+                        //如果没有了,则更新当前桌位的 is_join 标记为 0
+
+                        $updateParentParams = [
+                            "is_join"    => 0,
+                            "updated_at" => time()
+                        ];
+                        $updateParent = $tableRevenueModel
+                            ->where("trid",$parent_trid)
+                            ->update($updateParentParams);
+                    }
+
+                }*/
+
+                /*登陆管理人员信息 on*/
+                $token = $request->header("Token",'');
+
+                $manageInfo = $this->tokenGetManageInfo($token);
+
+                $stype_name = $manageInfo["stype_name"];
+                $sales_name = $manageInfo["sales_name"];
+
+                $adminUser = $stype_name ." ". $sales_name;
+                /*登陆管理人员信息 off*/
+
+                /*获取桌台信息 on*/
+
+                $now_table_id = $nowTableInfo['table_id'];
+                $now_table_no = $nowTableInfo['table_no'];
+
+                $to_table_id = $table_id;
+                $to_table_no = $table_no;
+
+                /*获取桌台信息 off*/
+
+                /*记录开台日志 on*/
+                $spelling_to  = config("order.table_action_type")['spelling_to']['key'];//拼去
+                $spelling_com = config("order.table_action_type")['spelling_com']['key'];//拼来
+
+                $spelling_to_desc  = "拼去".$to_table_no."桌";
+                $spelling_com_desc = $now_table_no."桌,拼来";
+
+                insertTableActionLog(microtime(true) * 10000,"$spelling_to","$now_table_id","$now_table_no","$sales_name",$spelling_to_desc,"$to_table_id","$to_table_no");
+
+                insertTableActionLog(microtime(true) * 10000,"$spelling_com","$to_table_id","$to_table_no","$sales_name",$spelling_com_desc,"$now_table_id","$now_table_no");
+                /*记录开台日志 off*/
+
                 Db::commit();
                 return $this->com_return(true,config("params.SUCCESS"));
             }else{
@@ -464,15 +586,18 @@ class DiningRoomTurnSpelling extends CommonAction
         $table_is_open = $tableRevenueModel
             ->where('trid',$now_trid)
             ->where("status",config("order.table_reserve_status")['already_open']['key'])
-            ->count();
+            ->field("trid,table_id,table_no,is_join,parent_trid")
+            ->find();
 
-        if ($table_is_open <= 0){
+        $table_is_open = json_decode(json_encode($table_is_open),true);
+
+        if (empty($table_is_open)){
             return $this->com_return(false,config("params.REVENUE")['NOT_OPEN_NO_TURN']);
         }
 
         $status = "0,1,2";
 
-        //插卡被转台位是否是空台
+        //查看被转台位是否是空台
         $table_is_ldle = $tableRevenueModel
             ->where("table_id",$to_table_id)
             ->where("status","IN",$status)
@@ -506,6 +631,7 @@ class DiningRoomTurnSpelling extends CommonAction
 
         //获取转至台位的信息
         $to_params = [
+            "parent_trid"  => Null,
             "table_id"   => $to_table_id,
             "table_no"   => $to_table_no,
             "area_id"    => $to_area_id,
@@ -519,6 +645,71 @@ class DiningRoomTurnSpelling extends CommonAction
             ->update($to_params);
 
         if ($res !== false){
+
+
+            $is_join     = $table_is_open["is_join"];//是否拼台
+
+            $parent_trid = $table_is_open["parent_trid"];//父id
+
+            if ($is_join && empty($parent_trid)){
+
+                //如果是拼台状态
+                //查看该父台位是否还有子台位
+                $tableChildInfo = $tableRevenueModel
+                    ->where("parent_trid",$now_trid)
+                    ->whereTime("reserve_time","today")
+                    ->field("trid")
+                    ->select();
+                $tableChildInfo = json_decode(json_encode($tableChildInfo),true);
+
+                for ($m = 0; $m < count($tableChildInfo); $m ++){
+
+                    $trid = $tableChildInfo[$m]['trid'];
+
+                    $child_table_no = $to_table_no ." - ".($m + 1);
+
+
+                    $updateParentParams = [
+                        "table_id" => $to_table_id,
+                        "table_no" => $child_table_no,
+                        "updated_at" => time()
+                    ];
+                    $updateParent = $tableRevenueModel
+                        ->where("trid",$trid)
+                        ->update($updateParentParams);
+                }
+
+            }
+
+            /*登陆管理人员信息 on*/
+            $token = $request->header("Token",'');
+
+            $manageInfo = $this->tokenGetManageInfo($token);
+
+            $stype_name = $manageInfo["stype_name"];
+            $sales_name = $manageInfo["sales_name"];
+
+            $adminUser = $stype_name ." ". $sales_name;
+            /*登陆管理人员信息 off*/
+
+            /*获取桌台信息 on*/
+
+            $now_table_id = $table_is_open['table_id'];
+            $now_table_no = $table_is_open['table_no'];
+
+            /*获取桌台信息 off*/
+
+            /*记录开台日志 on*/
+            $turn_to   = config("order.table_action_type")['turn_to']['key'];//换去
+            $turn_come = config("order.table_action_type")['turn_come']['key'];//换来
+
+            $turn_to_desc  = "换去".$to_table_no."桌";
+            $turn_come_desc = $now_table_no."桌,换来";
+
+            insertTableActionLog(microtime(true) * 10000,"$turn_to","$now_table_id","$now_table_no","$sales_name",$turn_to_desc,"$to_table_id","$to_table_no");
+
+            insertTableActionLog(microtime(true) * 10000,"$turn_come","$to_table_id","$to_table_no","$sales_name",$turn_come_desc,"$now_table_id","$now_table_no");
+            /*记录开台日志 off*/
             return $this->com_return(true,config("params.SUCCESS"));
         }else{
             return $this->com_return(false,config("params.FAIL"));

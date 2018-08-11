@@ -316,6 +316,29 @@ class PublicAction extends Controller
 
             if ($billSubscriptionReturn && $createRevenueReturn){
                 Db::commit();
+                /*记录预约日志 on*/
+                if ($reserve_way == \config("order.reserve_way")['client']['key']){
+                    //如果是客户预定
+                    $userInfo = getUserInfo($uid);
+                    $action_user = $userInfo["name"];
+
+                }else{
+                    //如果是服务人员预定
+                    $action_user = $ssname;
+                }
+
+                $tableInfo = $this->tableIdGetInfo($table_id);
+
+                $table_no = $tableInfo['table_no'];
+
+                $desc = $action_user." 预约 $reserve_date 的".$table_no."桌";
+
+                $type = config("order.table_action_type")['revenue_table']['key'];
+                //记录日志
+                insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$action_user",$desc,"","");
+
+                /*记录预约日志 off*/
+
                 return $this->com_return(true,\config("params.SUCCESS"),$suid);
             }else{
                 return $this->com_return(false,\config("params.FAIL"));
@@ -492,7 +515,7 @@ class PublicAction extends Controller
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    protected function tableIdGetInfo($table_id)
+    public function tableIdGetInfo($table_id)
     {
         $tableModel = new MstTable();
 

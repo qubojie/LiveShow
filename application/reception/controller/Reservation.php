@@ -12,6 +12,7 @@ use app\admin\model\MstTableAreaCard;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
+use app\services\Sms;
 use app\wechat\controller\OpenCard;
 use app\wechat\model\BillSubscription;
 use think\Db;
@@ -87,6 +88,7 @@ class Reservation extends CommonAction
             ->join("table_revenue tr","tr.table_id = t.table_id","LEFT")
             ->join("user u","u.uid = tr.uid","LEFT")
             ->where('t.is_delete',0)
+            ->where('t.is_enable',1)
             ->where($where)
             ->where($location_where)
             ->where($area_where)
@@ -315,7 +317,6 @@ class Reservation extends CommonAction
         return $this->com_return(true,config("params.SUCCESS"),$tableInfo);
     }
 
-
     /**
      * 预约
      * @param Request $request
@@ -366,6 +367,17 @@ class Reservation extends CommonAction
         if (!$validate->check($request_res)){
             return $this->com_return(false,$validate->getError(),null);
         }
+
+        /*登陆前台人员信息 on*/
+        $token = $request->header("Token",'');
+        $manageInfo = $this->tokenGetManageInfo($token);
+
+        $stype_name = $manageInfo["stype_name"];
+        $sales_name = $manageInfo["sales_name"];
+
+        $adminUser = $stype_name . " ". $sales_name;
+        /*登陆前台人员信息 off*/
+
 
         $nowTime = time();
         //根据营销电话获取营销信息
@@ -444,11 +456,13 @@ class Reservation extends CommonAction
 
         $tableInfo = $tableModel
             ->where("table_id",$table_id)
-            ->field("area_id")
+            ->field("area_id,table_no")
             ->find();
         $tableInfo = json_decode(json_encode($tableInfo),true);
 
         $area_id = $tableInfo['area_id'];
+
+        $table_no = $tableInfo['table_no'];
 
         $tableCardInfo = $tableCardModel
             ->where("area_id",$area_id)
@@ -473,65 +487,72 @@ class Reservation extends CommonAction
 
         $publicActionObj = new \app\wechat\controller\PublicAction();
 
-        Db::startTrans();
+        $revenueReturn = $publicActionObj->confirmReservationPublic("$sales_phone","$table_id","$date","$go_time","$subscription","$turnover_limit","$reserve_way","$uid");
 
-        try{
+        if ($revenueReturn["result"] && ($subscription > 0)){
 
-            $revenueReturn = $publicActionObj->confirmReservationPublic("$sales_phone","$table_id","$date","$go_time","$subscription","$turnover_limit","$reserve_way","$uid");
+            $suid = $revenueReturn["data"];
 
-            if ($revenueReturn["result"] && ($subscription > 0)){
+            $billModel = new BillSubscription();
 
-                $suid = $revenueReturn["data"];
+            $updateParams = [
+                "status"        => config("order.reservation_subscription_status")['Paid']['key'],
+                "pay_time"      => $nowTime,
+                "pay_type"      => config("order.pay_method")['cash']['key'],
+                "updated_at"    => $nowTime
+            ];
 
-                $billModel = new BillSubscription();
+            $updateBillReturn = $billModel
+                ->where("suid",$suid)
+                ->update($updateParams);
 
-                $updateParams = [
-                    "status"        => config("order.reservation_subscription_status")['Paid']['key'],
-                    "pay_time"      => $nowTime,
-                    "pay_type"      => config("order.pay_method")['cash']['key'],
-                    "updated_at"    => $nowTime
-                ];
+            $updateRevenueParams = [
+                "status" => config("order.table_reserve_status")['reserve_success']['key'],
+                "updated_at" => $nowTime
+            ];
 
-                $updateBillReturn = $billModel
-                    ->where("suid",$suid)
-                    ->update($updateParams);
+            $trid_info = $billModel
+                ->where("suid",$suid)
+                ->field("trid")
+                ->find();
+            $trid_info = json_decode(json_encode($trid_info),true);
 
-                $updateRevenueParams = [
-                    "status" => config("order.table_reserve_status")['reserve_success']['key'],
-                    "updated_at" => $nowTime
-                ];
+            $trid = $trid_info["trid"];
 
-                $trid_info = $billModel
-                    ->where("suid",$suid)
-                    ->field("trid")
-                    ->find();
-                $trid_info = json_decode(json_encode($trid_info),true);
+            $updateRevenueReturn = $tableRevenueModel
+                ->where("trid",$trid)
+                ->update($updateRevenueParams);
 
-                $trid = $trid_info["trid"];
+            if ($updateBillReturn !== false && $updateRevenueReturn !== false){
+                Db::commit();
 
-                $updateRevenueReturn = $tableRevenueModel
-                    ->where("trid",$trid)
-                    ->update($updateRevenueParams);
+                $date = date("Y-m-d",$date);
 
-                if ($updateBillReturn !== false && $updateRevenueReturn !== false){
-                    Db::commit();
-                    return $this->com_return(true,config("params.SUCCESS"));
-                }else{
-                    return $this->com_return(false,config("params.FAIL"));
-                }
+                $reserve_date = $date." ".$go_time;
 
+                $desc = " 为用户 ".$user_name."($user_phone)"." 预约 $reserve_date 的".$table_no."桌";
+
+                $type = config("order.table_action_type")['revenue_table']['key'];
+                //记录日志
+                insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+
+                /*发送短信 On*/
+                $smsObj = new Sms();
+                $smsObj->sendMsg("$user_phone","revenue","$reserve_date","$table_no");
+                /*发送短信 Off*/
+
+                return $this->com_return(true,config("params.SUCCESS"));
             }else{
-                return $revenueReturn;
+                return $this->com_return(false,config("params.FAIL"));
             }
 
-        }catch (Exception $e){
-            Db::rollback();
-            return $this->com_return(false,$e->getMessage());
+        }else{
+            return $revenueReturn;
         }
     }
 
     /**
-     * 取消预约(提交更新不执行问题)
+     * 取消预约
      * @param Request $request
      * @return array
      * @throws \think\db\exception\DataNotFoundException
@@ -567,7 +588,16 @@ class Reservation extends CommonAction
 
         $time = time();
 
-        $adminUser = "前台当前登录管理员名称";
+        /*登陆管理人员信息 on*/
+        $token = $request->header("Token",'');
+
+        $manageInfo = $this->tokenGetManageInfo($token);
+
+        $stype_name = $manageInfo["stype_name"];
+        $sales_name = $manageInfo["sales_name"];
+
+        $adminUser = $stype_name . " ". $sales_name;
+        /*登陆管理人员信息 off*/
 
         Db::startTrans();
         try{
@@ -575,13 +605,11 @@ class Reservation extends CommonAction
                 //如果是待支付状态
                 if ($is_subscription) {
                     //如果是收取定金
-                    //如果收取定金
-//                    dump("未付款收取定金");die;
                     $table_params = [
                         "status"        => config("order.table_reserve_status")['cancel']['key'],
                         "cancel_user"   => $adminUser,
                         "cancel_time"   => $time,
-                        "cancel_reason" => "未付款时,前台人员手动取消",
+                        "cancel_reason" => "未付款时, ".$sales_name." 手动取消",
                         "updated_at"    => $time
                     ];
 
@@ -590,7 +618,7 @@ class Reservation extends CommonAction
                         "cancel_user"   => $adminUser,
                         "cancel_time"   => $time,
                         "auto_cancel"   => 0,
-                        "cancel_reason" => "未付款时,前台人员手动取消",
+                        "cancel_reason" => "未付款时, ".$sales_name." 手动取消",
                         "updated_at"    => $time
 
                     ];
@@ -605,7 +633,7 @@ class Reservation extends CommonAction
                         "status"        => config("order.table_reserve_status")['cancel']['key'],
                         "cancel_user"   => $adminUser,
                         "cancel_time"   => $time,
-                        "cancel_reason" => "无需缴纳定金,前台人员手动取消",
+                        "cancel_reason" => "无需缴纳定金, ".$sales_name." 手动取消",
                         "updated_at"    => $time
                     ];
 
@@ -619,7 +647,10 @@ class Reservation extends CommonAction
                 //获取系统设置的最晚取消时间
                 $cardObj = new OpenCard();
                 $reserve_cancel_time = $cardObj->getSysSettingInfo("reserve_cancel_time");
-                $kc_date = date("Y-m-d");
+
+                $reserve_time = $tableInfo['reserve_time'];//预约时间
+
+                $kc_date = date("Y-m-d",$reserve_time);
 
                 $kc_time = $kc_date." ".$reserve_cancel_time;//最晚取消时间
 
@@ -630,12 +661,13 @@ class Reservation extends CommonAction
                 if ($is_subscription){
                     //如果收取定金
                     if ($now_time > $kc_time){
+
                         //如果退款时,已超时,则不退定金
                         $table_params = [
                             "status"        => config("order.table_reserve_status")['cancel']['key'],
                             "cancel_user"   => $adminUser,
                             "cancel_time"   => $time,
-                            "cancel_reason" => "已付款,超出取消时间范围内,前台人员手动取消",
+                            "cancel_reason" => "已付款,超出取消时间范围内, ".$sales_name." 手动取消",
                             "updated_at"    => $time
                         ];
 
@@ -644,7 +676,7 @@ class Reservation extends CommonAction
                             "cancel_user"   => $adminUser,
                             "cancel_time"   => $time,
                             "auto_cancel"   => 0,
-                            "cancel_reason" => "已付款,超出取消时间范围内,前台人员手动取消",
+                            "cancel_reason" => "已付款,超出取消时间范围内, ".$sales_name." 手动取消",
                             "updated_at"    => $time
                         ];
 
@@ -664,14 +696,13 @@ class Reservation extends CommonAction
                             $payRes = "12312312";
                         }
 
-
                         if (!empty($payRes)){
 
                             $table_params = [
                                 "status"        => config("order.table_reserve_status")['cancel']['key'],
                                 "cancel_user"   => $adminUser,
                                 "cancel_time"   => $time,
-                                "cancel_reason" => "已付款,未超出取消时间范围内,前台人员手动取消",
+                                "cancel_reason" => "已付款,未超出取消时间范围内, ".$sales_name." 手动取消",
                                 "updated_at"    => $time
                             ];
 
@@ -680,7 +711,7 @@ class Reservation extends CommonAction
                                 "cancel_user"   => $adminUser,
                                 "cancel_time"   => $time,
                                 "auto_cancel"   => 0,
-                                "cancel_reason" => "已付款,超出取消时间范围内,前台人员手动取消",
+                                "cancel_reason" => "已付款,超出取消时间范围内, ".$sales_name." 手动取消",
                                 "is_refund"     => 1,
                                 "refund_amount" => $subscription,
                                 "updated_at"    => $time
@@ -698,22 +729,50 @@ class Reservation extends CommonAction
                 }else{
                     //不收取定金
                     //如果没收取定金
-//                    dump("已预约,不用支付定金");die;
                     $table_params = [
                         "status"        => config("order.table_reserve_status")['cancel']['key'],
                         "cancel_user"   => $adminUser,
                         "cancel_time"   => $time,
-                        "cancel_reason" => "已预约,不用支付定金,前台人会员手动取消",
+                        "cancel_reason" => "已预约,不用支付定金, ".$sales_name." 手动取消",
                         "updated_at"    => $time
                     ];
                     $tableReturn = $this->updatedTableRevenueInfo($table_params,$trid);
                     $billReturn = true;
-
                 }
-
             }
             if ($tableReturn && $billReturn){
                 Db::commit();
+
+                /*记录日志 on*/
+                $uid = $tableInfo['uid'];
+
+                $userInfo = getUserInfo($uid);
+
+                $userName = $userInfo["name"];
+
+                $userPhone = $userInfo["phone"];
+
+                $table_id = $tableInfo['table_id'];
+
+                $table_no = $tableInfo['table_no'];
+
+                $reserve_time = $tableInfo['reserve_time'];//预约时间
+
+                $reserve_date = date("Y-m-d H:i:s",$reserve_time);
+
+                $type = config("order.table_action_type")['cancel_revenue']['key'];
+
+                $desc = " 为用户 ".$userName."($userPhone)"." 取消 $reserve_date ".$table_no."桌的预约";
+
+                //取消预约记录日志
+                insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+                /*记录日志 off*/
+
+                /*发送短信 On*/
+                $smsObj = new Sms();
+                $smsObj->sendMsg("$userPhone","cancel","$reserve_date","$table_no");
+                /*发送短信 Off*/
+
                 return $this->com_return(true,config("params.SUCCESS"));
             }else{
                 return $this->com_return(false,config("params.FAIL"));

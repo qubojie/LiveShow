@@ -40,8 +40,9 @@ class Auth extends Controller
         $manageInfo = $manageSalesmanModel
             ->alias("ms")
             ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")
-            ->where('phone',$phone)
-            ->where('password',$password)
+            ->where('ms.phone',$phone)
+            ->where('ms.password',$password)
+            ->where('mst.stype_key',config("salesman.salesman_type")[6]['key'])
             ->field("mst.stype_key")
             ->field($manage_column)
             ->find();
@@ -81,7 +82,7 @@ class Auth extends Controller
             ->where('password',$password)
             ->update($update_params);
 
-        if ($is_ok){
+        if ($is_ok !== false){
 
             $manageInfo = $manageSalesmanModel
                 ->alias("ms")

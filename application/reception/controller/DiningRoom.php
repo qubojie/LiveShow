@@ -309,27 +309,30 @@ class DiningRoom extends CommonAction
         $spellingRevenueInfo = json_decode(json_encode($spellingRevenueInfo),true);
 
         $tableInfo['spellingRevenueInfo'] = $spellingRevenueInfo;
-
         /*拼桌基本信息 Off*/
 
 
-        $oldInfo = $tableRevenueModel
-            ->alias("tr")
-            ->join("user u","u.uid = tr.uid")
-            ->join("user_card uc","uc.uid = tr.uid","LEFT")
-            ->join("mst_user_level ul","ul.level_id = u.level_id")
-            ->where('tr.table_id',$table_id)
-            ->where("tr.status","NOT IN",$status_str)
-            ->whereTime("tr.reserve_time","today")
-            ->field("u.name,u.phone user_phone,u.nickname,u.level_id,u.credit_point")
-            ->field("ul.level_name")
-            ->field("uc.card_name,uc.card_type")
-            ->field($revenue_column)
+        $now_time = strtotime(date("Ymd",time()));
+        $begin_time = $now_time * 10000;
+
+        $end_time   = ($now_time + 24 * 60 * 60) * 10000;
+
+        $tableJournal = Db::name("table_log")
+            ->alias("tl")
+            ->where("tl.table_id",$table_id)
+            ->whereTime("tl.log_time","between",["$begin_time","$end_time"])
+            ->field("log_time,action_user,desc")
             ->select();
 
-        $oldInfo = json_decode(json_encode($oldInfo),true);
+        $tableJournal = json_decode(json_encode($tableJournal),true);
 
-        $tableInfo['oldInfo'] = $oldInfo;
+        for ($i = 0; $i < count($tableJournal); $i ++){
+            $log_time = $tableJournal[$i]['log_time'];
+
+            $tableJournal[$i]['log_time'] = substr($log_time,"0","10");
+        }
+
+        $tableInfo['table_journal'] = $tableJournal;
 
         $tableInfo = _unsetNull($tableInfo);
 
@@ -346,7 +349,6 @@ class DiningRoom extends CommonAction
      */
     public function openTable(Request $request)
     {
-
         $table_id    = $request->param("table_id","");//桌id
         $user_phone  = $request->param("user_phone","");//客户电话
         $user_name   = $request->param("user_name","");//客户姓名
@@ -372,6 +374,27 @@ class DiningRoom extends CommonAction
         if (!$validate->check($request_res)){
             return $this->com_return(false,$validate->getError());
         }
+
+
+        /*登陆管理人员信息 on*/
+        $token = $request->header("Token",'');
+
+        $manageInfo = $this->tokenGetManageInfo($token);
+
+        $stype_name = $manageInfo["stype_name"];
+        $sales_name = $manageInfo["sales_name"];
+
+        $adminUser = $stype_name . " ". $sales_name;
+        /*登陆管理人员信息 off*/
+
+        $publicObj = new PublicAction();
+
+        /*获取桌台信息 on*/
+        $tableInfo = $publicObj->tableIdGetInfo($table_id);
+
+        $table_no = $tableInfo['table_no'];
+        /*获取桌台信息 off*/
+
 
         $referrer_id   = config("salesman.salesman_type")['3']['key'];
         $referrer_type = config("salesman.salesman_type")['3']['key'];
@@ -418,7 +441,6 @@ class DiningRoom extends CommonAction
             }
         }
 
-        $publicObj = new PublicAction();
 
         if (!empty($uid)){
             //查看当前用户是否预约当前桌,并且是未开台状态
@@ -433,11 +455,21 @@ class DiningRoom extends CommonAction
 
                 //是当前用户的预约桌台,更改当前桌台为 开台状态
                 $trid = $is_revenue['trid'];
+
                 $status = config("order.table_reserve_status")['already_open']['key'];
 
                 $openTable = $publicObj->changeRevenueTableStatus($trid,$status);
 
                 if ($openTable){
+
+                    /*记录开台日志 on*/
+
+                    $type = config("order.table_action_type")['open_table']['key'];
+
+                    $desc = " 为用户 ".$user_name."($user_phone)"." 开 ".$table_no."桌的预约";
+
+                    insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+                    /*记录开台日志 off*/
                     //预约用户开台成功
                     return $this->com_return(true,config("params.SUCCESS"));
                 }else{
@@ -461,6 +493,16 @@ class DiningRoom extends CommonAction
                 $insertTableRevenueReturn = $publicObj->insertTableRevenue("$table_id","$uid","$open_time","$referrer_id","$referrer_name");
 
                 if ($insertTableRevenueReturn){
+
+                    /*记录开台日志 on*/
+
+                    $type = config("order.table_action_type")['open_table']['key'];
+
+                    $desc = " 为用户 ".$user_name."($user_phone)"." 开 ".$table_no."桌";
+
+                    insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+                    /*记录开台日志 off*/
+
                     //非预约用户开台成功
                     return $this->com_return(true,config("params.SUCCESS"));
                 }else{
@@ -488,6 +530,15 @@ class DiningRoom extends CommonAction
             $insertRevenueReturn = $publicObj->insertTableRevenue("$table_id","","$open_time","","");
 
             if ($insertRevenueReturn){
+                /*记录开台日志 on*/
+
+                $type = config("order.table_action_type")['open_table']['key'];
+
+                $desc = "直接"." 开 ".$table_no."桌";
+
+                insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+                /*记录开台日志 off*/
+
                 //未录入任何信息直接开台成功
                 return $this->com_return(true,config("params.SUCCESS"));
             }else{
@@ -689,8 +740,6 @@ class DiningRoom extends CommonAction
         if (!empty($phone)){
             $where["phone"] = ["like","%$phone%"];
         }
-
-
         $res = $salesModel
             ->alias("ms")
             ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")

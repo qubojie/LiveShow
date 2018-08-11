@@ -336,6 +336,32 @@ class Reservation extends CommonAction
             }
 
             if ($tableReturn && $billReturn){
+                /*记录日志 on*/
+
+                $uid = $tableInfo['uid'];
+
+                $userInfo = getUserInfo($uid);
+
+                $userName = $userInfo["name"];
+
+                $userPhone = $userInfo["phone"];
+
+                $table_id = $tableInfo['table_id'];
+
+                $table_no = $tableInfo['table_no'];
+
+                $reserve_time = $tableInfo['reserve_time'];//预约时间
+
+                $reserve_date = date("Y-m-d H:i:s",$reserve_time);
+
+                $type = config("order.table_action_type")['cancel_revenue']['key'];
+
+                $desc = " 用户 ".$userName."($userPhone)"." 手动取消 $reserve_date ".$table_no."桌的预约";
+
+                //取消预约记录日志
+                insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$userName",$desc,"","");
+                /*记录日志 off*/
+
                 Db::commit();
                 return $this->com_return(true,\config("params.SUCCESS"));
             }else{

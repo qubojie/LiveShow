@@ -326,7 +326,8 @@ return [
         "send_repeat"     => "已发送,请勿重复操作",
         "verify_success"  => "验证成功",
         "verify_fail"     => "验证失败",
-
+        "revenue_send"    => "尊敬的LiveShow用户 %phone% 您好,您已成功预订 %date_time% 的 %table_info% 号桌,如有定金,提前三十分钟取消预约,定金原路退回.感谢您的信任",
+        "cancel_send"     => "尊敬的LiveShow用户 %phone% 您好,已为您成功取消 %date_time% %table_info% 号桌的预约,感谢您的信任",
     ],
 
 

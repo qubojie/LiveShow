@@ -28,6 +28,7 @@ class User extends Model
         'wxid',
         'wx_number',
         'email',
+        'name',
         'nickname',
         'avatar',
         'sex',

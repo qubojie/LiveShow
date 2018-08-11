@@ -14,38 +14,6 @@ use think\Controller;
 class Sms extends Controller
 {
     /**
-     * 发送短信信息
-     * @param $phone
-     * @return array
-     */
-    public function sendMsg($phone)
-    {
-        if (empty($phone)){
-            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
-        }
-
-        $message = config('sms.sms_verify_code').config('sms.sign');
-
-        $sms = new LuoSiMaoSms();
-
-        $msg = " 预定成功 ";
-
-        $res = $sms->send($phone, str_replace('%code%', $msg, $message));
-
-        if ($res){
-            if (isset($res['error']) && $res['error'] == 0){
-                //缓存验证码
-                return $this->com_return(true, config("sms.send_success"));
-            }else{
-                return $this->com_return(false, $res['msg']);
-            }
-        }else{
-            return $this->com_return(false, config("sms.send_fail"));
-        }
-
-    }
-
-    /**
      * 发送验证码
      * @param $phone
      * @return array
@@ -115,4 +83,46 @@ class Sms extends Controller
 
         }
     }
+
+
+    /**
+     *"尊敬的LiveShow用户 %phone% 您好,您已成功预订 %date_time% 的 %table_info%,如有定金,提前三十分钟取消预约,定金原路退回.感谢您的信任",
+     * 发送短信信息
+     * @param $phone
+     * @return array
+     */
+    public function sendMsg($phone,$type,$date_time,$table_info)
+    {
+        if (empty($phone)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+
+        if ($type == "revenue"){
+            $message = config('sms.revenue_send').config('sms.sign');
+        }elseif ($type == "cancel"){
+            $message = config('sms.cancel_send').config('sms.sign');
+        }else{
+            $message = "天津五大道民园体育场 LiveShow酒吧 欢迎您".config('sms.sign');
+        }
+
+        $sms = new LuoSiMaoSms();
+
+        $message = str_replace('%phone%',$phone,$message);
+        $message = str_replace('%date_time%',$date_time,$message);
+        $message = str_replace('%table_info%',$table_info,$message);
+
+        $res = $sms->send($phone,$message);
+
+        if ($res){
+            if (isset($res['error']) && $res['error'] == 0){
+                return $this->com_return(true, config("sms.send_success"));
+            }else{
+                return $this->com_return(false, $res['msg']);
+            }
+        }else{
+            return $this->com_return(false, config("sms.send_fail"));
+        }
+
+    }
+
 }

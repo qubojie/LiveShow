@@ -132,3 +132,65 @@ function getSysSetting($key)
     return $value;
 
 }
+
+
+/**
+ * 酒桌操作记录日志(预约,取消预约,转台,转拼,开拼,开台等操作)
+ * @param $log_time
+ * @param $type
+ * @param $table_id
+ * @param $table_no
+ * @param $action_user
+ * @param $desc
+ * @param string $table_o_id
+ * @param string $table_o_no
+ * @return bool
+ */
+
+function insertTableActionLog($log_time,$type,$table_id,$table_no,$action_user,$desc,$table_o_id = "",$table_o_no = "")
+{
+    $params = [
+        "log_time"     => $log_time,
+        "type"         => $type,
+        "table_id"     => $table_id,
+        "table_no"     => $table_no,
+        "action_user"  => $action_user,
+        "desc"         => $desc,
+        "table_o_id"   => $table_o_id,
+        "table_o_no"   => $table_o_no,
+    ];
+
+    $is_ok = \think\Db::name("table_log")
+        ->insert($params);
+
+    if ($is_ok){
+        return true;
+    }else{
+        return false;
+    }
+
+}
+
+/**
+ * 根据uid获取用户信息
+ * @param $uid
+ * @return array|false|PDOStatement|string|\think\Model
+ * @throws \think\db\exception\DataNotFoundException
+ * @throws \think\db\exception\ModelNotFoundException
+ * @throws \think\exception\DbException
+ */
+function getUserInfo($uid)
+{
+    $userModel = new \app\admin\model\User();
+
+    $column = $userModel->column;
+
+    $user_info = $userModel
+        ->where('uid',$uid)
+        ->field($column)
+        ->find();
+
+    $user_info = json_decode(json_encode($user_info),true);
+
+    return $user_info;
+}
