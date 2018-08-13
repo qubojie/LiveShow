@@ -307,7 +307,8 @@ return [
             "TABLE_NOT_LDLE"    => "转至的台位已被占用,不可进行转台操作",
             "DATE_NOT_EMPTY"    => "日期不能为空",
             "TURN_OBJ_NO_SELF"  => "转至对象不能是自身",
-            "XD_TABLE_FALL"     => "用户权限不足以预定本桌"
+            "XD_TABLE_FALL"     => "用户权限不足以预定本桌",
+            "CLEAN_BEFORE_USER" => "清台之前,请完善用户信息"
         ],
      ],
 
@@ -552,6 +553,8 @@ return [
         'reservation_subscription_status' => [
             'pending_payment'   => ['key' => '0', 'name' => '待付款'],
             'Paid'              => ['key' => '1', 'name' => '付款完成'],
+            'cancel_revenue'    => ['key' => '2', 'name' => '取消预约'],
+            'open_table_refund' => ['key' => '3', 'name' => '到场退款'],
             'cancel'            => ['key' => '9', 'name' => '交易取消'],
         ],
 
@@ -624,6 +627,20 @@ return [
         'resignation'       => ['key' => 'resignation',         'name' => '离职'],
         'change_user_pass'  => ['key' => 'change_user_pass',    'name' => '更改用户密码'],
         'change_admin_pass' => ['key' => 'change_admin_pass',   'name' => '更改管理员密码'],
+        'recharge'          => ['key' => 'recharge',            'name' => '充值'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 系统设置配置
+    |--------------------------------------------------------------------------
+    */
+    'sys' => [
+        'sys'     => "系统设置",
+        'card'    => "会籍卡设置",
+        'reserve' => "预约设置",
+        'sms'     => "短讯设置",
+        'user'    => "用户设置",
     ],
 
 ];

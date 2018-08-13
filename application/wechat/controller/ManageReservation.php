@@ -323,7 +323,7 @@ class ManageReservation extends HomeAction
                         ];
 
                         $bill_params = [
-                            "status"        => \config("order.reservation_subscription_status")['cancel']['key'],
+                            "status"        => \config("order.reservation_subscription_status")['cancel_revenue']['key'],
                             "cancel_user"   => "salesman",
                             "cancel_time"   => $time,
                             "auto_cancel"   => 0,
@@ -362,7 +362,7 @@ class ManageReservation extends HomeAction
                             ];
 
                             $bill_params = [
-                                "status"        => \config("order.reservation_subscription_status")['cancel']['key'],
+                                "status"        => \config("order.reservation_subscription_status")['cancel_revenue']['key'],
                                 "cancel_user"   => "user",
                                 "cancel_time"   => $time,
                                 "auto_cancel"   => 0,

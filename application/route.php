@@ -662,6 +662,7 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
         //充值单据管理
         Route::group(['name' => 'refillOrder'],function (){
+
             //单据状态组获取
             Route::rule('orderStatus','Recharge/orderStatus');
 
@@ -673,6 +674,24 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
             //充值收款操作
             Route::rule('receipt','Recharge/receipt','post|options');
+
+        });
+
+        //预约定金单据管理
+        Route::group(['name' => 'appointmentDeposit'],function (){
+
+            //单据状态分组获取
+            Route::rule('orderStatus','AppointmentDeposit/orderStatus','post|options');
+
+            //预约定金单据列表
+            Route::rule('index','AppointmentDeposit/index','post|options');
+
+            //预约定金收款操作
+            Route::rule('receipt','AppointmentDeposit/receipt','post|options');
+
+            //预约定金退款操作
+            Route::rule('refund','AppointmentDeposit/refund','post|options');
+
         });
 
     });
@@ -749,6 +768,10 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 //前台管理路由群组
 Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
+    //后台操作预约定金退款
+    Route::rule('adminRefundDeposit','DiningRoom/adminRefundDeposit','post|options');
+
+
     //基础操作
     Route::group(['name' => 'auth'],function (){
         //登陆
@@ -800,8 +823,5 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
         //取消预约
         Route::rule('cancelReservation','Reservation/cancelReservation','post|options');
-
-
-
     });
 });

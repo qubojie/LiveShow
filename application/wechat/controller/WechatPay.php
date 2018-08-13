@@ -124,8 +124,9 @@ class WechatPay extends Controller
             return $this->com_return(false,'订单号不能为空');
         }
 
+        $payable_amount = false;
 
-        /*if ($scene == config("order.pay_scene")['open_card']['key']){
+        if ($scene == config("order.pay_scene")['open_card']['key']){
 
             //获取开卡订单金额
             $payable_amount = $this->getOrderPayableAmount($vid);
@@ -133,24 +134,21 @@ class WechatPay extends Controller
         }
 
         if ($scene == config("order.pay_scene")['reserve']['key']){
-
             //这里去处理预约定金回调逻辑
             //获取订台金额
             $payable_amount = $this->getSubscriptionPayableAmount($vid);
 
         }
 
-
         if ($scene == config("order.pay_scene")['recharge']['key']){
+            //获取充值金额
+            $payable_amount = $this->getBillRefillAmount($vid);
 
-            //这里去处理预约定金回调逻辑
-            //获取订台金额
-            //$payable_amount = $this->getSubscriptionPayableAmount($vid);
+        }
 
-        }*/
+        Log::info(date("Y-m-d H:i:s",time())."充值金额 ------ ".$payable_amount);
 
-
-        $headL= substr($vid,0,2);
+        /*$headL= substr($vid,0,2);
 
 
         if ($headL == "SU"){
@@ -171,7 +169,7 @@ class WechatPay extends Controller
             //获取开卡订单金额
             $payable_amount = $this->getOrderPayableAmount($vid);
 
-        }
+        }*/
 
         if ($payable_amount == false){
             return $this->com_return(false,'订单有误');
@@ -219,7 +217,7 @@ class WechatPay extends Controller
         $refund_fee    = $request->param('refund_fee','');
         $out_refund_no = $request->param('out_refund_no','');
 
-        $total_fee = $total_fee * 100;
+        $total_fee  = $total_fee * 100;
         $refund_fee = $refund_fee * 100;
 
         $params = [
@@ -295,8 +293,6 @@ class WechatPay extends Controller
 
         $notifyType = $this->request->param('notifyType',"");
 
-        $attach     = $this->request->param('attach',"");//支付场景包名
-
         if ($notifyType == 'adminCallback'){
 
             $values = $this->request->param();
@@ -311,7 +307,7 @@ class WechatPay extends Controller
 
         $order_id = $values['out_trade_no'];
 
-        /*$attach   = $values['attach'];//获取回调支付包名
+        $attach   = $values['attach'];//获取回调支付包名
 
         if ($attach == config("order.pay_scene")['open_card']['key']){
 
@@ -322,7 +318,6 @@ class WechatPay extends Controller
         }
 
         if ($attach == config("order.pay_scene")['reserve']['key']){
-
             //这里去处理预约定金回调逻辑
             //获取订台金额
             $res = $this->payDeposit($values,$notifyType);
@@ -335,12 +330,11 @@ class WechatPay extends Controller
 
             //这里去处理预约定金回调逻辑
             //获取订台金额
-        }*/
+            $res = $this->recharge($values,$notifyType);
+            echo $res;die;
+        }
 
-
-
-
-        $headL= substr($order_id,0,2);
+        /*$headL= substr($order_id,0,2);
 
         if ($headL == "SU"){
             //这里去处理预约定金回调逻辑
@@ -360,7 +354,7 @@ class WechatPay extends Controller
                 echo $res;die;
             }
 
-        }
+        }*/
     }
 
     /**
@@ -1357,7 +1351,7 @@ class WechatPay extends Controller
 
         $info = $billSubscriptionModel
             ->where('suid',$suid)
-            ->where('status',0)
+            ->where('status','0')
             ->field('subscription')
             ->find();
 
@@ -1382,7 +1376,7 @@ class WechatPay extends Controller
 
         $info = $billRefillModel
             ->where('rfid',$rfid)
-            ->where('status',0)
+            ->where('status','0')
             ->field("amount")
             ->find();
 

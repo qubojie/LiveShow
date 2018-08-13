@@ -183,6 +183,7 @@ class TableArea extends CommandAction
 //        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
         $sort           = $request->param('sort','100');//排序
         $is_enable      = $request->param('is_enable',0);//是否启用预定  0否 1是
+        $card_ids       = $request->param("card_id","");//区域绑定卡
 
         $sid            = $request->param("sid","");//服务负责人id
 
@@ -300,6 +301,7 @@ class TableArea extends CommandAction
 //        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
         $sort           = $request->param('sort','100');//排序
         $is_enable      = $request->param('is_enable',0);//是否启用预定  0否 1是
+        $card_ids       = $request->param("card_id","");//区域绑定卡
 
         $sid            = $request->param("sid","");//服务负责人id
 

@@ -17,6 +17,7 @@ use app\wechat\controller\OpenCard;
 use app\wechat\model\BillSubscription;
 use think\Db;
 use think\Exception;
+use think\Log;
 use think\Request;
 use think\Validate;
 
@@ -470,24 +471,35 @@ class Reservation extends CommonAction
         $tableCardInfo = json_decode(json_encode($tableCardInfo),true);
 
         //判断桌台是否限定
+        $is_xd = false;
         if (!empty($tableCardInfo)){
-            //限制预定
-            $is_xd = 1;
 
-        }else{
-            //不限制预定
-            $is_xd = 0;
+            //限制预定
+            if (!empty($card_id)){
+
+                $card_id_arr = [];
+                foreach ($tableCardInfo as $key => $val){
+                    $card_id_arr[$key] = $val['card_id'];
+                }
+
+                $in_array_res = in_array($card_id,$card_id_arr);
+
+                if (!$in_array_res){
+                    $is_xd = true;
+                }
+            }
+
         }
 
         if ($is_xd){
             return $this->com_return(false,config("params.REVENUE")['XD_TABLE_FALL']);
         }
 
-        $reserve_way = config("user.register_way")['web']['key'];
+        $reserve_way     = config("user.register_way")['web']['key'];
 
         $publicActionObj = new \app\wechat\controller\PublicAction();
 
-        $revenueReturn = $publicActionObj->confirmReservationPublic("$sales_phone","$table_id","$date","$go_time","$subscription","$turnover_limit","$reserve_way","$uid");
+        $revenueReturn   = $publicActionObj->confirmReservationPublic("$sales_phone","$table_id","$date","$go_time","$subscription","$turnover_limit","$reserve_way","$uid");
 
         if ($revenueReturn["result"] && ($subscription > 0)){
 
@@ -672,7 +684,7 @@ class Reservation extends CommonAction
                         ];
 
                         $bill_params = [
-                            "status"        => config("order.reservation_subscription_status")['cancel']['key'],
+                            "status"        => config("order.reservation_subscription_status")['cancel_revenue']['key'],
                             "cancel_user"   => $adminUser,
                             "cancel_time"   => $time,
                             "auto_cancel"   => 0,
@@ -685,6 +697,7 @@ class Reservation extends CommonAction
                     }else{
                         //如果退款时,未超时,则退还定金
                         $billInfo     = $this->getBillSubscriptionInfo($trid);
+                        Log::info("取消用户预约 参数 ---- ".var_export($billInfo,true));
                         $subscription = $billInfo['subscription'];
                         $suid         = $billInfo['suid'];
                         $pay_type     = $billInfo['pay_type'];
@@ -693,8 +706,10 @@ class Reservation extends CommonAction
                         if ($pay_type == config("order.pay_method")['wxpay']['key']){
                             $payRes = $this->callBackPay($suid,$subscription,$subscription);
                         }else{
-                            $payRes = "12312312";
+                            $payRes = "其他支付";
                         }
+
+                        Log::info("取消预约,退款流程返回 ----- ".var_export($payRes,true));
 
                         if (!empty($payRes)){
 
@@ -707,7 +722,7 @@ class Reservation extends CommonAction
                             ];
 
                             $bill_params = [
-                                "status"        => config("order.reservation_subscription_status")['cancel']['key'],
+                                "status"        => config("order.reservation_subscription_status")['cancel_revenue']['key'],
                                 "cancel_user"   => $adminUser,
                                 "cancel_time"   => $time,
                                 "auto_cancel"   => 0,

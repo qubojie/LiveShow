@@ -29,6 +29,14 @@ class TableAction extends HomeAction
             return $this->com_return(false,config("params.ABNORMAL_ACTION"));
         }
 
+        $tableInfo = $this->lookUserInfoComplete($trid);
+
+        $uid = $tableInfo["uid"];
+
+        if (empty($uid)){
+            return $this->com_return(false,config("params.REVENUE")['CLEAN_BEFORE_USER']);
+        }
+
         $tableRevenueModel = new TableRevenue();
 
         $updateParams = [
@@ -72,5 +80,37 @@ class TableAction extends HomeAction
         }else{
             return $this->com_return(false,config("params.FAIL"));
         }
+    }
+
+    /**
+     * 查看指定trid的预约订台信息
+     * @param $trid
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    protected function lookUserInfoComplete($trid)
+    {
+
+        $tableRevenueModel = new TableRevenue();
+
+        $column = $tableRevenueModel->column;
+
+        foreach ($column as $key => $val){
+            $column[$key] = "tr.".$val;
+        }
+
+        $info = $tableRevenueModel
+            ->alias("tr")
+            ->join("user u","u.uid = tr.uid","LEFT")
+            ->where("tr.trid",$trid)
+            ->field($column)
+            ->find();
+
+        $info = json_decode(json_encode($info),true);
+
+        return $info;
+
     }
 }

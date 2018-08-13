@@ -25,6 +25,9 @@ class ManageInfo extends HomeAction
      * 服务人员变更密码
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function changePass(Request $request)
     {

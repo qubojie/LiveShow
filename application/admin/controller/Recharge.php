@@ -116,6 +116,7 @@ class Recharge extends CommandAction
             ->field($admin_column)
             ->field("u.phone,u.name,u.nickname,u.avatar,u.sex")
             ->field("ms.sales_name,ms.phone sales_phone")
+            ->order("created_at DESC")
             ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);
@@ -164,7 +165,6 @@ class Recharge extends CommandAction
         $pay_type    = $request->param("pay_type","");//支付方式
         $amount      = $request->param("amount","");//支付金额
         $cash_gift   = $request->param("cash_gift","");//赠送礼金数
-
 
         $pay_no          = $request->param("pay_no","");//支付回单号
 
@@ -295,6 +295,9 @@ class Recharge extends CommandAction
 
             if ($is_ok !== false){
 
+                //记录操作日志
+                addSysAdminLog("$uid","","$rfid",config("useraction.recharge")["key"],config("useraction.recharge")["name"],"$action_user","$time");
+
                 return $this->com_return(true,$res['return_msg']);
             }else{
                 return $this->com_return(false,config("params.FAIL"));
@@ -404,7 +407,6 @@ class Recharge extends CommandAction
             return $this->com_return(false,$pay_validate->getError(),null);
         }
 
-
         $res = $this->callBackPay("$Authorization","$notifyType","$rfid","$payable_amount","$payable_amount","$review_desc","$pay_no");
 
         $res= json_decode(json_encode(simplexml_load_string($res, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
@@ -439,6 +441,8 @@ class Recharge extends CommandAction
 
             if ($is_ok !== false){
 
+                addSysAdminLog("","","$rfid",config("useraction.recharge")["key"],config("useraction.recharge")["name"],"$action_user","$time");
+
                 return $this->com_return(true,$res['return_msg']);
             }else{
                 return $this->com_return(false,config("params.FAIL"));
@@ -463,7 +467,10 @@ class Recharge extends CommandAction
      */
     protected function callBackPay($Authorization,$notifyType,$vid,$total_fee,$cash_fee,$reason,$transaction_id= '')
     {
+        $attach = config("order.pay_scene")['recharge']['key'];//充值支付场景
+
         $values = [
+            'attach'         => $attach,
             'notifyType'     => $notifyType,
             'total_fee'      => $total_fee,
             'cash_fee'       => $cash_fee,

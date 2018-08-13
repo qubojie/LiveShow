@@ -23,6 +23,9 @@ class Setting extends CommandAction
      * 设置类型列表
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function lists(Request $request)
     {
@@ -62,7 +65,31 @@ class Setting extends CommandAction
         $mn = [];
         foreach ($res as $k => $v){
             foreach ($v as $m => $n){
-                $mn[] = $n;
+                //$mn[] = $n;
+                if ($n == "card"){
+                    $mn[$k]["key"] = $n;
+                    $mn[$k]["name"] = config("sys.card");
+                }
+
+                if ($n == "reserve"){
+                    $mn[$k]["key"] = $n;
+                    $mn[$k]["name"] = config("sys.reserve");
+                }
+
+                if ($n == "sms" ){
+                    $mn[$k]["key"] = $n;
+                    $mn[$k]["name"] = config("sys.sms");
+                }
+
+                if ($n == "sys" ){
+                    $mn[$k]["key"] = $n;
+                    $mn[$k]["name"] = config("sys.sys");
+                }
+
+                if ($n == "user" ){
+                    $mn[$k]["key"] = $n;
+                    $mn[$k]["name"] = config("sys.user");
+                }
             }
         }
         return $common->com_return(true,"获取成功",$mn);
@@ -72,6 +99,9 @@ class Setting extends CommandAction
      * 根据类型查找相应下的数据
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function get_info(Request $request)
     {
@@ -157,6 +187,9 @@ class Setting extends CommandAction
      * 新增系统设置
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function create(Request $request)
     {

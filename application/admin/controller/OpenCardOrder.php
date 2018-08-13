@@ -25,8 +25,6 @@ class OpenCardOrder extends CommandAction
     {
         $billCardModel = new BillCardFees();
 
-
-
         $typeList = config("order.open_card_type");
 
         $res = [];
@@ -730,7 +728,10 @@ class OpenCardOrder extends CommandAction
      */
     protected function callBackPay($Authorization,$notifyType,$vid,$total_fee,$cash_fee,$reason,$transaction_id= '')
     {
+        $attach = config("order.pay_scene")['open_card']['key'];//开卡订单支付场景
+
         $values = [
+            'attach'         => $attach,
             'notifyType'     => $notifyType,
             'total_fee'      => $total_fee,
             'cash_fee'       => $cash_fee,

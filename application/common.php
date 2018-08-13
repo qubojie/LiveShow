@@ -133,6 +133,32 @@ function getSysSetting($key)
 
 }
 
+/**
+ * 记录禁止登陆解禁登陆 单据操作等日志
+ * @param string $uid           '被操作用户id'
+ * @param string $gid           '被操作的的商品id'
+ * @param string $oid           '相关单据id'
+ * @param string $action        '操作内容'
+ * @param string $reason        '操作原因描述'
+ * @param string $action_user   '操作管理员id'
+ * @param string $action_time   '操作时间'
+ */
+function addSysAdminLog($uid = '',$gid = '',$oid = '',$action = 'empty',$reason = '',$action_user = '',$action_time = '')
+{
+    $params  = [
+        'uid'         => $uid,
+        'gid'         => $gid,
+        'oid'         => $oid,
+        'action'      => $action,
+        'reason'      => $reason,
+        'action_user' => $action_user,
+        'action_time' => $action_time,
+    ];
+
+    \think\Db::name('sys_adminaction_log')
+        ->insert($params);
+}
+
 
 /**
  * 酒桌操作记录日志(预约,取消预约,转台,转拼,开拼,开台等操作)

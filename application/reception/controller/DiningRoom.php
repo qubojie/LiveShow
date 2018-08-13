@@ -8,7 +8,10 @@ use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
 use app\wechat\controller\OpenCard;
+use app\wechat\model\BillSubscription;
+use think\Controller;
 use think\Db;
+use think\Log;
 use think\Request;
 use think\Response;
 use think\Validate;
@@ -41,8 +44,8 @@ class DiningRoom extends CommonAction
         }
 
         $appearance_where = [];
-        if (!empty($appearance_where)){
-            $appearance_where['t.appearance_id'] = ['eq',$appearance_id];
+        if (!empty($appearance_id)){
+            $appearance_where['tap.appearance_id'] = ['eq',$appearance_id];
         }
 
         $where = [];
@@ -343,9 +346,11 @@ class DiningRoom extends CommonAction
      * 开台
      * @param Request $request
      * @return array
+     * @throws \think\Exception
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
+     * @throws \think\exception\PDOException
      */
     public function openTable(Request $request)
     {
@@ -446,6 +451,8 @@ class DiningRoom extends CommonAction
             //查看当前用户是否预约当前桌,并且是未开台状态
             $is_revenue = $publicObj->userTableStatus($uid,$table_id);
 
+            Log::info("查看当前桌状态 --- ".var_export($is_revenue,true));
+
             if (!empty($is_revenue)){
                 $status = $is_revenue['status'];
 
@@ -461,6 +468,49 @@ class DiningRoom extends CommonAction
                 $openTable = $publicObj->changeRevenueTableStatus($trid,$status);
 
                 if ($openTable){
+                    /*如果开台成功,查看当前用户是否为定金预约用户,如果是则执行退款*/
+                    Log::info("开台成功 ---- ");
+
+                    $trid              = $is_revenue["trid"];//预约桌台id
+                    $subscription_type = $is_revenue["subscription_type"];//类型
+                    $subscription      = $is_revenue["subscription"];//金额
+                    if ($subscription_type == config("order.subscription_type")['subscription']['key']){
+                        //如果预约定金类型为定金 1
+                        if ($subscription > 0){
+                            //此时执行开台成功,定金退还操作
+                            $suid_info = Db::name("bill_subscription")
+                                ->where("trid",$trid)
+                                ->field("suid")
+                                ->find();
+                            $suid_info = json_decode(json_encode($suid_info),true);
+
+                            $suid = $suid_info["suid"];
+
+                            $refund_return = $this->refundDeposit($suid,$subscription);
+
+                            $res = json_decode($refund_return,true);
+
+                            if (isset($res["result"])){
+                                if ($res["result"]){
+                                    //退款成功则变更定金状态
+                                    $status = config("order.reservation_subscription_status")['open_table_refund']['key'];
+                                    $params = [
+                                        "status"        => $status,
+                                        "is_refund"     => 1,
+                                        "refund_amount" => $subscription,
+                                        "updated_at"    => time()
+                                    ];
+
+                                    Db::name("bill_subscription")
+                                        ->where("suid",$suid)
+                                        ->update($params);
+
+                                }
+                            }
+                            Log::info("开台退押金 ---- ".var_export($refund_return,true));
+                        }
+                    }
+
 
                     /*记录开台日志 on*/
 
@@ -751,5 +801,110 @@ class DiningRoom extends CommonAction
         $res = json_decode(json_encode($res),true);
 
         return $res;
+    }
+
+    /**
+     * 后台操作预约定金退款
+     * @param Request $request
+     * @return array|bool|mixed
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
+     */
+    public function adminRefundDeposit(Request $request)
+    {
+
+        $suid = $request->param("suid","");
+
+        $subscription = $request->param("subscription","");
+
+        if (empty($suid) || empty($subscription)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $res = $this->refundDeposit($suid,$subscription);
+
+        $res = json_decode($res,true);
+
+
+        if (isset($res["result"])){
+            if ($res["result"]){
+                //退款成功则变更定金状态
+                $status = config("order.reservation_subscription_status")['cancel_revenue']['key'];
+                $params = [
+                    "status"        => $status,
+                    "is_refund"     => 1,
+                    "refund_amount" => $subscription,
+                    "updated_at"    => time()
+                ];
+
+                Db::name("bill_subscription")
+                    ->where("suid",$suid)
+                    ->update($params);
+
+                return $this->com_return(true,config("params.SUCCESS"));
+            }
+        }else{
+            return $res;
+        }
+    }
+
+
+    /**
+     * 开台成功,定金退款
+     * @param $suid
+     * @param $subscription
+     * @return bool|mixed
+     */
+    protected function refundDeposit($suid,$subscription)
+    {
+
+        $postParams = [
+            "vid"           => $suid,
+            "total_fee"     => $subscription,
+            "refund_fee"    => $subscription,
+            "out_refund_no" => $suid
+        ];
+
+        Log::info(date("Y-m-d H:i:s",time())."退押金组装参数 ---- ".var_export($postParams,true));
+
+
+        $request = Request::instance();
+
+        $url = $request->domain()."/wechat/reFund";
+
+        Log::info(date("Y-m-d H:i:s",time())."退押金模拟请求地址 ---- ".$url);
+
+
+        if (empty($url)) {
+            return false;
+        }
+
+        $o = "";
+        foreach ( $postParams as $k => $v )
+        {
+            $o.= "$k=" . urlencode( $v ). "&" ;
+        }
+
+        $postParams = substr($o,0,-1);
+
+
+        $postUrl = $url;
+        $curlPost = $postParams;
+
+        $header = array();
+//        $header[] = 'Authorization:'.$Authorization;
+
+        $ch = curl_init();//初始化curl
+        curl_setopt($ch, CURLOPT_URL,$postUrl);//抓取指定网页
+//        curl_setopt($ch, CURLOPT_HEADER, $header);//设置header
+//        curl_setopt($ch, CURLOPT_HTTPHEADER, $header);//设置header
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);//要求结果为字符串且输出到屏幕上
+        curl_setopt($ch, CURLOPT_POST, 1);//post提交方式
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $curlPost);
+        $data = curl_exec($ch);//运行curl
+        curl_close($ch);
+
+        return $data;
+
     }
 }
