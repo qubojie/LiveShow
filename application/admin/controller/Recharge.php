@@ -313,6 +313,7 @@ class Recharge extends CommandAction
      * 后台充值收款操作
      * @param Request $request
      * @return array
+     * @throws \think\exception\DbException
      */
     public function receipt(Request $request)
     {

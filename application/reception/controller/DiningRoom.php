@@ -810,7 +810,7 @@ class DiningRoom extends CommonAction
      * @throws \think\Exception
      * @throws \think\exception\PDOException
      */
-    public function adminRefundDeposit(Request $request)
+    /*public function adminRefundDeposit(Request $request)
     {
 
         $suid = $request->param("suid","");
@@ -846,11 +846,11 @@ class DiningRoom extends CommonAction
         }else{
             return $res;
         }
-    }
+    }*/
 
 
     /**
-     * 开台成功,定金退款
+     * 定金退款
      * @param $suid
      * @param $subscription
      * @return bool|mixed
@@ -891,13 +891,8 @@ class DiningRoom extends CommonAction
         $postUrl = $url;
         $curlPost = $postParams;
 
-        $header = array();
-//        $header[] = 'Authorization:'.$Authorization;
-
         $ch = curl_init();//初始化curl
         curl_setopt($ch, CURLOPT_URL,$postUrl);//抓取指定网页
-//        curl_setopt($ch, CURLOPT_HEADER, $header);//设置header
-//        curl_setopt($ch, CURLOPT_HTTPHEADER, $header);//设置header
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);//要求结果为字符串且输出到屏幕上
         curl_setopt($ch, CURLOPT_POST, 1);//post提交方式
         curl_setopt($ch, CURLOPT_POSTFIELDS, $curlPost);

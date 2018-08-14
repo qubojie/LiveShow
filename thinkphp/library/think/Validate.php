@@ -78,7 +78,7 @@ class Validate
         'eq'          => ':attribute必须等于 :rule',
         'unique'      => ':attribute已存在',
         'unique_me'   => ':attribute已存在',
-        'unique_delete'=> ':',
+        'unique_delete'=> ':attribute已存在',
         'regex'       => ':attribute不符合指定规则',
         'method'      => '无效的请求类型',
         'token'       => '令牌数据无效',
@@ -861,9 +861,6 @@ class Validate
         }else{
             $where_count = [];
         }
-//        dump($where_count);die;
-//        dump($key);dump($key_val);
-//        die;
 
         $is_exist = Db::name($table_name)
             ->where($key,$key_val)
@@ -880,6 +877,7 @@ class Validate
     protected function unique_delete($key_val,$table,$params,$key)
     {
         $tables = explode(",",$table);
+
         $table_name = $tables[0];
         if (isset($tables[1])){
             $where_count[$tables[1]] = ['neq',$params[$tables[1]]];
@@ -897,7 +895,6 @@ class Validate
             return true;
         }
     }
-
 
     /**
      * 使用行为类验证

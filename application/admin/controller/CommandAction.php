@@ -127,7 +127,8 @@ class CommandAction extends Controller
     /**
      * 获取登陆管理人员信息
      * @param $token
-     * @return mixed
+     * @return array
+     * @throws \think\exception\DbException
      */
     public function getLoginAdminId($token)
     {

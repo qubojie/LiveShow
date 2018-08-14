@@ -657,6 +657,101 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
         });
     });
 
+
+    //菜品商品管理
+    Route::group(['name' => 'dishesGoods'],function (){
+        //菜品信息设置
+        Route::group(['name' => 'dish'],function (){
+            //菜品列表
+            Route::rule("index",'dish/index','post/options');
+
+            //菜品添加
+            Route::rule("add",'dish/add','post/options');
+
+            //菜品编辑
+            Route::rule("edit",'dish/edit','post/options');
+
+            //菜品删除
+            Route::rule("delete",'dish/delete','post/options');
+
+            //菜品排序
+            Route::rule("sortEdit",'dish/sortEdit','post/options');
+
+            //菜品是否启用
+            Route::rule("enable",'dish/enable','post/options');
+
+        });
+
+        //套餐菜品设置
+        Route::group(['name' => 'setMeal'],function (){
+
+            //套餐菜品列表
+            Route::rule("index",'setMeal/index','post/options');
+
+            //菜品添加
+            Route::rule("add",'setMeal/add','post/options');
+
+            //菜品编辑
+            Route::rule("edit",'setMeal/edit','post/options');
+
+            //菜品删除
+            Route::rule("delete",'setMeal/delete','post/options');
+
+            //菜品排序
+            Route::rule("sortEdit",'setMeal/sortEdit','post/options');
+
+            //菜品是否启用
+            Route::rule("enable",'setMeal/enable','post/options');
+
+        });
+
+        //菜品分类设置
+        Route::group(['name' => 'dishClassify'],function (){
+
+            //菜品分类列表
+            Route::rule("index",'dishClassify/index','post/options');
+
+            //菜品分类添加
+            Route::rule("add",'dishClassify/add','post/options');
+
+            //菜品分类编辑
+            Route::rule("edit",'dishClassify/edit','post/options');
+
+            //菜品分类删除
+            Route::rule("delete",'dishClassify/delete','post/options');
+
+            //菜品分类排序
+            Route::rule("sortEdit",'dishClassify/sortEdit','post/options');
+
+            //菜品分类是否启用
+            Route::rule("enable",'dishClassify/enable','post/options');
+
+        });
+
+        //菜品属性设置
+        Route::group(['name' => 'dishAttribute'],function (){
+
+            //菜品属性列表
+            Route::rule("index",'dishAttribute/index','post/options');
+
+            //菜品属性添加
+            Route::rule("add",'dishAttribute/add','post/options');
+
+            //菜品属性编辑
+            Route::rule("edit",'dishAttribute/edit','post/options');
+
+            //菜品属性删除
+            Route::rule("delete",'dishAttribute/delete','post/options');
+
+            //菜品属性排序
+            Route::rule("sortEdit",'dishAttribute/sortEdit','post/options');
+
+            //菜品属性是否启用
+            Route::rule("enable",'dishAttribute/enable','post/options');
+
+        });
+    });
+
     //财务管理
     Route::group(['name' => 'finance'],function (){
 

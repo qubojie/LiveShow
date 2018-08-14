@@ -9,10 +9,11 @@ namespace app\admin\controller;
 
 use app\wechat\model\BillSubscription;
 use think\Controller;
+use think\Db;
 use think\Request;
 use think\Validate;
 
-class AppointmentDeposit extends Controller
+class AppointmentDeposit extends CommandAction
 {
     /**
      * 预约定金订单状态分组
@@ -37,7 +38,6 @@ class AppointmentDeposit extends Controller
                 $val["count"] = 0;
             }
             $res[] = $val;
-
         }
 
 
@@ -107,13 +107,26 @@ class AppointmentDeposit extends Controller
             $where['bs.suid'] = ["like","%$keyword%"];
         }
 
+        $column = $billSubscriptionModel->column;
+
+        $alias = $billSubscriptionModel->alias;
+
+        foreach ($column as $key => $val){
+            $column[$key] = $alias.".".$val;
+        }
+
         $list = $billSubscriptionModel
             ->alias("bs")
+            ->join("user u","u.uid = bs.uid","LEFT")
+            ->join("table_revenue tr","tr.trid = bs.trid")
             ->where($where)
             ->where($status_where)
             ->where($time_where)
             ->where($pay_type_where)
             ->order("bs.created_at DESC")
+            ->field($column)
+            ->field("u.phone,u.name,u.nickname,u.avatar")
+            ->field("tr.table_id,tr.table_no,tr.reserve_way,tr.reserve_time,tr.ssid,tr.ssname,tr.sid,tr.sname")
             ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);
@@ -127,37 +140,30 @@ class AppointmentDeposit extends Controller
     /**
      * 预约定金收款操作
      * @param Request $request
+     * @return array
+     * @throws \think\exception\DbException
      */
     public function receipt(Request $request)
     {
         $billSubscriptionModel = new BillSubscription();
 
-        $Authorization = $request->header("Authorization");
+        $Authorization  = $request->header("Authorization");
 
-        $notifyType    = $request->param('notifyType','adminCallback');//后台支付回调类型参数
+        $notifyType     = $request->param('notifyType','adminCallback');//后台支付回调类型参数
 
-        $suid          = $request->param('suid','');
+        $suid           = $request->param('suid','');
 
-        $payable_amount   = $request->param('payable_amount','');//线上应付且未付金额
+        $payable_amount = $request->param('payable_amount','');//线上应付且未付金额
 
-        $payable_amount   = $payable_amount * 100;//(以分为单位)
+        $payable_amount = $payable_amount * 100;//(以分为单位)
 
-        $pay_type         = $request->param('pay_type','');//支付方式 微信‘wxpay’ 支付宝 ‘alipay’ 线下银行转账 ‘bank’ 现金‘cash’
+        $pay_type       = $request->param('pay_type','');//支付方式 微信‘wxpay’ 支付宝 ‘alipay’ 线下银行转账 ‘bank’ 现金‘cash’
 
-        $pay_no           = $request->param('pay_no','');//支付回单号
+        $pay_no         = $request->param('pay_no','');//支付回单号
 
+        $pay_bank_time  = $request->param("pay_bank_time",time());//银行转账付款时间或现金支付时间
 
-        $pay_name        = $request->param("pay_name","");//付款人或公司名称
-        $pay_bank        = $request->param("pay_bank","");//付款方开户行
-        $pay_account     = $request->param("pay_account","");//付款方账号
-        $pay_bank_time   = $request->param("pay_bank_time",time());//银行转账付款时间或现金支付时间
-        $receipt_name    = $request->param("receipt_name","");//收款账户或收款人
-        $receipt_bank    = $request->param("receipt_bank","");//收款银行
-        $receipt_account = $request->param("receipt_account","");//收款账号
-
-        $pay_user    = $request->param("pay_user","");//代收付款人       有代收人时填写
-
-        $review_desc = $request->param("review_desc","");//审核备注         微信   “微信系统收款”
+        $review_desc    = $request->param("review_desc","");//审核备注         微信   “微信系统收款”
 
 
         $public_rule = [
@@ -184,22 +190,145 @@ class AppointmentDeposit extends Controller
             $pay_bank_time = $time;
         }
 
+        if ($pay_type == config("order.pay_method")['wxpay']['key'] || $pay_type == config("order.pay_method")['alipay']['key']){
+            //微信充值或阿里充值
+            $pay_rule = [
+                'pay_no|支付回单号' => 'require|unique:bill_refill'
+            ];
+
+            $check_pay_params = [
+                'pay_no' => $pay_no
+            ];
+
+        }elseif ($pay_type == config("order.pay_method")['bank']['key']){
+            //线下银行转账
+            $pay_rule = [
+                'pay_no|支付回单号' => 'require|unique:bill_refill'
+            ];
+
+            $check_pay_params = [
+                'pay_no' => $pay_no
+            ];
+
+
+        }elseif ($pay_type == config("order.pay_method")['cash']['key']) {
+            //现金支付
+            $pay_rule = [];
+            $check_pay_params = [];
+
+        }else{
+            //其他支付报错
+            return $this->com_return(false,config("params.FAIL"));
+        }
+
+        //支付的回单号验证
+        $pay_validate = new Validate($pay_rule);
+
+        if (!$pay_validate->check($check_pay_params)){
+            return $this->com_return(false,$pay_validate->getError(),null);
+        }
+
+        $res = $this->callBackPay("$Authorization","$notifyType","$suid","$payable_amount","$payable_amount","$review_desc","$pay_no");
+
+        $res= json_decode(json_encode(simplexml_load_string($res, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
+
+        $time = time();
+        if ($res['return_code'] == "SUCCESS"){
+            //如果支付成功
+            //更改定金订单支付信息
+            $params = [
+                "cancel_user"      => NULL,
+                "cancel_time"      => NULL,
+                "auto_cancel"      => NULL,
+                "auto_cancel_time" => NULL,
+                "cancel_reason"    => NULL,
+                "pay_type"         => $pay_type,
+                "updated_at"       => $time
+            ];
+
+            //更新订单支付类型
+            $billSubscriptionModel
+                ->where("suid",$suid)
+                ->update($params);
+
+            //记录日志
+            $action      = config("useraction.deal_pay")['key'];
+            $reason      = config("useraction.deal_pay")['name'];
+            $action_user = $this->getLoginAdminId($request->header('Authorization'))['user_name'];
+            addSysAdminLog("","","$suid","$action","$reason","$action_user","$time");
+
+            return $this->com_return(true,config("params.SUCCESS"));
+
+        }else{
+            return $this->com_return(false,$res['return_msg']);
+        }
     }
 
 
     /**
      * 预约定金退款操作
      * @param Request $request
+     * @return array|bool|mixed
+     * @throws \think\exception\DbException
      */
     public function refund(Request $request)
     {
+        $Authorization = $request->header("Authorization");
+
         $billSubscriptionModel = new BillSubscription();
+
+        $suid = $request->param("suid","");
+
+        $subscription = $request->param("subscription","");
+
+        if (empty($suid) || empty($subscription)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $postParams = [
+            "vid"           => $suid,
+            "total_fee"     => $subscription,
+            "refund_fee"    => $subscription,
+            "out_refund_no" => $suid
+        ];
+
+        $type = "refund";
+
+        $res = $this->requestPost($type,$Authorization,$postParams);
+
+        $res = json_decode($res,true);
+
+
+        if (isset($res["result"])){
+            if ($res["result"]){
+                //退款成功则变更定金状态
+                $status = config("order.reservation_subscription_status")['cancel_revenue']['key'];
+                $params = [
+                    "status"        => $status,
+                    "is_refund"     => 1,
+                    "refund_amount" => $subscription,
+                    "updated_at"    => time()
+                ];
+
+                $billSubscriptionModel
+                    ->where("suid",$suid)
+                    ->update($params);
+
+                $action      = config("useraction.refund")['key'];
+                $reason      = config("useraction.refund")['name'];
+                $action_user = $this->getLoginAdminId($Authorization)['user_name'];
+                $action_time = time();
+
+                //记录日志
+                addSysAdminLog("","","$suid","$action","$reason","$action_user","$action_time");
+
+
+                return $this->com_return(true,config("params.SUCCESS"));
+            }
+        }else{
+            return $res;
+        }
     }
-
-
-
-
-
 
     /**
      * 统一模拟支付,组装参数
@@ -235,23 +364,8 @@ class AppointmentDeposit extends Controller
 
     }
 
-
-    protected function refundPay($Authorization)
-    {
-        $values = [
-            'time_end'       => date("YmdHi",time()),
-        ];
-
-        $type = "refund";
-
-        $res = $this->requestPost($type,$Authorization,$values);
-
-        return $res;
-    }
-
-
     /**
-     * 模拟post支付回调接口请求
+     * 模拟post接口请求支付回调接口和退款接口
      * @param $type
      * @param $Authorization
      * @param array $postParams

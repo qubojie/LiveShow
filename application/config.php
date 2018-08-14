@@ -310,6 +310,10 @@ return [
             "XD_TABLE_FALL"     => "用户权限不足以预定本桌",
             "CLEAN_BEFORE_USER" => "清台之前,请完善用户信息"
         ],
+        "DISHES"                => [
+            "CLASS_EXIST_DISHES"=>  "当前分类下存在菜品,不可直接删除",
+            "ATTR_EXIST_DISHES" =>  "当前属性下存在菜品,不可直接删除",
+        ],
      ],
 
     /*
@@ -628,6 +632,7 @@ return [
         'change_user_pass'  => ['key' => 'change_user_pass',    'name' => '更改用户密码'],
         'change_admin_pass' => ['key' => 'change_admin_pass',   'name' => '更改管理员密码'],
         'recharge'          => ['key' => 'recharge',            'name' => '充值'],
+        'refund'            => ['key' => 'refund',              'name' => '退款'],
     ],
 
     /*

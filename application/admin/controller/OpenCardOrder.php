@@ -281,6 +281,7 @@ class OpenCardOrder extends CommandAction
      * 发货操作
      * @param Request $request
      * @return array
+     * @throws \think\exception\DbException
      */
     public function ship(Request $request)
     {
