@@ -166,8 +166,6 @@ class HomeArticles extends CommandAction
      */
     public function sortEdit(Request $request)
     {
-        $sysPageModel = new PageArticles();
-
         $article_id    = $request->param("article_id","");
         $sort          = $request->param("sort","100");         //文章排序
 
@@ -183,6 +181,8 @@ class HomeArticles extends CommandAction
             'sort'       => $sort,
             'updated_at' => time()
         ];
+
+        $sysPageModel = new PageArticles();
 
         $is_ok = $sysPageModel
             ->where('article_id',$article_id)

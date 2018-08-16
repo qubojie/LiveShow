@@ -106,6 +106,7 @@ class QrCodeAction extends Controller
         $res = $tableRevenueModel
             ->alias("tr")
             ->join("user u","u.uid = tr.uid")
+            ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
             ->join("mst_table_area ta","ta.area_id = tr.area_id")
             ->join("mst_table_location tl","tl.location_id = ta.area_id")
             ->join("mst_table t","t.table_id = tr.table_id")
@@ -113,11 +114,15 @@ class QrCodeAction extends Controller
             ->field("tl.location_title")
             ->field("ta.area_title")
             ->field("tap.appearance_title")
-            ->field("tr.trid,tr.table_no,tr.status,tr.reserve_way,tr.reserve_time,tr.created_at")
+            ->field("u.name user_name,u.phone user_phone")
+            ->field("ms.sales_name,ms.phone sales_phone")
+            ->field("tr.trid,tr.table_no,tr.status,tr.reserve_way,tr.reserve_time,tr.is_subscription,tr.subscription_type,tr.subscription,tr.created_at")
             ->where('tr.trid',$trid)
             ->find();
 
         $res = json_decode(json_encode($res),true);
+
+        $res = _unsetNull($res);
 
         return $res;
 

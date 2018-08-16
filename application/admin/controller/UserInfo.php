@@ -46,6 +46,9 @@ class UserInfo extends CommandAction
      * 获取卡种列表
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function cardType(Request $request)
     {
@@ -163,7 +166,8 @@ class UserInfo extends CommandAction
 
             /*默认头像填充 begin*/
             if (empty($avatar)){
-                $data[$i]['avatar'] = Env::get("DEFAULT_AVATAR_URL")."avatar.jpg";
+//                $data[$i]['avatar'] = Env::get("DEFAULT_AVATAR_URL")."avatar.jpg";
+                $data[$i]['avatar'] = getSysSetting("sys_default_avatar");
             }
             /*默认头像填充 off*/
 

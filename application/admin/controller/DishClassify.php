@@ -54,7 +54,7 @@ class DishClassify extends Controller
         $is_enable = $request->param("is_enable","");//是否启用  0否 1是
 
         $rule = [
-            "cat_name|分类名称"  => "require|max:50|unique_delete:dishes_category,cat_name",
+            "cat_name|分类名称"  => "require|max:50|unique_delete:dishes_category",
             "sort|排序"         => "number",
         ];
 

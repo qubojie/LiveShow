@@ -212,6 +212,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //编辑客户信息
             Route::rule("customerEdit","ManageInfo/customerEdit","post|options");
 
+            //开台
+            Route::rule("openTable","TableAction/openTable","post|options");
+
             //清台
             Route::rule("cleanTable","TableAction/cleanTable","post|options");
 
@@ -278,6 +281,28 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             //文章删除
             Route::rule('delete','HomeArticles/delete','post/options');
         });
+
+        //首页Banner管理
+        Route::group(['name' => 'HomeBanner'],function (){
+            //Banner列表
+            Route::rule('index','HomeBanner/index','post/options');
+
+            //Banner添加
+            Route::rule('add','HomeBanner/add','post/options');
+
+            //Banner编辑
+            Route::rule('edit','HomeBanner/edit','post/options');
+
+            //Banner是否显示
+            Route::rule('isShow',"HomeBanner/is_show",'post/options');
+
+            //Banner排序编辑
+            Route::rule('sortEdit',"HomeBanner/sortEdit",'post/options');
+
+            //Banner删除
+            Route::rule('delete','HomeBanner/delete','post/options');
+        });
+
     });
 
     //会员管理

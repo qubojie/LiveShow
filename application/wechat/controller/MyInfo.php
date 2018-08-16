@@ -70,8 +70,6 @@ class MyInfo extends CommonAction
             $user_info["referrer_num"] = 0;
         }
 
-
-
         if ($user_status == 2){
             //获取用户的开卡信息
             $userCardModel = new UserCard();

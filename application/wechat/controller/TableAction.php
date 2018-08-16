@@ -14,6 +14,53 @@ use think\Request;
 class TableAction extends HomeAction
 {
     /**
+     * 管理人员开台
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function openTable(Request $request)
+    {
+        $trid = $request->param("trid","");
+
+        $tableRevenueModel = new TableRevenue();
+
+        $column = $tableRevenueModel->column;
+
+        $info = $tableRevenueModel
+            ->where("trid",$trid)
+            ->field($column)
+            ->find();
+
+        $info = json_decode(json_encode($info),true);
+
+        $status = $info["status"];
+
+        if ($status == config("order.table_reserve_status")['cancel']['key']){
+            return $this->com_return(false,config("params.OPEN_TABLE_STATUS")['CANCELED']);
+        }
+
+        if ($status == config("order.table_reserve_status")['pending_payment']['key']){
+            return $this->com_return(false,config("params.OPEN_TABLE_STATUS")['UNPAY']);
+        }
+
+        if ($status == config("order.table_reserve_status")['already_open']['key']){
+            return $this->com_return(false,config("params.OPEN_TABLE_STATUS")['ALREADYOPEN']);
+        }
+
+        if ($status == config("order.table_reserve_status")['clear_table']['key']){
+            return $this->com_return(false,config("params.OPEN_TABLE_STATUS")['ALREADYOPEN']);
+        }
+
+
+
+
+    }
+
+
+    /**
      * 清台
      * @param Request $request
      * @return array

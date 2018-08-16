@@ -93,8 +93,8 @@ class JsSdk extends Controller
         $data   = json_decode(file_get_contents("access_token.json"));
         $appid  = Env::get("WECHAT_PUBLIC_APPID");
         $secret = Env::get("WECHAT_PUBLIC_APPSECRET");
-        if ($data->expire_time < time()) {
 
+        if ($data->expire_time < time()) {
             // 如果是企业号用以下URL获取access_token
             // $url = "https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=$this->appId&corpsecret=$this->appSecret";
 

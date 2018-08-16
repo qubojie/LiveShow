@@ -91,18 +91,18 @@ class Auth extends Controller
             $headimgurl = getSysSetting("sys_default_avatar");
         }
 
-        if ($code != "989898"){
+        if ($code != "989898" || $register_way != "h5"){
             $is_pp = $this->checkVerifyCode($phone,$code);
             //验证验证码
             if (!$is_pp['result']) return $is_pp;
         }
 
-        $time = time();
-
         //查询当前手机号码是否已经绑定用户
         $is_exist = $userModel
             ->where('phone',$phone)
             ->count();
+
+        $time = time();
 
         $manageSalesmanModel = new ManageSalesman();
         //查看当前用户是否是内部人员
@@ -219,6 +219,10 @@ class Auth extends Controller
                 ->find();
 
             if(!empty($sid_res)){
+                if ($sid_res['stype_key'] == 'service' || $sid_res == 'reserve'){
+                    return $this->com_return(false,"请输入正确的营销手机号码");
+                }
+
                 //销售推荐时,推荐人可以是自己
                 $referrer_id = $sid_res['sid'];
                 $referrer_type = $sid_res['stype_key'];//vip sales

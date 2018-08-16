@@ -209,9 +209,10 @@ class WechatPay extends Controller
      */
     public function reFund(Request $request)
     {
-        if ($request->isOptions()){
-            return $this->com_return(true,'预请求');
+        if ($request->method() == "OPTIONS"){
+            return $this->com_return(true,config("params.SUCCESS"));
         }
+
         $vid           = $request->param('vid','');
         $total_fee     = $request->param('total_fee','');
         $refund_fee    = $request->param('refund_fee','');
@@ -228,6 +229,7 @@ class WechatPay extends Controller
         ];
 
         $result = \wxpay\Refund::exec($params);
+
 
         //如果退款成功返回
         /*array(18) {
@@ -253,6 +255,7 @@ class WechatPay extends Controller
         }*/
 
         if (isset($result['return_code']) && $result['return_msg'] == "OK"){
+            Log::info("退款状态".var_export($result,true));
             $cash_fee        = $result['cash_fee'];
             $cash_refund_fee = $result['cash_refund_fee'];
             $refund_fee      = $result['refund_fee'];
@@ -260,7 +263,9 @@ class WechatPay extends Controller
             $transaction_id  = $result['transaction_id'];
             return $this->com_return(true,config("params.SUCCESS"));
         }else{
-            return $this->com_return(false,config("params.FAIL"));
+
+            $result = json_decode(json_encode($result),true);
+            return $this->com_return(false,$result["return_msg"]);
         }
     }
 

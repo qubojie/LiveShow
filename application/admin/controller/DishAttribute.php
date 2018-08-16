@@ -53,7 +53,7 @@ class DishAttribute extends Controller
         $is_enable = $request->param("is_enable","");//是否启用  0否 1是
 
         $rule = [
-            "att_name|属性名称"  => "require|max:50|unique_delete:dishes_attribute,att_name",
+            "att_name|属性名称"  => "require|max:50|unique_delete:dishes_attribute",
             "sort|排序"          => "number",
         ];
 

@@ -102,6 +102,7 @@ class Dish extends Controller
         $is_gift      = $request->param("is_gift","");//是否在礼金区上架   0否  1是
         $gift_price   = $request->param("gift_price","");//礼金区单价
         $is_vip       = $request->param("is_vip","");//是否在会员区上架
+        $is_give       = $request->param("is_give","");//是否可赠送 0 否 1是
         $sort         = $request->param("sort","");//排序
         $is_enable    = $request->param("is_enable","");//是否启用  0否 1是
 
@@ -111,7 +112,7 @@ class Dish extends Controller
 
         $rule = [
             "dis_type|菜品类型"         => "require",
-            "dis_name|菜品名称"         => "require|max:100|unique_delete:dishes,dis_name",
+            "dis_name|菜品名称"         => "require|max:100|unique_delete:dishes",
             "dis_img|菜品图片"          => "require",
             "dis_desc|菜品描述"         => "max:300",
             "cat_id|菜品分类id"         => "require",
@@ -121,6 +122,7 @@ class Dish extends Controller
             "is_gift|是否在礼金区上架"   => "require",
             "gift_price|礼金区单价"     => "egt:0",
             "is_vip|是否在会员区上架"    => "require",
+            "is_give|是否可赠送"        => "require",
             "sort|排序"                => "number",
             "is_enable|是否启用"        => "require|number",
         ];
@@ -137,6 +139,7 @@ class Dish extends Controller
             "is_gift"      => $is_gift,
             "gift_price"   => $gift_price,
             "is_vip"       => $is_vip,
+            "is_give"      => $is_give,
             "sort"         => $sort,
             "is_enable"    => $is_enable,
         ];
@@ -162,6 +165,7 @@ class Dish extends Controller
             "is_gift"      => $is_gift,
             "gift_price"   => $gift_price,
             "is_vip"       => $is_vip,
+            "is_give"      => $is_give,
             "sort"         => $sort,
             "is_enable"    => $is_enable,
             "created_at"   => $nowTime,
@@ -200,6 +204,7 @@ class Dish extends Controller
         $is_gift      = $request->param("is_gift","");//是否在礼金区上架   0否  1是
         $gift_price   = $request->param("gift_price","");//礼金区单价
         $is_vip       = $request->param("is_vip","");//是否在会员区上架
+        $is_give      = $request->param("is_give","");//是否可赠送 0否 1是
         $sort         = $request->param("sort","");//排序
         $is_enable    = $request->param("is_enable","");//是否启用  0否 1是
 
@@ -216,6 +221,7 @@ class Dish extends Controller
             "is_gift|是否在礼金区上架"   => "require",
             "gift_price|礼金区单价"     => "egt:0",
             "is_vip|是否在会员区上架"    => "require",
+            "is_give|是否可赠送"        => "require",
             "sort|排序"                => "number",
             "is_enable|是否启用"        => "require|number",
         ];
@@ -233,6 +239,7 @@ class Dish extends Controller
             "is_gift"      => $is_gift,
             "gift_price"   => $gift_price,
             "is_vip"       => $is_vip,
+            "is_give"      => $is_give,
             "sort"         => $sort,
             "is_enable"    => $is_enable,
         ];
@@ -257,6 +264,7 @@ class Dish extends Controller
             "is_gift"      => $is_gift,
             "gift_price"   => $gift_price,
             "is_vip"       => $is_vip,
+            "is_give"      => $is_give,
             "sort"         => $sort,
             "is_enable"    => $is_enable,
             "updated_at"   => $nowTime,

@@ -36,6 +36,7 @@ class Dishes extends Model
         "is_gift",
         "gift_price",
         "is_vip",
+        "is_give",
         "sort",
         "is_enable",
         "created_at",

@@ -76,7 +76,7 @@ class AppointmentDeposit extends CommandAction
         ];
 
         $status_where = [];
-        if (!empty($status)){
+        if ($status != NULL){
 
             $status_where['bs.status'] = $status;
 
@@ -131,6 +131,18 @@ class AppointmentDeposit extends CommandAction
 
         $list = json_decode(json_encode($list),true);
 
+        for ($i = 0; $i < count($list["data"]); $i++){
+            $suid = $list["data"][$i]["suid"];
+
+            $log_info = Db::name("sys_adminaction_log")
+                ->where("oid",$suid)
+                ->select();
+
+            $log_info = json_decode(json_encode($log_info),true);
+
+            $list["data"][$i]["log_info"] = $log_info;
+        }
+
         $list = _unsetNull($list);
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
@@ -147,13 +159,17 @@ class AppointmentDeposit extends CommandAction
     {
         $billSubscriptionModel = new BillSubscription();
 
+        if ($request->method() == "OPTIONS"){
+            return $this->com_return(true,config("params.SUCCESS"));
+        }
+
         $Authorization  = $request->header("Authorization");
 
         $notifyType     = $request->param('notifyType','adminCallback');//后台支付回调类型参数
 
         $suid           = $request->param('suid','');
 
-        $payable_amount = $request->param('payable_amount','');//线上应付且未付金额
+        $payable_amount = $request->param('subscription','');//线上应付且未付金额
 
         $payable_amount = $payable_amount * 100;//(以分为单位)
 
@@ -255,6 +271,7 @@ class AppointmentDeposit extends CommandAction
             $action      = config("useraction.deal_pay")['key'];
             $reason      = config("useraction.deal_pay")['name'];
             $action_user = $this->getLoginAdminId($request->header('Authorization'))['user_name'];
+
             addSysAdminLog("","","$suid","$action","$reason","$action_user","$time");
 
             return $this->com_return(true,config("params.SUCCESS"));
@@ -273,7 +290,13 @@ class AppointmentDeposit extends CommandAction
      */
     public function refund(Request $request)
     {
+
+        if ($request->method() == "OPTIONS"){
+            return $this->com_return(true,config("params.SUCCESS"));
+        }
+
         $Authorization = $request->header("Authorization");
+
 
         $billSubscriptionModel = new BillSubscription();
 
@@ -298,7 +321,6 @@ class AppointmentDeposit extends CommandAction
 
         $res = json_decode($res,true);
 
-
         if (isset($res["result"])){
             if ($res["result"]){
                 //退款成功则变更定金状态
@@ -322,8 +344,9 @@ class AppointmentDeposit extends CommandAction
                 //记录日志
                 addSysAdminLog("","","$suid","$action","$reason","$action_user","$action_time");
 
-
                 return $this->com_return(true,config("params.SUCCESS"));
+            }else{
+                return $res;
             }
         }else{
             return $res;
