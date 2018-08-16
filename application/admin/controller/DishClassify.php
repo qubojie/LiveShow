@@ -12,20 +12,21 @@ namespace app\admin\controller;
 use app\admin\model\Dishes;
 use app\admin\model\DishesCategory;
 use think\Controller;
+use think\Db;
+use think\Exception;
 use think\Request;
 use think\Validate;
 
 class DishClassify extends Controller
 {
     /**
-     * 菜品分类列表
-     * @param Request $request
+     * 获取菜品分类无分页
      * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function index(Request $request)
+    public function dishType()
     {
         $dishCateGoryModel = new DishesCategory();
 
@@ -40,9 +41,42 @@ class DishClassify extends Controller
     }
 
     /**
+     * 菜品分类列表
+     * @param Request $request
+     * @return array
+     * @throws \think\exception\DbException
+     */
+    public function index(Request $request)
+    {
+        $pagesize   = $request->param("pagesize",config('PAGESIZE'));//显示个数,不传时为10
+
+        if (empty($pagesize)) $pagesize = config('PAGESIZE');
+
+        $nowPage    = $request->param("nowPage","1");
+
+        $config = [
+            "page" => $nowPage,
+        ];
+
+        $dishCateGoryModel = new DishesCategory();
+
+        $list = $dishCateGoryModel
+            ->where("is_delete","0")
+            ->order("sort")
+            ->paginate($pagesize,false,$config);
+
+        $list = json_decode(json_encode($list),true);
+
+        return $this->com_return(true,config("params.SUCCESS"),$list);
+    }
+
+    /**
      * 菜品分类添加
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function add(Request $request)
     {
@@ -67,6 +101,10 @@ class DishClassify extends Controller
 
         if (!$validate->check($check_res)){
             return $this->com_return(false,$validate->getError());
+        }
+
+        if (empty($cat_img)){
+            $cat_img = getSysSetting("sys_logo");
         }
 
         $nowTime = time();
@@ -95,12 +133,15 @@ class DishClassify extends Controller
      * 菜品分类编辑
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function edit(Request $request)
     {
         $dishCateGoryModel = new DishesCategory();
 
-        $cat_id    = $request->param("cat_id","");//属性id
+        $cat_id    = $request->param("cat_id","");//分类id
         $cat_name  = $request->param("cat_name","");//分类名称
         $cat_img   = $request->param("cat_img","");//分类图片
         $sort      = $request->param("sort","");//排序
@@ -108,7 +149,7 @@ class DishClassify extends Controller
 
         $rule = [
             "cat_id|属性id"    => "require",
-            "cat_name|分类名称" => "require|max:50|unique_me:dishes_category,cat_name",
+            "cat_name|分类名称" => "require|max:50|unique_me:dishes_category,cat_id",
             "sort|排序"        => "number",
         ];
 
@@ -122,6 +163,10 @@ class DishClassify extends Controller
 
         if (!$validate->check($check_res)){
             return $this->com_return(false,$validate->getError());
+        }
+
+        if (empty($cat_img)){
+            $cat_img = getSysSetting("sys_logo");
         }
 
         $params = [
@@ -153,14 +198,14 @@ class DishClassify extends Controller
     {
         $dishCateGoryModel = new DishesCategory();
 
-        $cat_id = $request->param("cat_id","");//分类id
+        $cat_ids = $request->param("cat_id","");//分类id
 
         $rule = [
             "cat_id|分类id"      => "require",
         ];
 
         $check_res = [
-            "cat_id" => $cat_id,
+            "cat_id" => $cat_ids,
         ];
 
         $validate = new Validate($rule);
@@ -169,27 +214,38 @@ class DishClassify extends Controller
             return $this->com_return(false,$validate->getError());
         }
 
-        //查看当前分类下是否存在菜品
-        $is_exist_dishes = $this->classifyHaveDish($cat_id);
-        if ($is_exist_dishes){
-            return $this->com_return(false,config("params.DISHES")['CLASS_EXIST_DISHES']);
+        $id_array = explode(",",$cat_ids);
+
+        Db::startTrans();
+        try{
+
+            $is_ok = false;
+            foreach ($id_array as $cat_id){
+                //查看当前分类下是否存在菜品
+                $is_exist_dishes = $this->classifyHaveDish($cat_id);
+                if ($is_exist_dishes){
+                    return $this->com_return(false,config("params.DISHES")['CLASS_EXIST_DISHES']);
+                }
+                $params = [
+                    "is_delete"  => 1,
+                    "updated_at" => time()
+                ];
+
+                $is_ok = $dishCateGoryModel
+                    ->where("cat_id",$cat_id)
+                    ->update($params);
+            }
+
+            if ($is_ok !== false){
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
+            }else{
+                return $this->com_return(false,config("params.FAIL"));
+            }
+
+        }catch (Exception $e){
+            return $this->com_return(false,$e->getMessage());
         }
-
-        $params = [
-            "is_delete"  => 1,
-            "updated_at" => time()
-        ];
-
-        $is_ok = $dishCateGoryModel
-            ->where("cat_id",$cat_id)
-            ->update($params);
-
-        if ($is_ok !== false){
-            return $this->com_return(true,config("params.SUCCESS"));
-        }else{
-            return $this->com_return(false,config("params.FAIL"));
-        }
-
     }
 
     /**

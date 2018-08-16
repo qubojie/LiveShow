@@ -43,6 +43,8 @@ class PublicAction extends Controller
     {
         $tableModel = new MstTable();
         $tableImageModel = new MstTableImage();
+        $appointment = (int)$appointment;
+
 
         /*$where_card = [];
         if (!empty($user_card_id)){
@@ -167,22 +169,27 @@ class PublicAction extends Controller
 
             $image_res = json_decode(json_encode($image_res),true);
 
-//            dump($image_res);die;
-
             for ($m = 0; $m < count($image_res); $m++){
                 $res[$i]['image_group'][] = $image_res[$m]['image'];
             }
 
         }
 
+
+        $appointment_end = $appointment + 24 * 60 * 60;
+        $appointment     = date("Y-m-d H:i:s",$appointment);
+        $appointment_end = date("Y-m-d H:i:s",$appointment_end);
+
         foreach ($res as $k => $v){
+
             $table_id = $v['table_id'];
 
             $table_reserve_exist = $tableRevenueModel
                 ->where('table_id',$table_id)
-                ->whereTime("reserve_time","between",["$appointment",$appointment + 24 * 60 * 60])
                 ->where($where_status)
+                ->whereTime("reserve_time","between",["$appointment","$appointment_end"])
                 ->count();
+
             if ($table_reserve_exist){
                 unset($res[$k]);
             }
@@ -235,12 +242,13 @@ class PublicAction extends Controller
      * @param $turnover_limit
      * @param $reserve_way
      * @param $uid
+     * @param string $is_reception
      * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function confirmReservationPublic($sales_phone,$table_id,$date,$time,$subscription,$turnover_limit,$reserve_way,$uid)
+    public function confirmReservationPublic($sales_phone,$table_id,$date,$time,$subscription,$turnover_limit,$reserve_way,$uid,$is_reception = "")
     {
         //如果报名营销验证营销是否存在
         if (!empty($sales_phone)){
@@ -300,14 +308,25 @@ class PublicAction extends Controller
 
             }else{
                 //如果有押金生成待缴费定金订单
+                if (!empty($is_reception)){
+                    //如果为前台预约,则不创建定金订单,直接预约成功
+                    //预定成功状态1
+                    $status            = Config::get("order.table_reserve_status")['reserve_success']['key'];
+                    $is_subscription   = 0;
+                    $subscription_type = Config::get("order.subscription_type")['null_subscription']['key'];
 
-                //待付定金或结算状态 0
-                $status            = Config::get("order.table_reserve_status")['pending_payment']['key'];
-                $is_subscription   = 1;
-                $subscription_type = Config::get("order.subscription_type")['subscription']['key'];
+                    //不创建缴押金订单,返回true
+                    $billSubscriptionReturn = true;
+                }else{
 
-                //创建缴押金订单,返回相应数据
-                $billSubscriptionReturn = $this->billSubscriptionCreate("$suid","$trid","$uid","$subscription");
+                    //待付定金或结算状态 0
+                    $status            = Config::get("order.table_reserve_status")['pending_payment']['key'];
+                    $is_subscription   = 1;
+                    $subscription_type = Config::get("order.subscription_type")['subscription']['key'];
+
+                    //创建缴押金订单,返回相应数据
+                    $billSubscriptionReturn = $this->billSubscriptionCreate("$suid","$trid","$uid","$subscription");
+                }
             }
 
             //去创建预约吧台订单信息

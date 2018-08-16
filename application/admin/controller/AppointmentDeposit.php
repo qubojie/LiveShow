@@ -308,49 +308,70 @@ class AppointmentDeposit extends CommandAction
             return $this->com_return(false,config("params.ABNORMAL_ACTION"));
         }
 
-        $postParams = [
-            "vid"           => $suid,
-            "total_fee"     => $subscription,
-            "refund_fee"    => $subscription,
-            "out_refund_no" => $suid
-        ];
+        //获取订单支付方式
+        $orderInfo = $billSubscriptionModel
+            ->where('suid',$suid)
+            ->field("pay_type")
+            ->find();
+        $orderInfo = json_decode(json_encode($orderInfo),true);
 
-        $type = "refund";
+        if (empty($orderInfo)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
 
-        $res = $this->requestPost($type,$Authorization,$postParams);
+        $pay_type = $orderInfo['pay_type'];
 
-        $res = json_decode($res,true);
 
-        if (isset($res["result"])){
-            if ($res["result"]){
-                //退款成功则变更定金状态
-                $status = config("order.reservation_subscription_status")['cancel_revenue']['key'];
-                $params = [
-                    "status"        => $status,
-                    "is_refund"     => 1,
-                    "refund_amount" => $subscription,
-                    "updated_at"    => time()
-                ];
 
-                $billSubscriptionModel
-                    ->where("suid",$suid)
-                    ->update($params);
+        if ($pay_type == config("order.pay_method")['wxpay']['key']){
+            //只有微信支付的订单才回去走退款程序
+            $postParams = [
+                "vid"           => $suid,
+                "total_fee"     => $subscription,
+                "refund_fee"    => $subscription,
+                "out_refund_no" => $suid
+            ];
 
-                $action      = config("useraction.refund")['key'];
-                $reason      = config("useraction.refund")['name'];
-                $action_user = $this->getLoginAdminId($Authorization)['user_name'];
-                $action_time = time();
+            $type = "refund";
 
-                //记录日志
-                addSysAdminLog("","","$suid","$action","$reason","$action_user","$action_time");
+            $res = $this->requestPost($type,$Authorization,$postParams);
 
-                return $this->com_return(true,config("params.SUCCESS"));
+            $res = json_decode($res,true);
+
+            if (isset($res["result"])){
+                if ($res["result"]){
+
+                }else{
+                    return $res;
+                }
             }else{
                 return $res;
             }
-        }else{
-            return $res;
+
         }
+
+        //退款成功则变更定金状态
+        $status = config("order.reservation_subscription_status")['cancel_revenue']['key'];
+        $params = [
+            "status"        => $status,
+            "is_refund"     => 1,
+            "refund_amount" => $subscription,
+            "updated_at"    => time()
+        ];
+
+        $billSubscriptionModel
+            ->where("suid",$suid)
+            ->update($params);
+
+        $action      = config("useraction.refund")['key'];
+        $reason      = config("useraction.refund")['name'];
+        $action_user = $this->getLoginAdminId($Authorization)['user_name'];
+        $action_time = time();
+
+        //记录日志
+        addSysAdminLog("","","$suid","$action","$reason","$action_user","$action_time");
+
+        return $this->com_return(true,config("params.SUCCESS"));
     }
 
     /**

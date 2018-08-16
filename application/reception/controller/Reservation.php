@@ -499,7 +499,9 @@ class Reservation extends CommonAction
 
         $publicActionObj = new \app\wechat\controller\PublicAction();
 
-        $revenueReturn   = $publicActionObj->confirmReservationPublic("$sales_phone","$table_id","$date","$go_time","$subscription","$turnover_limit","$reserve_way","$uid");
+        $is_reception = "reception";//前台预约参数
+
+        $revenueReturn   = $publicActionObj->confirmReservationPublic("$sales_phone","$table_id","$date","$go_time","$subscription","$turnover_limit","$reserve_way","$uid","$is_reception");
 
         if ($revenueReturn["result"] && ($subscription > 0)){
 

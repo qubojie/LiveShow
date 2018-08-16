@@ -553,7 +553,7 @@ class ManageReservation extends HomeAction
     }
 
     /**
-     * 根据token获取服务人员id
+     * 根据token获取服务人员信息
      * @param $token
      * @return array|false|mixed|\PDOStatement|string|\think\Model
      * @throws \think\db\exception\DataNotFoundException

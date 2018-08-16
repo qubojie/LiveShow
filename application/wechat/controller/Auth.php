@@ -393,7 +393,7 @@ class Auth extends Controller
         $params = [
             'wxid'       => $wx_info['openid'],
             'avatar'     => $wx_info['headimgurl'],
-            'sex'        => $wx_info['sex'] ? '男士':'女士',
+            'sex'        => $wx_info['sex'] ? '先生':'女士',
             'province'   => $wx_info['province'],
             'city'       => $wx_info['city'],
             'country'    => $wx_info['country'],

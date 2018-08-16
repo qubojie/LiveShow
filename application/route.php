@@ -294,7 +294,7 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             Route::rule('edit','HomeBanner/edit','post/options');
 
             //Banner是否显示
-            Route::rule('isShow',"HomeBanner/is_show",'post/options');
+            Route::rule('isShow',"HomeBanner/isShow",'post/options');
 
             //Banner排序编辑
             Route::rule('sortEdit',"HomeBanner/sortEdit",'post/options');
@@ -687,6 +687,10 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
     Route::group(['name' => 'dishesGoods'],function (){
         //菜品信息设置
         Route::group(['name' => 'dish'],function (){
+
+            //打印机测试
+            Route::rule("test",'dish/test','post/options');
+
             //菜品列表
             Route::rule("index",'dish/index','post/options');
 
@@ -733,6 +737,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
         //菜品分类设置
         Route::group(['name' => 'dishClassify'],function (){
 
+            //菜品分类列表无分页
+            Route::rule("dishType",'dishClassify/dishType','post/options');
+
             //菜品分类列表
             Route::rule("index",'dishClassify/index','post/options');
 
@@ -756,6 +763,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
         //菜品属性设置
         Route::group(['name' => 'dishAttribute'],function (){
 
+            //菜品属性列表 无分页
+            Route::rule("dishAttr",'dishAttribute/dishAttr','post/options');
+
             //菜品属性列表
             Route::rule("index",'dishAttribute/index','post/options');
 
@@ -773,6 +783,17 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
             //菜品属性是否启用
             Route::rule("enable",'dishAttribute/enable','post/options');
+
+
+            //属性绑定打印机添加
+            Route::rule("attrBindPrinterAdd",'dishAttribute/attrBindPrinterAdd','post/options');
+
+            //属性绑定打印机删除
+            Route::rule("attrBindPrinterDelete",'dishAttribute/attrBindPrinterDelete','post/options');
+
+
+
+
 
         });
     });

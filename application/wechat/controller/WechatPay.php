@@ -309,6 +309,8 @@ class WechatPay extends Controller
             $values= json_decode(json_encode(simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
         }
 
+        Log::info("H5支付返回支付回调信息".var_export($values,true));
+
 
         $order_id = $values['out_trade_no'];
 

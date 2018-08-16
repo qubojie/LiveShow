@@ -61,7 +61,7 @@ class UserInfo extends Controller
         $common = new Common();
 
         $phone        = $request->param("phone","");//电话号码
-        $sex          = $request->param("sex","男士");//性别,前台直接传的文字
+        $sex          = $request->param("sex","先生");//性别,前台直接传的文字
         $birthday     = $request->param("birthday","");//生日
         $blood        = $request->param("blood","");//血型
         $nation       = $request->param("nation","");//民族

@@ -314,8 +314,8 @@ class DiningRoom extends CommonAction
         $tableInfo['spellingRevenueInfo'] = $spellingRevenueInfo;
         /*拼桌基本信息 Off*/
 
-
         $now_time = strtotime(date("Ymd",time()));
+
         $begin_time = $now_time * 10000;
 
         $end_time   = ($now_time + 24 * 60 * 60) * 10000;
@@ -323,7 +323,7 @@ class DiningRoom extends CommonAction
         $tableJournal = Db::name("table_log")
             ->alias("tl")
             ->where("tl.table_id",$table_id)
-            ->whereTime("tl.log_time","between",["$begin_time","$end_time"])
+            ->where('tl.log_time',['>',$begin_time],['<',$end_time],'and')
             ->field("log_time,action_user,desc")
             ->select();
 
@@ -505,7 +505,11 @@ class DiningRoom extends CommonAction
                                         ->where("suid",$suid)
                                         ->update($params);
 
+                                }else{
+                                    return $res;
                                 }
+                            }else{
+                                return $res;
                             }
                             Log::info("开台退押金 ---- ".var_export($refund_return,true));
                         }

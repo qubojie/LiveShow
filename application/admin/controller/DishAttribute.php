@@ -12,21 +12,20 @@ namespace app\admin\controller;
 use app\admin\model\Dishes;
 use app\admin\model\DishesAttribute;
 use think\Controller;
+use think\Db;
+use think\Exception;
 use think\Request;
 use think\Validate;
 
 class DishAttribute extends Controller
 {
-
-    /**
-     * 菜品属性列表
-     * @param Request $request
+    /**菜品属性列表 无分页
      * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function index(Request $request)
+    public function dishAttr()
     {
         $dishAttributeModel = new DishesAttribute();
 
@@ -37,13 +36,69 @@ class DishAttribute extends Controller
 
         $list = json_decode(json_encode($list),true);
 
+        for ($i = 0; $i < count($list); $i ++){
+            $att_id = $list[$i]["att_id"];
+
+            $printer_info = Db::name("dishes_attribute_printer")
+                ->where("att_id",$att_id)
+                ->select();
+
+            $printer_info = json_decode(json_encode($printer_info),true);
+
+            $list[$i]["printer_info"] = $printer_info;
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"),$list);
+    }
+
+    /**
+     * 菜品属性列表
+     * @param Request $request
+     * @return array
+     * @throws \think\exception\DbException
+     */
+    public function index(Request $request)
+    {
+        $pagesize   = $request->param("pagesize",config('PAGESIZE'));//显示个数,不传时为10
+
+        if (empty($pagesize)) $pagesize = config('PAGESIZE');
+
+        $nowPage    = $request->param("nowPage","1");
+
+        $config = [
+            "page" => $nowPage,
+        ];
+
+        $dishAttributeModel = new DishesAttribute();
+
+        $list = $dishAttributeModel
+            ->where("is_delete","0")
+            ->order("sort")
+            ->paginate($pagesize,false,$config);
+
+        $list = json_decode(json_encode($list),true);
+
+        for ($i = 0; $i < count($list["data"]); $i ++){
+            $att_id = $list["data"][$i]["att_id"];
+
+            $printer_info = Db::name("dishes_attribute_printer")
+                ->where("att_id",$att_id)
+                ->select();
+
+            $printer_info = json_decode(json_encode($printer_info),true);
+
+            $list["data"][$i]["printer_info"] = $printer_info;
+        }
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
 
-
     }
 
-    //菜品属性添加
+    /**
+     * 菜品属性添加
+     * @param Request $request
+     * @return array
+     */
     public function add(Request $request)
     {
         $dishAttributeModel = new DishesAttribute();
@@ -154,14 +209,14 @@ class DishAttribute extends Controller
     {
         $dishAttributeModel = new DishesAttribute();
 
-        $att_id    = $request->param("att_id","");//属性id
+        $att_ids    = $request->param("att_id","");//属性id
 
         $rule = [
             "att_id|属性id"      => "require",
         ];
 
         $check_res = [
-            "att_id"   => $att_id,
+            "att_id"   => $att_ids,
         ];
 
         $validate = new Validate($rule);
@@ -175,17 +230,27 @@ class DishAttribute extends Controller
             "updated_at" => time()
         ];
 
-        $is_ok = $dishAttributeModel
-            ->where("att_id",$att_id)
-            ->update($params);
+        $id_array = explode(",",$att_ids);
 
-        if ($is_ok !== false){
-            return $this->com_return(true,config("params.SUCCESS"));
-        }else{
-            return $this->com_return(false,config("params.FAIL"));
+        Db::startTrans();
+        try{
+            $is_ok = false;
+            foreach ($id_array as $att_id){
+                $is_ok = $dishAttributeModel
+                    ->where("att_id",$att_id)
+                    ->update($params);
+            }
+
+            if ($is_ok !== false){
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
+            }else{
+                return $this->com_return(false,config("params.FAIL"));
+            }
+
+        }catch (Exception $e){
+            return $this->com_return(false,$e->getMessage());
         }
-
-
     }
 
     /**
@@ -294,4 +359,122 @@ class DishAttribute extends Controller
     }
 
 
+    /**
+     * 属性绑定打印机添加
+     * @param Request $request
+     * @return array
+     * @throws Exception
+     * @throws \think\exception\PDOException
+     */
+    public function attrBindPrinterAdd(Request $request)
+    {
+        $att_id         = $request->param("att_id","");//属性id
+
+        $printer_info = $request->param("printer_info","");//打印机参数
+
+        \think\Log::info("打印机参数 --- ".$printer_info);
+
+        $rule = [
+            "att_id|属性id"            => "require",
+            "printer_info|打印机参数" => "require",
+        ];
+
+        $check_res = [
+            "att_id"     => $att_id,
+            "printer_info" => $printer_info,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($check_res)){
+            return $this->com_return(false,$validate->getError());
+        }
+
+        if (empty($printer_info)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $printer_info = json_decode($printer_info,true);
+
+
+        \think\Log::info("打印机参数数组结构 --- ".var_export($printer_info,true));
+
+        //删除当前属性下的打印机参数
+
+        Db::startTrans();
+
+        try{
+
+            $is_delete = Db::name("dishes_attribute_printer")
+                ->where("att_id",$att_id)
+                ->delete();
+
+            \think\Log::info("是否删除成功".$is_delete);
+
+            $is_ok = false;
+            for ($i = 0; $i < count($printer_info); $i ++){
+                $printer_sn = $printer_info[$i]['printer_sn'];
+                $print_num  = $printer_info[$i]['print_num'];
+
+                $params = [
+                    "att_id"     => $att_id,
+                    "printer_sn" => $printer_sn,
+                    "print_num"  => $print_num
+                ];
+
+                $is_ok = Db::name("dishes_attribute_printer")
+                    ->insert($params);
+                \think\Log::info("写入打印记属性".$is_ok);
+            }
+
+            if ($is_ok){
+                \think\Log::info("是否操作成功----".$is_ok);
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
+            }else{
+                return $this->com_return(false,config("params.FAIL"));
+            }
+
+
+        }catch (Exception $e){
+            Db::rollback();
+            $this->com_return(false,$e->getMessage());
+        }
+    }
+
+    /**
+     * 属性绑定打印机删除
+     * @param Request $request
+     * @return array
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
+     */
+    public function attrBindPrinterDelete(Request $request)
+    {
+        $att_id     = $request->param("att_id","");//属性id
+
+        $rule = [
+            "att_id|属性id"        => "require",
+        ];
+
+        $check_res = [
+            "att_id"     => $att_id,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($check_res)){
+            return $this->com_return(false,$validate->getError());
+        }
+
+        $is_ok = Db::name("dishes_attribute_printer")
+            ->where("att_id",$att_id)
+            ->delete();
+
+        if ($is_ok){
+            return $this->com_return(true,config("params.SUCCESS"));
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
+    }
 }

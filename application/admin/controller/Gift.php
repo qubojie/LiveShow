@@ -19,6 +19,7 @@ class Gift extends CommandAction
      * 礼品列表
      * @param Request $request
      * @return array
+     * @throws \think\exception\DbException
      */
     public function index(Request $request)
     {

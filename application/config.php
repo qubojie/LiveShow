@@ -284,6 +284,7 @@ return [
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
         "PHONE_NOT_EXIST"       => "未找到相关会员信息",
         "TODAY_NOT_HAVA_TABLE"  => "今日无预约",
+        "ATT_AL_PRINT"          => "当前属性已绑定此打印机,不可重复绑定",
         "OPEN_TABLE_STATUS"     => [
             "QrCodeINVALID"     => "二维码无效",
             "CANCELED"          => "预约已取消,请重新预约",
@@ -313,6 +314,7 @@ return [
         "DISHES"                => [
             "CLASS_EXIST_DISHES"=>  "当前分类下存在菜品,不可直接删除",
             "ATTR_EXIST_DISHES" =>  "当前属性下存在菜品,不可直接删除",
+            "CARD_PRICE_EMPTY"  =>  "vip价格不能为空"
         ],
      ],
 

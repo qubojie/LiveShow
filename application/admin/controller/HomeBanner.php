@@ -9,6 +9,8 @@ namespace app\admin\controller;
 
 use app\admin\model\PageBanner;
 use think\Controller;
+use think\Db;
+use think\Exception;
 use think\Request;
 use think\Validate;
 
@@ -17,16 +19,25 @@ class HomeBanner extends Controller
     /**
      * Banner列表
      * @return array
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function index()
+    public function index(Request $request)
     {
         $bannerModel = new PageBanner();
 
+        $pagesize   = $request->param("pagesize",config('PAGESIZE'));//显示个数,不传时为10
+
+        if (empty($pagesize)) $pagesize = config('PAGESIZE');
+
+        $nowPage    = $request->param("nowPage","1");
+
+        $config = [
+            "page" => $nowPage,
+        ];
+
         $list = $bannerModel
-            ->select();
+            ->order("sort")
+            ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);
 
@@ -52,7 +63,7 @@ class HomeBanner extends Controller
             "banner_title|banner标题"  => "require|max:100|unique:page_banner",
             "banner_img|banner图片"    => "require|max:300",
             "type|类型"                => "require|number",
-            "link|链接地址"             => "require|max:200",
+            "link|链接地址"             => "max:200",
             "sort|排序"                => "number",
             "is_show|是否展示"          => "number",
         ];
@@ -117,7 +128,7 @@ class HomeBanner extends Controller
             "banner_title|banner标题"  => "require|max:100|unique:page_banner",
             "banner_img|banner图片"    => "require|max:300",
             "type|类型"                => "require|number",
-            "link|链接地址"             => "require|max:200",
+            "link|链接地址"             => "max:200",
             "sort|排序"                => "number",
             "is_show|是否展示"          => "number",
         ];
@@ -169,22 +180,34 @@ class HomeBanner extends Controller
      */
     public function delete(Request $request)
     {
-        $banner_id  = $request->param("banner_id","");
+        $banner_ids  = $request->param("banner_id","");
 
-        if (empty($banner_id)){
+        if (empty($banner_ids)){
             return $this->com_return(false,config("params.ABNORMAL_ACTION"));
         }
 
         $bannerModel = new PageBanner();
 
-        $is_ok = $bannerModel
-            ->where("banner_id",$banner_id)
-            ->delete();
+        $id_array = explode(",",$banner_ids);
 
-        if ($is_ok){
-            return $this->com_return(true, config("params.SUCCESS"));
-        }else{
-            return $this->com_return(false, config("params.FAIL"));
+        Db::startTrans();
+        try{
+            $is_ok =false;
+            foreach ($id_array as $banner_id){
+                $is_ok = $bannerModel
+                    ->where("banner_id",$banner_id)
+                    ->delete();
+            }
+            if ($is_ok){
+                Db::commit();
+                return $this->com_return(true, config("params.SUCCESS"));
+            }else{
+                return $this->com_return(false, config("params.FAIL"));
+            }
+
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage(),null);
         }
     }
 
