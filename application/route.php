@@ -697,8 +697,14 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             //菜品添加
             Route::rule("add",'dish/add','post/options');
 
-            //菜品编辑
+            //主菜品编辑提交
             Route::rule("edit",'dish/edit','post/options');
+
+            //菜品套餐编辑提交
+            Route::rule("combEdit",'dish/combEdit','post/options');
+
+            //菜品详情
+            Route::rule("dishDetails",'dish/dishDetails','post/options');
 
             //菜品删除
             Route::rule("delete",'dish/delete','post/options');

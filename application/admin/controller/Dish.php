@@ -174,107 +174,220 @@ class Dish extends Controller
 
         $nowTime = time();
 
-        if ($dis_type){
-            //此时添加套餐
-            dump("添加套餐");die;
-
-
-        }else{
-            //此时添加单品
-            $params = [
-                "dis_type"     => $dis_type,
-                "dis_sn"       => $dis_sn,
-                "dis_name"     => $dis_name,
-                "dis_img"      => $dis_img,
-                "dis_desc"     => $dis_desc,
-                "cat_id"       => $cat_id,
-                "att_id"       => $att_id,
-                "is_normal"    => $is_normal,
-                "normal_price" => $normal_price,
-                "is_gift"      => $is_gift,
-                "gift_price"   => $gift_price,
-                "is_vip"       => $is_vip,
-                "is_give"      => $is_give,
-                "sort"         => $sort,
-                "is_enable"    => $is_enable,
-                "created_at"   => $nowTime,
-                "updated_at"   => $nowTime,
-            ];
-            return $this->dishSingleAdd($params,$dishes_card_price);
-        }
-    }
-
-
-    /**
-     * 菜品添加(单品)
-     * @param $params
-     * @param $dishes_card_price
-     * @return array
-     */
-    public function dishSingleAdd($params,$dishes_card_price)
-    {
-        $is_vip = $params['is_vip'];
-
-        $dishModel = new Dishes();
+        //此时添加单品
+        $params = [
+            "dis_type"     => $dis_type,
+            "dis_sn"       => $dis_sn,
+            "dis_name"     => $dis_name,
+            "dis_img"      => $dis_img,
+            "dis_desc"     => $dis_desc,
+            "cat_id"       => $cat_id,
+            "att_id"       => $att_id,
+            "is_normal"    => $is_normal,
+            "normal_price" => $normal_price,
+            "is_gift"      => $is_gift,
+            "gift_price"   => $gift_price,
+            "is_vip"       => $is_vip,
+            "is_give"      => $is_give,
+            "sort"         => $sort,
+            "is_enable"    => $is_enable,
+            "created_at"   => $nowTime,
+            "updated_at"   => $nowTime,
+        ];
 
         Db::startTrans();
 
         try{
-            $dis_id = $dishModel
-                ->insertGetId($params);
+            //先去添加主菜单信息
+            $dishInsertReturn =  $this->dishSingleAdd($params,$dishes_card_price);
 
-            if ($dis_id){
-                $is_ok = true;
-                if ($is_vip){
-                    //如果在vip上架,则记录vip各卡价格
-                    if (empty($dishes_card_price)){
-                        return $this->com_return(false,config("params.DISHES")['CARD_PRICE_EMPTY']);
-                    }
-                    $dishes_card_price = json_decode($dishes_card_price,true);
+            if (!$dishInsertReturn){
 
-                    $dishesCardPriceModel = new DishesCardPrice();
-                    $is_ok = false;
-                    for ($i = 0; $i <count($dishes_card_price); $i ++){
-                        $card_id = $dishes_card_price[$i]['card_id'];
-                        $price   = $dishes_card_price[$i]['price'];
-
-                        $cardPriceParams = [
-                            "dis_id"  => $dis_id,
-                            "card_id" => $card_id,
-                            "price"   => $price
-                        ];
-
-                        $is_ok = $dishesCardPriceModel
-                            ->insert($cardPriceParams);
-                    }
-                }
-
-                if ($is_ok){
-                    Db::commit();
-                    return $this->com_return(true,config("params.SUCCESS"));
-                }
-
-            }else{
                 return $this->com_return(false,config("params.FAIL"));
             }
 
+            $dis_id = $dishInsertReturn;
+
+            if (!$dis_type){
+                return $this->com_return(true,config("params.SUCCESS"));
+            }
+
+            //此时添加套餐
+            $combo_dish_group = $request->param("combo_dish_group","");//套餐内单品信息数据
+
+            $combo_dish_group = json_decode($combo_dish_group,true);
+
+            //换品组
+            if (empty($combo_dish_group)){
+                //选中的换品组内单品不能为空
+                return $this->com_return(false,config("params.DISHES")['COMBO_DIST_EMPTY']);
+            }
+
+            $is_ok = false;
+
+            for ($i = 0; $i < count($combo_dish_group); $i ++){
+
+                $type              = $combo_dish_group[$i]['type'];
+                $combo_dish_id     = (int)$combo_dish_group[$i]['dish_id'];
+                $type_desc         = $combo_dish_group[$i]['type_desc'];
+                $quantity          = $combo_dish_group[$i]['quantity'];
+                $dish_little_group = $combo_dish_group[$i]['dish_little_group'];
+
+                //将数据写入套餐表
+                $comboDishParams = [
+                    "main_dis_id" => $dis_id,
+                    "dis_id"      => $combo_dish_id,
+                    "type"        => $type,
+                    "type_desc"   => $type_desc,
+                    "quantity"    => $quantity
+                ];
+
+                $combo_little_id = Db::name("dishes_combo")
+                    ->insertGetId($comboDishParams);
+
+                $is_ok = true;
+
+                if ($type){
+
+                    if (empty($dish_little_group)){
+                        return $this->com_return(false,config("params.DISHES")['COMBO_ID_NOT_EMPTY']);
+                    }
+
+                    $is_ok = true;
+
+                    for ($m = 0; $m < count($dish_little_group); $m ++){
+                        $little_dish_id = $dish_little_group[$m]['dish_id'];
+                        $little_quantity = $dish_little_group[$m]['quantity'];
+
+                        $littleDishParams = [
+                            "main_dis_id" => $dis_id,
+                            "dis_id"      => $little_dish_id,
+                            "parent_id"   => $combo_little_id,
+                            "quantity"    => $little_quantity
+                        ];
+
+                        $is_ok = Db::name("dishes_combo")
+                            ->insertGetId($littleDishParams);
+                    }
+                }
+            }
+
+            if ($is_ok){
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
+            }else{
+                return $this->com_return(false,config("params.FAIL"));
+            }
         }catch (Exception $e){
             Db::rollback();
             return $this->com_return(false,$e->getMessage());
         }
+
     }
 
-    /**
-     * 菜品添加(套餐)
-     */
-    public function dishSetMealAdd()
+
+    //菜品添加主信息
+    protected function dishSingleAdd($params,$dishes_card_price)
     {
+        $is_vip = $params['is_vip'];
 
+        $dishModel = new Dishes();
+        $dis_id = $dishModel
+            ->insertGetId($params);
+
+        if ($dis_id){
+            $is_ok = true;
+            if ($is_vip){
+                //如果在vip上架,则记录vip各卡价格
+                if (empty($dishes_card_price)){
+                    return $this->com_return(false,config("params.DISHES")['CARD_PRICE_EMPTY']);
+                }
+                $dishes_card_price = json_decode($dishes_card_price,true);
+
+                $dishesCardPriceModel = new DishesCardPrice();
+                $is_ok = false;
+                for ($i = 0; $i <count($dishes_card_price); $i ++){
+                    $card_id = $dishes_card_price[$i]['card_id'];
+                    $price   = $dishes_card_price[$i]['price'];
+
+                    $cardPriceParams = [
+                        "dis_id"  => $dis_id,
+                        "card_id" => $card_id,
+                        "price"   => $price
+                    ];
+
+                    $is_ok = $dishesCardPriceModel
+                        ->insert($cardPriceParams);
+                }
+            }
+
+            if ($is_ok){
+                return $dis_id;
+            }
+
+        }else{
+            return false;
+        }
     }
 
+    /**
+     * 菜品详情
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function dishDetails(Request $request)
+    {
+        $dis_id = $request->param("dis_id","");//菜品id
+
+        if (empty($dis_id)) return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+
+        $dishModel = new Dishes();
+
+        $info = $dishModel
+            ->alias("d")
+            ->where("d.dis_id",$dis_id)
+            ->find();
+
+        $info = json_decode(json_encode($info),true);
+
+        $dishesCardPriceModel = new DishesCardPrice();
+
+        $dishes_card_price = $dishesCardPriceModel
+            ->alias("dcp")
+            ->join("mst_card_vip mcv","mcv.card_id = dcp.card_id")
+            ->where('dcp.dis_id',$dis_id)
+            ->field("mcv.card_name")
+            ->field("dcp.dis_id,dcp.card_id,dcp.price")
+            ->select();
+
+        $dishes_card_price = json_decode(json_encode($dishes_card_price),true);
+
+        $info["dishes_card_price"] = $dishes_card_price;
+
+        $dishes_combo = Db::name("dishes_combo")
+            ->alias("dc")
+            ->join("dishes d","d.dis_id = dc.dis_id","LEFT")
+            ->where("dc.main_dis_id",$dis_id)
+            ->field("dc.combo_id,dc.main_dis_id,dc.dis_id,dc.type,dc.type_desc,dc.parent_id,dc.quantity")
+            ->field("d.dis_name")
+            ->select();
+
+        $dishes_combo = json_decode(json_encode($dishes_combo),true);
+
+        $commonObj = new Common();
+
+        $dishes_combo = $commonObj->make_tree($dishes_combo,"combo_id","parent_id");
+
+        $info["dishes_combo"] = $dishes_combo;
+
+        return $this->com_return(true,config("params.SUCCESS"),$info);
+    }
 
     /**
-     * 菜品编辑
+     * 主菜品编辑提交
      * @param Request $request
      * @return array
      */
@@ -425,6 +538,15 @@ class Dish extends Controller
         }else{
             return $this->com_return(false,config("params.FAIL"));
         }
+    }
+
+    /**
+     * 菜品套餐编辑提交
+     * @param Request $request
+     */
+    public function combEdit(Request $request)
+    {
+
     }
 
     /**

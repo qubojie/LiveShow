@@ -314,7 +314,9 @@ return [
         "DISHES"                => [
             "CLASS_EXIST_DISHES"=>  "当前分类下存在菜品,不可直接删除",
             "ATTR_EXIST_DISHES" =>  "当前属性下存在菜品,不可直接删除",
-            "CARD_PRICE_EMPTY"  =>  "vip价格不能为空"
+            "CARD_PRICE_EMPTY"  =>  "vip价格不能为空",
+            "COMBO_DIST_EMPTY"  =>  "套餐内的单品不能为空",
+            "COMBO_ID_NOT_EMPTY"=>  "换品组内的单品不能为空"
         ],
      ],
 

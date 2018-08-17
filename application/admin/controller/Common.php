@@ -58,7 +58,6 @@ class Common extends Controller
         return $return;
     }
 
-
     /*
      * 生成无限极分类树
      * @param $arr 数据数组结构
@@ -68,7 +67,7 @@ class Common extends Controller
     public function make_tree($arr,$key_id,$parent_id)
     {
         $refer = array();
-        $tree = array();
+        $tree  = array();
 
         foreach($arr as $k => $v){
             $refer[$v[$key_id]] = & $arr[$k]; //创建主键的数组引用
