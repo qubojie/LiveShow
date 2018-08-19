@@ -17,7 +17,7 @@ use think\Exception;
 use think\Request;
 use think\Validate;
 
-class DishAttribute extends Controller
+class DishAttribute extends CommandAction
 {
     /**菜品属性列表 无分页
      * @return array

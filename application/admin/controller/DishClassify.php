@@ -17,7 +17,7 @@ use think\Exception;
 use think\Request;
 use think\Validate;
 
-class DishClassify extends Controller
+class DishClassify extends CommandAction
 {
     /**
      * 获取菜品分类无分页

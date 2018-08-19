@@ -82,7 +82,7 @@ class Reservation extends CommonAction
         $tableInfo = $tableModel
             ->alias("t")
             ->join("mst_table_area ta","ta.area_id = t.area_id")//区域
-            ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
+//            ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
             ->join("mst_table_location tl","tl.location_id = ta.location_id")//位置
             ->join("mst_table_size ts","ts.size_id = t.size_id")//人数
             ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品相
@@ -90,14 +90,15 @@ class Reservation extends CommonAction
             ->join("user u","u.uid = tr.uid","LEFT")
             ->where('t.is_delete',0)
             ->where('t.is_enable',1)
+            ->where('ta.is_enable',1)
             ->where($where)
             ->where($location_where)
             ->where($area_where)
             ->where($appearance_where)
             ->where($size_where)
             ->group("t.table_id")
-            ->order('t.sort')
-//            ->field("t.table_id,t.table_no,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
+            ->order('tl.location_id,ta.area_id,t.table_no,tap.appearance_id')
+            //            ->field("t.table_id,t.table_no,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
             ->field("t.table_id,t.table_no,t.people_max,t.table_desc")
             ->field("ta.area_id,ta.area_title,ta.area_desc")
             ->field("tl.location_title")

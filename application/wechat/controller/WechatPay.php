@@ -146,6 +146,14 @@ class WechatPay extends Controller
 
         }
 
+        if ($scene == config("order.pay_scene")['point_list']['key']){
+            //获取点单支付金额
+            $payable_amount = $this->getBillPayAmount($vid);
+
+        }
+
+
+
         Log::info(date("Y-m-d H:i:s",time())."充值金额 ------ ".$payable_amount);
 
         /*$headL= substr($vid,0,2);
@@ -309,7 +317,7 @@ class WechatPay extends Controller
             $values= json_decode(json_encode(simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
         }
 
-        Log::info("H5支付返回支付回调信息".var_export($values,true));
+        Log::info("支付返回支付回调信息".var_export($values,true));
 
 
         $order_id = $values['out_trade_no'];
@@ -609,11 +617,15 @@ class WechatPay extends Controller
                 //根据订单,查看是否是服务人员预定
                 $reserve_way_res = Db::name("table_revenue")
                     ->where("trid",$trid)
-                    ->field("reserve_way")
+                    ->field("reserve_way,table_no,reserve_time")
                     ->find();
                 $reserve_way_res = json_decode(json_encode($reserve_way_res),true);
 
-                $reserve_way = $reserve_way_res['reserve_way'];
+                $reserve_way  = $reserve_way_res['reserve_way'];
+                $table_no     = $reserve_way_res['table_no'];
+                $reserve_time = $reserve_way_res['reserve_time'];
+
+                $reserve_time = date("Y-m-d H:i",$reserve_time);
 
                 if ($reserve_way == config("order.reserve_way")['service']['key'] || $reserve_way == config("order.reserve_way")['manage']['key']){
                     //调起短信推送
@@ -625,7 +637,9 @@ class WechatPay extends Controller
 
                     $smsObj = new Sms();
 
-                    $smsObj->sendMsg($phone);
+                    $type = "revenue";
+
+                    $smsObj->sendMsg($phone,$type,$reserve_time,$table_no);
                 }
 
                 Db::commit();

@@ -22,6 +22,51 @@ use think\Validate;
 
 class ManageReservation extends HomeAction
 {
+
+    /**
+     * 手机号码获取用户姓名
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function phoneGetUserName(Request $request)
+    {
+        $phone = $request->param("phone","");
+
+        $rule = [
+            "phone|客户电话" => "require|regex:1[3-8]{1}[0-9]{9}",
+        ];
+
+        $request_res = [
+            "phone" => $phone,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError(),null);
+        }
+
+        $userModel = new User();
+
+        $userNameRes = $userModel
+            ->where("phone",$phone)
+            ->field("name")
+            ->find();
+
+        $userNameRes = json_decode(json_encode($userNameRes),true);
+
+        if (empty($userNameRes)){
+            return $this->com_return(true,\config("params.USER_NOT_EXIST"));
+        }
+
+        $userName = $userNameRes['name'];
+
+        return $this->com_return(true,\config("params.SUCCESS"),$userName);
+    }
+
     /**
      * 可预约吧台列表
      * @param Request $request
@@ -35,6 +80,8 @@ class ManageReservation extends HomeAction
         $token         = $request->header("Token","");
 
         $customerPhone = $request->param("customerPhone","");//客户电话
+
+        $customerName  = $request->param("customerName","");//客户电话
 
         $location_id   = $request->param("location_id","");//位置id
 
@@ -82,7 +129,7 @@ class ManageReservation extends HomeAction
         ];
 
         //获取客户相关信息
-        $customerInfo = $this->phoneGetCustomerInfo($customerPhone,$token);
+        $customerInfo = $this->phoneGetCustomerInfo($customerPhone,$token,$customerName);
 
 
         $uid = $customerInfo['uid'];
@@ -161,7 +208,6 @@ class ManageReservation extends HomeAction
             return $this->com_return(false,\config("params.MANAGE_INFO")['UsrLMT']);
         }
         /*权限判断 off*/
-
 
         //根据客户电话 获取客户id
         $userInfo = $this->phoneGetCustomerInfo($customerPhone,$token);
@@ -444,12 +490,13 @@ class ManageReservation extends HomeAction
      * 根据电话获取客户信息
      * @param $phone
      * @param $token
-     * @return array|false|mixed|\PDOStatement|string|\think\Model|void
+     * @param string $customerName
+     * @return array|false|mixed|null|\PDOStatement|string|\think\Model
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    protected function phoneGetCustomerInfo($phone,$token)
+    protected function phoneGetCustomerInfo($phone,$token,$customerName = "")
     {
         $userModel = new User();
 
@@ -465,7 +512,7 @@ class ManageReservation extends HomeAction
 
         if (empty($userInfo)){
             //此时是新用户,将此用户作为新用户录入会员表
-            $userInfo = $this->newUserInsertTable($phone,$token);
+            $userInfo = $this->newUserInsertTable($phone,$token,$customerName);
         }
 
         return $userInfo;
@@ -475,12 +522,13 @@ class ManageReservation extends HomeAction
      * 新用户信息插入
      * @param $phone
      * @param $token
-     * @return array|false|null|\PDOStatement|string|\think\Model
+     * @param string $customerName
+     * @return array|false|\PDOStatement|string|\think\Model
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    protected function newUserInsertTable($phone,$token)
+    protected function newUserInsertTable($phone,$token,$customerName = "")
     {
         $manageInfo = $this->tokenGetManageInfo($token);
 
@@ -504,6 +552,7 @@ class ManageReservation extends HomeAction
             "uid"           => $uid,
             "phone"         => $phone,
             "password"      => $password,
+            "name"          => $customerName,
             "register_way"  => $register_way,
             "user_status"   => $user_status,
             "referrer_type" => $referrer_type,

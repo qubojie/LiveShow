@@ -63,12 +63,13 @@ class DiningRoom extends CommonAction
             ->join("table_revenue tr","tr.table_id = t.table_id","LEFT")//预约表
             ->join("user u","u.uid = tr.uid","LEFT")
             ->where('t.is_delete',0)
+            ->where('t.is_enable',1)
             ->where($where)
             ->where($location_where)
             ->where($area_where)
             ->where($appearance_where)
             ->group("t.table_id")
-            ->order('t.sort')
+            ->order('tl.location_id,ta.area_id,t.table_no,tap.appearance_id')
 //            ->field("t.table_id,t.table_no,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
             ->field("t.table_id,t.table_no,t.people_max,t.table_desc,t.sort,t.is_enable")
             ->field("ta.area_id,ta.area_title,ta.area_desc,ta.sid")
@@ -324,6 +325,7 @@ class DiningRoom extends CommonAction
             ->alias("tl")
             ->where("tl.table_id",$table_id)
             ->where('tl.log_time',['>',$begin_time],['<',$end_time],'and')
+            ->order("tl.log_time DESC")
             ->field("log_time,action_user,desc")
             ->select();
 

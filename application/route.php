@@ -156,6 +156,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
         });
 
+        //菜品
+        Route::group(['name' => 'dishes'],function (){
+
+            //菜品分类
+            Route::rule('dishClassify','Dish/dishClassify','get|options');
+
+            //菜品列表
+            Route::rule('index','Dish/index','post|options');
+
+        });
+
         //个人信息
         Route::group(['name' => 'myCenter'],function (){
 
@@ -173,11 +184,16 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //可预约吧台列表
             Route::rule('tableList','Reservation/tableList','post|options');
 
-            //预约确认
+            //预约确认(交定金)
             Route::rule('reservationConfirm','Reservation/reservationConfirm','post|options');
 
             //取消预约
             Route::rule('cancelReservation','Reservation/cancelReservation','post|options');
+
+            //预约点单结算
+            Route::rule('settlementOrder','ReservationOrder/settlementOrder','post|options');
+
+
         });
 
         //二维码
@@ -193,6 +209,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
             //变更密码
             Route::rule('changePass','ManageInfo/changePass','post|options');
+
+            //phoneGetUserName
+            Route::rule('getUserName','ManageReservation/phoneGetUserName','post|options');
 
             //可预约吧台列表
             Route::rule('tableList','ManageReservation/tableList','post|options');
@@ -690,6 +709,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
             //打印机测试
             Route::rule("test",'dish/test','post/options');
+
+            //菜品类型
+            Route::rule("dishType",'dish/dishType','post/options');
 
             //菜品列表
             Route::rule("index",'dish/index','post/options');

@@ -233,7 +233,7 @@ class PublicAction extends Controller
 
 
     /**
-     * 预约确认公共部分
+     * 预约定金确认公共部分
      * @param $sales_phone
      * @param $table_id
      * @param $date
@@ -369,6 +369,8 @@ class PublicAction extends Controller
         }
     }
 
+
+
     /**
      * 根据营销手机号码获取营销人员信息
      * @param $phone
@@ -398,7 +400,7 @@ class PublicAction extends Controller
      * @param $date
      * @return bool
      */
-    protected function tableStatusCan($table_id,$date)
+    public function tableStatusCan($table_id,$date)
     {
         $tableRevenueModel = new TableRevenue();
 
@@ -420,6 +422,7 @@ class PublicAction extends Controller
             ->where($where_status)
             ->whereTime('reserve_time','between',["$date","$date_end"])
             ->count();
+
         if ($is_exist > 0){
             return false;
         }else{
@@ -483,7 +486,7 @@ class PublicAction extends Controller
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    protected function createRevenueOrder($trid,$uid,$ssid,$ssname,$table_id,$status,$turnover_limit,$reserve_way,$reserve_time,$is_subscription,$subscription_type,$subscription)
+    public function createRevenueOrder($trid,$uid,$ssid,$ssname,$table_id,$status,$turnover_limit,$reserve_way,$reserve_time,$is_subscription,$subscription_type,$subscription)
     {
         $time = time();
 
@@ -666,7 +669,13 @@ class PublicAction extends Controller
         for ($i = 0; $i < ($reserve_before_day + 1); $i++){
             $date_time = $today + $date_s * $i;
 
+            $weekday = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六",];
+
+            $week = $weekday[date("w",$date_time)];
+
             $date_select[$i]["date"] = $date_time;
+
+            $date_select[$i]["week"] = $week;
         }
 
         //获取可预约时间选项

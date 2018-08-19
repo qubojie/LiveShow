@@ -149,17 +149,6 @@ class Reservation extends CommonAction
         return $res;
     }
 
-
-    /**
-     * 查看用户当前时间段是否存在已预约订单
-     * @param $reserve_time '预约时间'
-     * @param $uid  '用户id'
-     */
-    protected function existOrder($reserve_time,$uid)
-    {
-
-    }
-
     /**
      * 取消预约
      * @param Request $request

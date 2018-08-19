@@ -275,6 +275,7 @@ return [
         "AREA_IS_EXIST"         => "当前位置该区域名称已存在",
         "SPENDING_ELT_SUBS"     => "最低消费不能低于定金",
         "PHONE_BIND_OTHER"      => "该手机号码已绑定其他账户",
+        "USER_NOT_EXIST"        => "新用户,可直接注册",
         "RECHARGE_MONEY_INVALID"=> "储值金额无效",
         "PHONE_EXIST"           => "电话号码已存在",
         "NOT_OPEN_CARD"         => "未开卡,或者卡已失效",
@@ -316,7 +317,8 @@ return [
             "ATTR_EXIST_DISHES" =>  "当前属性下存在菜品,不可直接删除",
             "CARD_PRICE_EMPTY"  =>  "vip价格不能为空",
             "COMBO_DIST_EMPTY"  =>  "套餐内的单品不能为空",
-            "COMBO_ID_NOT_EMPTY"=>  "换品组内的单品不能为空"
+            "COMBO_ID_NOT_EMPTY"=>  "换品组内的单品不能为空",
+            "LOW_ELIMINATION"   =>  "不满足最低消费,请核对订单"
         ],
      ],
 
@@ -579,8 +581,9 @@ return [
         'pay_method' => [
             'wxpay'   => ['key' => 'wxpay',  'name' => '微信'],
             'alipay'  => ['key' => 'alipay', 'name' => '支付宝'],
-            'bank'    => ['key' => 'bank',   'name' => '线下银行转账'],
+            'bank'    => ['key' => 'bank',   'name' => '银行转账'],
             'cash'    => ['key' => 'cash',   'name' => '现金'],
+            'offline' => ['key' => 'offline','name' => '线下'],
         ],
 
         //支付场景
@@ -614,6 +617,24 @@ return [
             'clean_table'    => ['key' => '40', 'name' => '清台'],
             'revenue_table'  => ['key' => '80', 'name' => '预约'],
             'cancel_revenue' => ['key' => '90', 'name' => '取消预约'],
+        ],
+
+        //消费单缴费单类型
+        'bill_pay_type'    => [
+            'consumption'  => ['key' => '0', 'name' => '消费'],
+            'change_order' => ['key' => '1', 'name' => '换单'],
+            'retire_dish'  => ['key' => '2', 'name' => '退菜'],
+            'retire_order' => ['key' => '3', 'name' => '退单'],
+            'give'         => ['key' => '4', 'name' => '赠送']
+        ],
+
+        //消费单缴费单状态
+        "bill_pay_sale_status" => [
+            "wait_audit"             => ['key' => '0', 'name' => '待审核'],
+            "pending_payment_return" => ['key' => '1', 'name' => '待付款或待退款'],
+            "completed"              => ['key' => '2', 'name' => '付款或完成已落单'],
+            "audit_failed"           => ['key' => '8', 'name' => '审核未通过'],
+            "cancel"                 => ['key' => '9', 'name' => '交易取消']
         ],
     ],
 
@@ -650,6 +671,21 @@ return [
         'reserve' => "预约设置",
         'sms'     => "短讯设置",
         'user'    => "用户设置",
+    ],
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | 菜品
+    |--------------------------------------------------------------------------
+    */
+    'dish' => [
+
+        //菜品单品套餐分类
+        'dish_type' => [
+            0 => ['key' => '0', 'name' => '单品'],
+            1 => ['key' => '1', 'name' => '套餐']
+        ],
     ],
 
 ];

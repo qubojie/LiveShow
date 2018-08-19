@@ -18,8 +18,22 @@ use think\Exception;
 use think\Request;
 use think\Validate;
 
+//class Dish extends CommandAction
 class Dish extends Controller
 {
+
+    /**
+     * 菜品类型
+     * @return array
+     */
+    public function dishType()
+    {
+        $dishType = config("dish.dish_type");
+
+        return $this->com_return(true,config("params.SUCCESS"),$dishType);
+
+    }
+
     /**
      * 菜品列表
      * @param Request $request
@@ -40,6 +54,8 @@ class Dish extends Controller
 
         $att_id     = $request->param("att_id","");//菜品属性id
 
+        $dis_type   = $request->param("dis_type","");//菜品类型
+
         $config = [
             "page" => $nowPage,
         ];
@@ -59,6 +75,10 @@ class Dish extends Controller
             $att_where['d.att_id'] = ['eq',$att_id];
         }
 
+        if (empty($dis_type)){
+            $dis_type = 0;
+        }
+
         $dishModel = new Dishes();
 
         $column = $dishModel->column;
@@ -75,6 +95,7 @@ class Dish extends Controller
             ->where($where)
             ->where($cat_where)
             ->where($att_where)
+            ->where("d.dis_type",$dis_type)
             ->order("d.sort")
             ->field($column)
             ->field("da.att_name")
@@ -85,6 +106,7 @@ class Dish extends Controller
         $list = json_decode(json_encode($list),true);
 
         $dishesCardPriceModel = new DishesCardPrice();
+
         for ($i = 0; $i < count($list['data']); $i++){
             $dis_id = $list['data'][$i]['dis_id'];
 
@@ -213,25 +235,25 @@ class Dish extends Controller
             }
 
             //此时添加套餐
-            $combo_dish_group = $request->param("combo_dish_group","");//套餐内单品信息数据
+            $dishes_combo = $request->param("dishes_combo","");//套餐内信息数据
 
-            $combo_dish_group = json_decode($combo_dish_group,true);
+            $dishes_combo = json_decode($dishes_combo,true);
 
             //换品组
-            if (empty($combo_dish_group)){
+            if (empty($dishes_combo)){
                 //选中的换品组内单品不能为空
                 return $this->com_return(false,config("params.DISHES")['COMBO_DIST_EMPTY']);
             }
 
             $is_ok = false;
 
-            for ($i = 0; $i < count($combo_dish_group); $i ++){
+            for ($i = 0; $i < count($dishes_combo); $i ++){
 
-                $type              = $combo_dish_group[$i]['type'];
-                $combo_dish_id     = (int)$combo_dish_group[$i]['dish_id'];
-                $type_desc         = $combo_dish_group[$i]['type_desc'];
-                $quantity          = $combo_dish_group[$i]['quantity'];
-                $dish_little_group = $combo_dish_group[$i]['dish_little_group'];
+                $type              = $dishes_combo[$i]['type'];
+                $combo_dish_id     = (int)$dishes_combo[$i]['dish_id'];
+                $type_desc         = $dishes_combo[$i]['type_desc'];
+                $quantity          = $dishes_combo[$i]['quantity'];
+                $dish_little_group = $dishes_combo[$i]['children'];
 
                 //将数据写入套餐表
                 $comboDishParams = [
@@ -346,9 +368,21 @@ class Dish extends Controller
 
         $dishModel = new Dishes();
 
+        $column = $dishModel->column;
+
+        foreach ($column as $key => $val){
+            $column[$key] = "d.".$val;
+        }
+
         $info = $dishModel
             ->alias("d")
-            ->where("d.dis_id",$dis_id)
+            ->join("dishes_attribute da","da.att_id = d.att_id")
+            ->join("dishes_category dc","dc.cat_id = d.cat_id")
+            ->where("d.is_delete","0")
+            ->field($column)
+            ->field("da.att_name")
+            ->field("dc.cat_name")
+            ->field("dc.cat_img")
             ->find();
 
         $info = json_decode(json_encode($info),true);
@@ -543,9 +577,107 @@ class Dish extends Controller
     /**
      * 菜品套餐编辑提交
      * @param Request $request
+     * @return array
      */
     public function combEdit(Request $request)
     {
+        $dis_id       = $request->param("dis_id","");//菜品id
+
+        $dishes_combo = $request->param("dishes_combo","");//菜品套餐信息
+
+        $rule = [
+            "dis_id|菜品id"            => "require",
+            "dishes_combo|菜品套餐信息" => "require",
+        ];
+
+        $request_res = [
+            "dis_id"       => $dis_id,
+            "dishes_combo" => $dishes_combo,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError());
+        }
+
+        $dishes_combo = json_decode($dishes_combo,true);
+
+        //dump($dishes_combo);
+
+
+
+        Db::startTrans();
+        try{
+
+            $delete_old = Db::name("dishes_combo")
+                ->where("main_dis_id",$dis_id)
+                ->delete();
+
+            if (!$delete_old){
+                return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+            }
+
+            $is_ok = false;
+
+            for ($i = 0; $i < count($dishes_combo); $i ++){
+
+                $type              = $dishes_combo[$i]['type'];
+                $combo_dish_id     = (int)$dishes_combo[$i]['dish_id'];
+                $type_desc         = $dishes_combo[$i]['type_desc'];
+                $quantity          = $dishes_combo[$i]['quantity'];
+                $dish_little_group = $dishes_combo[$i]['children'];
+
+                //将数据写入套餐表
+                $comboDishParams = [
+                    "main_dis_id" => $dis_id,
+                    "dis_id"      => $combo_dish_id,
+                    "type"        => $type,
+                    "type_desc"   => $type_desc,
+                    "quantity"    => $quantity
+                ];
+
+                $combo_little_id = Db::name("dishes_combo")
+                    ->insertGetId($comboDishParams);
+
+                $is_ok = true;
+
+                if ($type){
+
+                    if (empty($dish_little_group)){
+                        return $this->com_return(false,config("params.DISHES")['COMBO_ID_NOT_EMPTY']);
+                    }
+
+                    $is_ok = true;
+
+                    for ($m = 0; $m < count($dish_little_group); $m ++){
+                        $little_dish_id = $dish_little_group[$m]['dish_id'];
+                        $little_quantity = $dish_little_group[$m]['quantity'];
+
+                        $littleDishParams = [
+                            "main_dis_id" => $dis_id,
+                            "dis_id"      => $little_dish_id,
+                            "parent_id"   => $combo_little_id,
+                            "quantity"    => $little_quantity
+                        ];
+
+                        $is_ok = Db::name("dishes_combo")
+                            ->insertGetId($littleDishParams);
+                    }
+                }
+            }
+
+            if ($is_ok){
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
+            }else{
+                return $this->com_return(false,config("params.FAIL"));
+            }
+
+        }catch (Exception $e){
+            return $this->com_return(false,$e->getMessage());
+        }
+
 
     }
 

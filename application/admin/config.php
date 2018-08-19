@@ -29,7 +29,7 @@ return array(
     'GET_FAIL'       => "获取失败",
 
     'LEVEL_USER_EXIST' => "该等级下存在会员,不可删除",
-    'EXIST_SUBCLASS'   => "该部门下存在子部门,不可删除",
+    'EXIST_SUBCLASS'   => "该部门下存在子部门或人员信息,不可删除",
     "PARAM_NOT_EMPTY"  => "缺少参数",
     "PASSWORD_DIF"     => "密码不一致",
 

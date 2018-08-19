@@ -189,13 +189,22 @@ class Department extends CommandAction
 
         }
 
+
         //查询表中是否存在以此部门为父类的子类
         $is_exist = $manageDepartmentModel
             ->where("parent_id",$department_id)
             ->count();
 
-        if (!$is_exist){
+        //查询此部门下是否存在人员
+        $exist_user = Db::name("manage_salesman")
+            ->where("department_id",$department_id)
+            ->where("statue","neq","9")
+            ->count();
+
+        if (!$is_exist && !$exist_user){
+
             Db::startTrans();
+
             try{
 
                 $is_ok = $manageDepartmentModel

@@ -27,7 +27,7 @@ class Admin extends CommandAction
 
         $common     = new Common();
 
-        $pagesize   = $request->param("pagesize",config('PAGESIZE'));//当前页,不传时为10
+        $pagesize   = $request->param("pagesize",config('PAGESIZE'));
 
         $result     = array();
 

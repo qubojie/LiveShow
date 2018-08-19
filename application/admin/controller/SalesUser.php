@@ -100,7 +100,7 @@ class SalesUser extends CommandAction
             ->where($where)
             ->where($department_where)
             ->where($status_where)
-            ->join("manage_department md","md.department_id = ms.department_id")
+            ->join("manage_department md","md.department_id = ms.department_id","LEFT")
             ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")
             ->field($admin_column)
             ->field("md.department_title,md.department_manager")

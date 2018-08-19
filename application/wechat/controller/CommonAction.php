@@ -8,6 +8,7 @@
 namespace app\wechat\controller;
 
 use app\admin\controller\SalesUser;
+use app\admin\model\Dishes;
 use app\admin\model\ManageSalesman;
 use app\admin\model\User;
 use app\wechat\model\UserCard;
@@ -136,5 +137,28 @@ class CommonAction extends Controller
 
         return $salesmanInfo;
 
+    }
+
+
+    /**
+     * 根据菜品id获取菜品信息
+     * @param $dis_id
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function disIdGetDisInfo($dis_id)
+    {
+        $dishesModel = new Dishes();
+
+        $dishesInfo = $dishesModel
+            ->where('dis_id',$dis_id)
+            ->field("dis_id,dis_type,dis_sn,dis_name,dis_img,dis_desc,cat_id,att_id,is_normal,normal_price,is_gift,gift_price,is_vip,is_give")
+            ->find();
+
+        $dishesInfo = json_decode(json_encode($dishesInfo),true);
+
+        return $dishesInfo;
     }
 }
