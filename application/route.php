@@ -77,6 +77,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
     //小程序支付
     Route::rule('smallapp','wechatPay/smallapp','get|post|options');
 
+    //钱包支付
+    Route::rule('walletPay','DishOrderPay/walletPay','post|options');
+
     //退款
     Route::rule('reFund','wechatPay/reFund','get|post|options');
 
@@ -173,6 +176,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //我的预约列表
             Route::rule('reservationOrder','MyInfo/reservationOrder','post|options');
 
+            //我的订单列表
+            Route::rule('reservationOrder','MyInfo/reservationOrder','post|options');
+
         });
 
         //预约
@@ -189,6 +195,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
             //取消预约
             Route::rule('cancelReservation','Reservation/cancelReservation','post|options');
+
+            //用户主动取消支付,释放桌台
+            Route::rule('releaseTable','Reservation/releaseTable','post|options');
 
             //预约点单结算
             Route::rule('settlementOrder','ReservationOrder/settlementOrder','post|options');
@@ -968,7 +977,7 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
         //开拼
         Route::rule('openSpelling','DiningRoomTurnSpelling/openSpelling','post|options');
 
-        //获取今日已开台的主桌
+        //获取今日已开台或者空台的桌
         Route::rule('alreadyOpenTable','DiningRoomTurnSpelling/alreadyOpenTable','post|options');
 
         //转拼

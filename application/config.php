@@ -297,7 +297,9 @@ return [
             "UsrLMT"            => "权限不足",
         ],
         "ORDER"                 => [
-            "completed"         => "订单已支付,请勿重复操作"
+            "completed"         => "订单已支付,请勿重复操作",
+            "NOW_STATUS_NOT_PAY"=> "支付操作异常",
+            "BALANCE_NOT_ENOUGH"=> "余额不足",
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -584,6 +586,7 @@ return [
             'bank'    => ['key' => 'bank',   'name' => '银行转账'],
             'cash'    => ['key' => 'cash',   'name' => '现金'],
             'offline' => ['key' => 'offline','name' => '线下'],
+            'balance' => ['key' => 'balance','name' => '余额'],
         ],
 
         //支付场景

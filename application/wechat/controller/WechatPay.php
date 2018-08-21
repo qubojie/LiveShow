@@ -9,7 +9,9 @@ use app\admin\controller\Common;
 use app\admin\model\MstCardVip;
 use app\common\controller\UUIDUntil;
 use app\services\Sms;
+use app\services\YlyPrint;
 use app\wechat\model\BillCardFees;
+use app\wechat\model\BillPay;
 use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
 use think\Controller;
@@ -151,8 +153,6 @@ class WechatPay extends Controller
             $payable_amount = $this->getBillPayAmount($vid);
 
         }
-
-
 
         Log::info(date("Y-m-d H:i:s",time())."充值金额 ------ ".$payable_amount);
 
@@ -343,10 +343,19 @@ class WechatPay extends Controller
 
         if ($attach == config("order.pay_scene")['recharge']['key']){
 
-            //这里去处理预约定金回调逻辑
+            //这里去处理充值回调逻辑
             //获取订台金额
             $res = $this->recharge($values,$notifyType);
             echo $res;die;
+
+        }
+
+        if ($attach == config("order.pay_scene")['point_list']['key']){
+
+            //这里去处理订单缴费回调逻辑
+            $res = $this->pointListNotify($values,$notifyType);
+            echo $res;die;
+
         }
 
         /*$headL= substr($order_id,0,2);
@@ -370,6 +379,216 @@ class WechatPay extends Controller
             }
 
         }*/
+    }
+
+    /**
+     * 点单缴费订单回调
+     * @param array $values
+     * @param string $notifyType
+     * @return string
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function pointListNotify($values = array(),$notifyType = "")
+    {
+        $pid = $values['out_trade_no'];
+
+        //获取订单信息
+        $order_info = Db::name("bill_pay")
+            ->where('pid',$pid)
+            ->find();
+
+        if (empty($order_info)){
+            return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[订单不存在!!!]]></return_msg> </xml>';
+//            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[订单不存在!!!]]></return_msg> </xml>';
+//            die;
+        }
+
+        $sale_status = $order_info['sale_status'];
+
+        if ($sale_status == config("order.bill_pay_sale_status")['completed']['key']){
+            return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[订单已支付]]></return_msg> </xml>';
+//            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[订单已支付]]></return_msg> </xml>';
+//            die;
+        }
+
+        $uid          = $order_info['uid'];//用户id
+        $trid         = $order_info['trid'];//预约订台id
+        $return_point = $order_info['return_point'];//赠送积分
+
+        $userOldMoneyInfo = Db::name('user')
+            ->where('uid',$uid)
+            ->field('account_balance,account_deposit,account_cash_gift,account_point')
+            ->find();
+
+        $account_point = $userOldMoneyInfo['account_point'];//用户旧的积分账户信息
+
+        Db::startTrans();
+
+        try{
+            /*更改订单状态 on */
+            $cash_fee       = $values['cash_fee'] / 100;
+            $total_fee      = $values['total_fee'] / 100;
+            $out_trade_no   = $values['out_trade_no'];
+            $transaction_id = $values['transaction_id'];
+
+            if (isset($values['pay_type'])){
+                $pay_type = $values['pay_type'];
+            }else{
+                $pay_type = config("order.pay_method")['wxpay']['key'];
+            }
+
+            if ($pay_type == config("order.pay_method")['balance']['key']){
+                //如果是余额支付
+                $updateBillPayParams = [
+                    "sale_status"     => config("order.bill_pay_sale_status")['completed']['key'],
+                    "pay_time"        => time(),
+                    "finish_time"     => time(),
+                    "deal_amount"     => $cash_fee,
+                    "pay_type"        => $pay_type,
+                    "account_balance" => $cash_fee,
+                    "payable_amount"  => $total_fee - $cash_fee,
+                    "updated_at"      => time()
+                ];
+
+            }else{
+                //如果是微信支付
+                //更新预约点单充值单据状态参数
+                $updateBillPayParams = [
+                    "sale_status"    => config("order.bill_pay_sale_status")['completed']['key'],
+                    "pay_time"       => time(),
+                    "finish_time"    => time(),
+                    "deal_amount"    => $cash_fee,
+                    "payable_amount" => $total_fee - $cash_fee,
+                    "pay_type"       => $pay_type,
+                    "pay_no"         => $transaction_id,
+                    "updated_at"     => time()
+                ];
+            }
+
+            $reservationOrderCallBackObj = new ReservationOrderCallBack();
+
+            //更新用户预约点单单据状态为付款成功,等待落单
+            $updateRechargeReturn  = $reservationOrderCallBackObj->updateBillPay($updateBillPayParams,"$out_trade_no");
+
+            if ($updateRechargeReturn == false){
+                return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL001'.']]></return_msg> </xml>';
+//                echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL001'.']]></return_msg> </xml>';
+//                die;
+            }
+            /*更改订单状态 off */
+
+            /*更新预约台位状态为预订成功 on*/
+
+            $tableRevenueParams = [
+                "status"     => config("order.table_reserve_status")['reserve_success']['key'],
+                "updated_at" => time()
+            ];
+
+            $subscriptionCallBackObj = new SubscriptionCallBack();
+
+            //更新台位预定信息表中台位状态
+            $updateTableRevenueParams = [
+                "status"            => config("order.table_reserve_status")['reserve_success']['key'],
+                "subscription_time" => time(),
+                "updated_at"        => time()
+            ];
+            $changeTableRevenueReturn = $subscriptionCallBackObj->changeTableRevenueInfo($updateTableRevenueParams,$trid,$uid);
+
+            if ($changeTableRevenueReturn == false){
+                return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL001.1'.']]></return_msg> </xml>';
+            }
+
+            /*更新预约台位状态为预订成功 off*/
+
+
+            /*用户积分操作 on*/
+            $cardCallbackObj = new CardCallback();
+
+            if ($return_point > 0){
+
+                //1.更新用户积分账户
+                $userAccountPointParams = [
+                    "account_point" => $return_point + $account_point,
+                    "updated_at"    => time()
+                ];
+
+                $userUserPointReturn = $cardCallbackObj->updateUserInfo($userAccountPointParams,$uid);
+
+                if ($userUserPointReturn == false){
+                    return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL002'.']]></return_msg> </xml>';
+//                    echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL002'.']]></return_msg> </xml>';
+//                    die;
+                }
+
+                //2.更新用户积分明细
+                $updateAccountPointParams = [
+                    'uid'         => $uid,
+                    'point'       => $return_point,
+                    'last_point'  => $account_point + $return_point,
+                    'change_type' => 2,
+                    'action_user' => 'sys',
+                    'action_type' => config("user.point")['consume_reward']['key'],
+                    'action_desc' => config("user.point")['consume_reward']['name'],
+                    'oid'         => $pid,
+                    'created_at'  => time(),
+                    'updated_at'  => time()
+                ];
+
+                $userAccountPointReturn = $cardCallbackObj->updateUserAccountPoint($updateAccountPointParams);
+
+                if ($userAccountPointReturn == false){
+                    return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL003'.']]></return_msg> </xml>';
+//                    echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL003'.']]></return_msg> </xml>';
+//                    die;
+                }
+            }
+            /*用户积分操作 off*/
+
+            /*调用打印机 处理落单 on*/
+            $YlyPrintObj = new YlyPrint();
+
+            $printToken = $YlyPrintObj->getToken();
+
+            $message = $printToken['message'];
+
+            if ($printToken['result'] == false){
+                //获取token失败
+                return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$message.']]></return_msg> </xml>';
+//                echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$message.']]></return_msg> </xml>';
+//                die;
+            }
+
+            $data = $printToken['data'];
+
+            $access_token = $data['access_token'];
+
+            $refresh_token = $data['refresh_token'];
+
+
+            $printRes = $YlyPrintObj->printDish($access_token,$pid);
+
+            if ($printRes['error'] != "0"){
+                //落单失败
+                return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$printRes['error_description'].']]></return_msg> </xml>';
+//                echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$printRes['error_description'].']]></return_msg> </xml>';
+//                die;
+            }
+            /*调用打印机 处理落单 off*/
+
+            Db::commit();
+            return '<xml> <return_code><![CDATA[SUCCESS]]></return_code> <return_msg><![CDATA[OK]]></return_msg> </xml>';
+            /*echo '<xml> <return_code><![CDATA[SUCCESS]]></return_code> <return_msg><![CDATA[OK]]></return_msg> </xml>';
+            die;*/
+
+        }catch (Exception $e){
+            Log::info("点单支付回调出错----- ".$e->getMessage());
+            Db::rollback();
+            return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$e->getMessage().']]></return_msg> </xml>';
+//            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$e->getMessage().']]></return_msg> </xml>';
+//            die;
+        }
     }
 
     /**
@@ -429,7 +648,6 @@ class WechatPay extends Controller
             ->where('uid',$uid)
             ->field('account_balance,account_deposit,account_cash_gift,account_point')
             ->find();
-//        dump($userOldMoneyInfo);die;
 
         //用户钱包可用余额
         $account_balance = $userOldMoneyInfo['account_balance'];
@@ -1407,6 +1625,31 @@ class WechatPay extends Controller
             return false;
         }
 
+    }
+
+    /**
+     * 获取订单支付金额
+     * @param $pid
+     * @return bool|mixed
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getBillPayAmount($pid)
+    {
+        $billPayModel = new BillPay();
+
+        $info = $billPayModel
+            ->where("pid",$pid)
+            ->where("sale_status",'1')
+            ->field("order_amount")
+            ->find();
+
+        if (!empty($info)){
+            return $info['order_amount'];
+        }else{
+            return false;
+        }
     }
 
 }

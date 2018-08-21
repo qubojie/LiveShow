@@ -265,6 +265,7 @@ class HomeBanner extends Controller
     public function isShow(Request $request)
     {
         $banner_id  = $request->param("banner_id","");
+
         $is_show    = (int)$request->param("is_show","");
 
         $rule = [
@@ -300,6 +301,4 @@ class HomeBanner extends Controller
             return $this->com_return(false,config("params.FAIL"));
         }
     }
-
-
 }

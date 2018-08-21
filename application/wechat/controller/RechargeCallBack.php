@@ -26,7 +26,7 @@ class RechargeCallBack extends Controller
             ->where("rfid",$rfid)
             ->update($params);
 
-        if ($is_ok){
+        if ($is_ok !== false){
             return true;
         }else{
             return false;

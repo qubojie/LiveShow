@@ -41,19 +41,15 @@ class PublicAction extends Controller
      */
     public function reservationPublic($size_id,$location_id,$appointment,$user_card_id,$pagesize,$config)
     {
-        $tableModel = new MstTable();
-        $tableImageModel = new MstTableImage();
+        $tableModel        = new MstTable();
+        $tableImageModel   = new MstTableImage();
+        $tableRevenueModel = new TableRevenue();
+
         $appointment = (int)$appointment;
 
-
-        /*$where_card = [];
+        $where_card = [];
         if (!empty($user_card_id)){
            $where_card['tac.card_id'] = ["eq",$user_card_id];
-        }*/
-
-        $size_where = [];
-        if (!empty($size_id)){
-            $size_where['t.size_id'] = $size_id;
         }
 
         $location_where = [];
@@ -64,15 +60,13 @@ class PublicAction extends Controller
         $res = $tableModel
             ->alias("t")
             ->join("mst_table_area ta","ta.area_id = t.area_id")//区域
-            ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
             ->join("mst_table_location tl","tl.location_id = ta.location_id")//位置
             ->join("mst_table_size ts","ts.size_id = t.size_id")//人数
             ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品相
-            ->where('t.is_enable',1)
-            ->where('t.is_delete',0)
-            ->where($size_where)
+            ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
+            ->where("t.is_enable",1)
+            ->where("t.is_delete",0)
             ->where($location_where)
-//            ->where($where_card)
             ->group("t.table_id")
             ->order('t.sort')
             ->field("t.table_id,t.table_no,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
@@ -80,10 +74,9 @@ class PublicAction extends Controller
             ->field("tl.location_title")
             ->field("ts.size_title")
             ->field("tap.appearance_title")
-            ->paginate($pagesize,false,$config);
+            ->select();
 
-        $res_data = json_decode(json_encode($res),true);
-        $res = $res_data["data"];
+        $res = json_decode(json_encode($res),true);
 
         $pending_payment = config("order.table_reserve_status")['pending_payment']['key'];//待付定金或结算
         $reserve_success = config("order.table_reserve_status")['reserve_success']['key'];//预定成功
@@ -95,29 +88,99 @@ class PublicAction extends Controller
 
         $where_status['status'] = array('IN',"$can_not_reserve");//查询字段的值在此范围之内的做显示
 
-        $tableRevenueModel = new TableRevenue();
+        $appointment_end   = $appointment + 24 * 60 * 60;
+        $appointment_start = date("Y-m-d H:i:s",$appointment);
+        $appointment_end   = date("Y-m-d H:i:s",$appointment_end);
 
-        for ($n = 0; $n <count($res); $n++){
+        foreach ($res as $k => $v){
 
-            $area_id = $res[$n]['area_id'];
+            $table_id = $v['table_id'];
 
-            if (empty($user_card_id)){
-                $tableAreaArr = Db::name('mst_table_area_card')
-                    ->where('area_id',$area_id)
-                    ->select();
+            $table_reserve_exist = $tableRevenueModel
+                ->where('table_id',$table_id)
+                ->where($where_status)
+                ->whereTime("reserve_time","between",["$appointment_start","$appointment_end"])
+                ->count();
 
-                if (!empty($tableAreaArr)){
-                    unset($res[$n]);
-                }
-
-            }else{
-                //如果用户已办卡,移除数组中
+            if ($table_reserve_exist){
+                unset($res[$k]);
             }
+        }
 
+        $res = array_values($res);
+
+        for ($q = 0; $q < count($res); $q ++){
+            $area_id = $res[$q]['area_id'];
+            $cardInfo = Db::name("mst_table_area_card")
+                ->alias("tac")
+                ->join("mst_card_vip cv","cv.card_id = tac.card_id")
+                ->where('tac.area_id',$area_id)
+                ->field("cv.card_id")
+                ->select();
+
+            $cardInfo = json_decode(json_encode($cardInfo),true);
+
+            $res[$q]['card_id_group'] = $cardInfo;
 
         }
 
-        $res = array_values($res);//重排索引
+        if (!empty($user_card_id)){
+            //查找那些区域绑定了该卡
+            //获取限制区域的卡信息
+            $area_card_info = Db::name('mst_table_area_card')
+                ->where("card_id",$user_card_id)
+                ->select();
+
+            $area_card_info = json_decode(json_encode($area_card_info),true);
+
+            if (empty($area_card_info)){
+                //未有区域绑定该卡
+                foreach ($res as $key => $val){
+
+                    if (!empty($val['card_id_group'])){
+                        unset($res[$key]);
+                    }
+                }
+
+            }else{
+
+                $my_card_id[] = $user_card_id;
+
+                //有区域绑定该卡
+                foreach ($res as $key => $val){
+
+                    //获取有限制的桌台
+                    if ($val['card_id_group'] != ""){
+
+                        $card_id_group = $val['card_id_group'];
+
+                        if (!empty($card_id_group)){
+
+                            foreach ($card_id_group as $k => $v){
+                                $card_id_group[$k] = $v['card_id'];
+                            }
+                            //如果有交集,则返回交集,否则返回空数组
+                            $intersection = array_intersect($my_card_id,$card_id_group);
+
+                            if (empty($intersection)){
+                                //无交集
+                                unset($res[$key]);
+                            }
+                        }
+
+                    }
+                }
+            }
+
+        }else{
+            foreach ($res as $key => $val){
+                if (!empty($val['card_id_group'])){
+                    unset($res[$key]);
+                }
+            }
+        }
+
+        $res = array_values($res);
 
         for ($i = 0; $i < count($res); $i++){
             $table_id = $res[$i]['table_id'];
@@ -129,7 +192,6 @@ class PublicAction extends Controller
                 //是特殊日期
                 $turnover_limit = $res[$i]['turnover_limit_l3'];//特殊日期预约最低消费
                 $subscription   = $res[$i]['subscription_l3'];//特殊日期预约定金
-
 
             }else{
                 //不是特殊日期
@@ -174,28 +236,6 @@ class PublicAction extends Controller
             }
 
         }
-
-
-        $appointment_end = $appointment + 24 * 60 * 60;
-        $appointment     = date("Y-m-d H:i:s",$appointment);
-        $appointment_end = date("Y-m-d H:i:s",$appointment_end);
-
-        foreach ($res as $k => $v){
-
-            $table_id = $v['table_id'];
-
-            $table_reserve_exist = $tableRevenueModel
-                ->where('table_id',$table_id)
-                ->where($where_status)
-                ->whereTime("reserve_time","between",["$appointment","$appointment_end"])
-                ->count();
-
-            if ($table_reserve_exist){
-                unset($res[$k]);
-            }
-        }
-
-        $res = array_values($res);
 
         $res_data["data"] = $res;
 
@@ -480,18 +520,20 @@ class PublicAction extends Controller
      * @param $reserve_time
      * @param $is_subscription
      * @param $subscription_type
-     * @param $subscription
+     * @param int $subscription
+     * @param int $turnover
      * @return array|bool
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function createRevenueOrder($trid,$uid,$ssid,$ssname,$table_id,$status,$turnover_limit,$reserve_way,$reserve_time,$is_subscription,$subscription_type,$subscription)
+    public function createRevenueOrder($trid,$uid,$ssid,$ssname,$table_id,$status,$turnover_limit,$reserve_way,$reserve_time,$is_subscription,$subscription_type,$subscription = 0,$turnover = 0)
     {
         $time = time();
 
         //根据桌id获取桌信息
         $tableInfo = $this->tableIdGetInfo("$table_id");
+
         if (empty($tableInfo)){
             return $this->com_return(false,\config("params.TABLE_INVALID"));
         }
@@ -500,6 +542,12 @@ class PublicAction extends Controller
         $area_id  = $tableInfo['area_id'];
         $sid      = $tableInfo['sid'];
         $sname    = $tableInfo['sales_name'];
+
+        $turnover_num = 0;
+
+        if ($turnover > 0){
+            $turnover_num = 1;
+        }
 
         $params = [
             'trid'              => $trid,               //台位预定id  前缀T
@@ -519,6 +567,8 @@ class PublicAction extends Controller
             'is_subscription'   => $is_subscription,    //是否收取定金或订单  0 是  1 否
             'subscription_type' => $subscription_type,  //定金类型   0无订金   1订金   2订单
             'subscription'      => $subscription,       //订金金额
+            'turnover_num'      => $turnover_num,       //台位订单数量
+            'turnover'          => $turnover,           //订单金额
             'created_at'        => $time,
             'updated_at'        => $time
         ];
@@ -657,26 +707,30 @@ class PublicAction extends Controller
 
         $reserve_before_day = $openCardObj->getSysSettingInfo("reserve_before_day");
 
-        $now_time = time();
-
-        //计算出指定日期的天数
-        $today = strtotime(date("Ymd",$now_time));
-
-        $date_s = 24 * 60 * 60;
-
         $date_select = [];
 
-        for ($i = 0; $i < ($reserve_before_day + 1); $i++){
-            $date_time = $today + $date_s * $i;
+        if ($reserve_before_day){
+            $now_time = time();
 
-            $weekday = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六",];
+            //计算出指定日期的天数
+            $today = strtotime(date("Ymd",$now_time));
 
-            $week = $weekday[date("w",$date_time)];
+            $date_s = 24 * 60 * 60;
 
-            $date_select[$i]["date"] = $date_time;
+            for ($i = 0; $i < ($reserve_before_day); $i++){
+                $date_time = $today + $date_s * $i;
 
-            $date_select[$i]["week"] = $week;
+                $weekday = ["星期日","星期一","星期二","星期三","星期四","星期五","星期六",];
+
+                $week = $weekday[date("w",$date_time)];
+
+                $date_select[$i]["date"] = $date_time;
+
+                $date_select[$i]["week"] = $week;
+            }
         }
+
+
 
         //获取可预约时间选项
         $reserve_time_frame = $openCardObj->getSysSettingInfo("reserve_time_frame");

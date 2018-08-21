@@ -194,6 +194,7 @@ class DiningRoomTurnSpelling extends CommonAction
 
     /**
      * 获取今日已开台或者空台的桌
+     * @param Request $request
      * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
@@ -213,31 +214,34 @@ class DiningRoomTurnSpelling extends CommonAction
             $status_str = "0,1,2";
 
             $tableInfo = $tableModel
-                ->where("is_delete",0)
-                ->order('sort')
-                ->field("table_id,area_id,table_no,table_desc,is_enable,turnover_limit_l1,turnover_limit_l2,turnover_limit_l3,subscription_l1,subscription_l2,subscription_l3")
+                ->alias("t")
+                ->join("mst_table_area ta","ta.area_id = t.area_id")
+                ->join("mst_table_location tl","tl.location_id = ta.location_id")
+                ->where("t.is_delete",0)
+                ->order('t.sort')
+                ->field("t.table_id,t.area_id,t.table_no,t.table_desc,t.is_enable,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3")
+                ->field("ta.area_title")
+                ->field("tl.location_title")
                 ->select();
 
             $tableInfo = json_decode(json_encode($tableInfo),true);
 
             $publicObj = new PublicAction();
 
-            for ($i =0; $i < count($tableInfo); $i++){
+            foreach ($tableInfo as $key => $val){
 
-                $table_id = $tableInfo[$i]['table_id'];
+                $table_id = $val['table_id'];
 
                 $table_is_re = $tableRevenueModel
                     ->whereTime("reserve_time","today")
                     ->where('status',"IN",$status_str)
                     ->where("table_id",$table_id)
                     ->count();
-
-                $table_is_re = json_decode(json_encode($table_is_re),true);
-
                 if ($table_is_re > 0){
-                   //移除当前桌位
-                    unset($tableInfo[$i]);
+                    //移除当前桌位
+                    unset($tableInfo[$key]);
                 }
+
             }
 
             $res = array_values($tableInfo);
@@ -293,6 +297,8 @@ class DiningRoomTurnSpelling extends CommonAction
             $res = $tableRevenueModel
                 ->alias("tr")
                 ->join("user u","u.uid = tr.uid","LEFT")
+                ->join("mst_table_area ta","ta.area_id = tr.area_id")
+                ->join("mst_table_location tl","tl.location_id = ta.location_id")
                 ->whereTime("tr.reserve_time","today")
                 ->where("tr.status",$status)
                 ->where(function ($query){
@@ -300,6 +306,8 @@ class DiningRoomTurnSpelling extends CommonAction
                     $query->whereOr('tr.parent_trid','');
                 })
                 ->field("tr.trid,tr.area_id,tr.is_join,tr.table_no")
+                ->field("ta.area_title")
+                ->field("tl.location_title")
                 ->field("u.name parent_name,u.phone parent_phone")
                 ->select();
         }

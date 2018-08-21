@@ -50,10 +50,6 @@ class ReservationOrder extends CommonAction
 
         $dish_group     = $request->param("dish_group",'');//菜品集合
 
-//        $dish_group = json_decode($dish_group,true);
-//
-//        dump($dish_group);die;
-
         $rule = [
             "table_id|桌位"          => "require",
             "turnover_limit|最低消费" => "require",
@@ -90,7 +86,8 @@ class ReservationOrder extends CommonAction
         try{
             /*创建预约吧台订单信息 On*/
             $subscription = 0;
-            $trid = $this->reservationOrderPublic("$sales_phone","$table_id","$date","$time","$subscription","$turnover_limit","$reserve_way","$uid");
+            $turnover     = $order_amount;
+            $trid = $this->reservationOrderPublic("$sales_phone","$table_id","$date","$time","$subscription","$turnover_limit","$reserve_way","$uid","$turnover");
 
             if ($trid == false){
                 return $this->com_return(false,\config("params.ABNORMAL_ACTION")."001");
@@ -119,11 +116,11 @@ class ReservationOrder extends CommonAction
 
             for ($i = 0; $i < count($dish_group); $i ++){
 
-                $dis_id = $dish_group[$i]['dis_id'];
+                $dis_id   = $dish_group[$i]['dis_id'];
 
                 $dis_type = $dish_group[$i]['dis_type'];
 
-                $price = $dish_group[$i]['price'];
+                $price    = $dish_group[$i]['price'];
 
                 $quantity = $dish_group[$i]['quantity'];
 
@@ -279,12 +276,13 @@ class ReservationOrder extends CommonAction
      * @param $turnover_limit
      * @param $reserve_way
      * @param $uid
-     * @return array|bool
+     * @param $turnover '订单金额'
+     * @return array|bool|string
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function reservationOrderPublic($sales_phone,$table_id,$date,$time,$subscription,$turnover_limit,$reserve_way,$uid)
+    public function reservationOrderPublic($sales_phone,$table_id,$date,$time,$subscription,$turnover_limit,$reserve_way,$uid,$turnover = 0)
     {
         //如果报名营销验证营销是否存在
         if (!empty($sales_phone)){
@@ -328,7 +326,7 @@ class ReservationOrder extends CommonAction
         $is_subscription   = 1;
         $subscription_type = Config::get("order.subscription_type")['order']['key'];
         //去创建预约吧台订单信息
-        $createRevenueReturn = $publicObj->createRevenueOrder("$trid","$uid","$ssid","$ssname","$table_id","$status","$turnover_limit","$reserve_way","$reserve_time","$is_subscription","$subscription_type","$subscription");
+        $createRevenueReturn = $publicObj->createRevenueOrder("$trid","$uid","$ssid","$ssname","$table_id","$status","$turnover_limit","$reserve_way","$reserve_time","$is_subscription","$subscription_type","$subscription","$turnover");
 
         if ($createRevenueReturn){
             return $trid;

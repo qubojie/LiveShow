@@ -823,46 +823,4 @@ class Dish extends Controller
             return $this->com_return(false,config("params.FAIL"));
         }
     }
-
-
-    //易连云打印测试
-    public function test()
-    {
-        $ylyObj = new YlyPrint();
-
-        $res = $ylyObj->getToken();
-
-        $res = json_decode($res,true);
-
-        if ($res['error'] == 0){
-
-            //获取成功,需要本地缓存token有效时限
-
-            $body = $res['body'];
-
-            $access_token = $body['access_token'];
-
-            $refresh_token = $body['refresh_token'];
-
-            $is_print = $ylyObj->printDish($access_token);
-
-            dump($is_print);die;
-
-            /*
-             * 正确返回结果
-             * {
-                "error": "0",
-                "error_description": "success",
-                "body": {
-                    "id": "137119415",
-                    "origin_id": "1234567890"
-                }
-               }
-             * */
-
-
-        }else{
-            //获取token失败
-        }
-    }
 }

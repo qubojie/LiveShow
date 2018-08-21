@@ -1,29 +1,28 @@
 <?php
-namespace app\index\controller;
+/**
+ * Created by PhpStorm.
+ * User: qubojie
+ * Date: 2018/8/20
+ * Time: 下午2:04
+ */
+namespace app\wechat\controller;
 
 use app\admin\controller\Common;
-use app\admin\model\MstCardVip;
-use app\admin\model\MstCardVipGiftRelation;
-use app\admin\model\MstGift;
-use app\admin\model\User;
-use app\wechat\model\BillCardFees;
-use app\wechat\model\BillCardFeesDetail;
 use app\wechat\model\BillPayDetail;
-use think\Config;
 use think\Controller;
-use think\Db;
-use think\Request;
 
-class Index extends Controller
+class DishPublicAction extends Controller
 {
-    public function index()
+    /**
+     * 根据pid获取当前订单的菜品信息
+     * @param $pid
+     * @return false|\PDOStatement|string|\think\Collection
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function pidGetOrderDishInfo($pid)
     {
-        return $this->fetch();
-    }
-
-    public function test(Request $request)
-    {
-        $pid = "P180819183125682237D";
         $billPayDetailModel = new BillPayDetail();
 
         $tableInfo = $billPayDetailModel
@@ -36,6 +35,7 @@ class Index extends Controller
             ->field("ta.area_title")
             ->field("tr.table_no")
             ->find();
+
         $tableInfo = json_decode(json_encode($tableInfo),true);
 
         $list = $billPayDetailModel
@@ -51,9 +51,6 @@ class Index extends Controller
 
         $tableInfo['dish_info'] = $list;
 
-
-        dump($tableInfo);
-
+        return $tableInfo;
     }
-
 }

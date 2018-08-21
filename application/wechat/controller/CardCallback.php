@@ -449,7 +449,7 @@ class CardCallback extends Controller
         $is_ok = $userModel
             ->where('uid',$uid)
             ->update($params);
-        if ($is_ok){
+        if ($is_ok !== false){
             return true;
         }else{
             return false;
@@ -460,7 +460,10 @@ class CardCallback extends Controller
      * 获取用户开卡推荐人信息
      * @param $uid
      * @param $sale_status
-     * @return array
+     * @return array|false|null|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function getUserCardInfo($uid,$sale_status)
     {
