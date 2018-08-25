@@ -163,7 +163,7 @@ class TableInfo extends CommandAction
         $tableModel = new MstTable();
 
         $table_no          = $request->param('table_no','');//台号
-        $appearance_id     = $request->param("appearance_id",'');//品相id
+        $appearance_id     = $request->param("appearance_id",'');//品项id
         $size_id           = $request->param("size_id",'');//容量id
         $area_id           = $request->param('area_id','');//区域id
         $turnover_limit_l1 = $request->param('turnover_limit_l1',0);//平日最低消费 0表示无最低消费（保留）
@@ -181,7 +181,7 @@ class TableInfo extends CommandAction
 
         $rule = [
             "table_no|台号"                  => "require|max:20|unique:mst_table",
-            "appearance_id|品相"             => "require",
+            "appearance_id|品项"             => "require",
             "size_id|容量"                   => "require",
             "area_id|区域"                   => "require",
 //            "people_max|最大预定上线人数" => "require|number",
@@ -289,7 +289,7 @@ class TableInfo extends CommandAction
         $table_id          = $request->param('table_id','');//酒桌id
 
         $table_no          = $request->param('table_no','');//台号
-        $appearance_id     = $request->param('appearance_id','');//品相id
+        $appearance_id     = $request->param('appearance_id','');//品项id
         $size_id           = $request->param('size_id','');//容量id
         $area_id           = $request->param('area_id','');//区域id
         $turnover_limit_l1 = $request->param('turnover_limit_l1',0);//平日最低消费 0表示无最低消费（保留）
@@ -308,7 +308,7 @@ class TableInfo extends CommandAction
         $rule = [
             "table_id|酒桌id"               => "require",
             "table_no|台号"                 => "require|max:20|unique:mst_table",
-            "appearance_id|品相"            => "require",
+            "appearance_id|品项"            => "require",
             "size_id|容量"                  => "require",
             "area_id|区域"                  => "require",
             "image_group|图片"              => "require",

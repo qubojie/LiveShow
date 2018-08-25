@@ -35,7 +35,7 @@ class Reservation extends CommonAction
 
         $location_id   = $request->param("location_id","");//大区id
         $area_id       = $request->param("area_id","");//小区id
-        $appearance_id = $request->param("appearance_id","");//品相id
+        $appearance_id = $request->param("appearance_id","");//品项id
 
         $status        = $request->param("status","");//预约状态 1已预约;2可预约;为空或0是全部
 
@@ -85,7 +85,7 @@ class Reservation extends CommonAction
 //            ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
             ->join("mst_table_location tl","tl.location_id = ta.location_id")//位置
             ->join("mst_table_size ts","ts.size_id = t.size_id")//人数
-            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品相
+            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品项
             ->join("table_revenue tr","tr.table_id = t.table_id","LEFT")
             ->join("user u","u.uid = tr.uid","LEFT")
             ->where('t.is_delete',0)

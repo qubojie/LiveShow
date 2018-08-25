@@ -8,6 +8,7 @@
 namespace app\admin\controller;
 
 use app\admin\model\ManageDepartment;
+use app\admin\model\ManageSalesman;
 use think\Db;
 use think\Exception;
 use think\Request;
@@ -19,6 +20,9 @@ class Department extends CommandAction
      * 列表
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function index(Request $request)
     {
@@ -40,8 +44,17 @@ class Department extends CommandAction
         //将数据转换成树状结构
         $res = $common->make_tree($list,'department_id','parent_id');
 
-        $department_list['data'] = $res;
+        $manageModel = new ManageSalesman();
 
+        for ($i = 0; $i < count($res); $i ++){
+            $department_id = $res[$i]['department_id'];
+            $res[$i]['department_user_num'] = $manageModel
+                ->where("department_id",$department_id)
+                ->where("statue","neq",config("salesman.salesman_status")['resignation']['key'])
+                ->count();
+        }
+
+        $department_list['data'] = $res;
 
         return $common->com_return(true,config("GET_SUCCESS"),$department_list);
     }

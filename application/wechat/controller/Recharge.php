@@ -94,7 +94,7 @@ class Recharge extends CommonAction
         }
 
         if ($amount < $refill_lower_limit){
-            return $this->com_return(false,"充值金额不能低于".$refill_lower_limit);
+            return $this->com_return(false,"充值金额不能低于".$refill_lower_limit."元");
         }
 
         $userInfo = $this->tokenGetUserInfo($token);

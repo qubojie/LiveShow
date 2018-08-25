@@ -228,16 +228,19 @@ class Dish extends Controller
                 return $this->com_return(false,config("params.FAIL"));
             }
 
-            $dis_id = $dishInsertReturn;
-
             if (!$dis_type){
+                Db::commit();
                 return $this->com_return(true,config("params.SUCCESS"));
             }
+
+            $dis_id = $dishInsertReturn;
 
             //此时添加套餐
             $dishes_combo = $request->param("dishes_combo","");//套餐内信息数据
 
             $dishes_combo = json_decode($dishes_combo,true);
+
+            \think\Log::info("菜品套菜数据".var_export($dishes_combo,true));
 
             //换品组
             if (empty($dishes_combo)){
@@ -250,9 +253,15 @@ class Dish extends Controller
             for ($i = 0; $i < count($dishes_combo); $i ++){
 
                 $type              = $dishes_combo[$i]['type'];
-                $combo_dish_id     = (int)$dishes_combo[$i]['dish_id'];
+                if ($type == 1){
+                    $combo_dish_id     = 0;
+                }else{
+                    $combo_dish_id     = (int)$dishes_combo[$i]['dis_id'];
+                }
+
                 $type_desc         = $dishes_combo[$i]['type_desc'];
                 $quantity          = $dishes_combo[$i]['quantity'];
+
                 $dish_little_group = $dishes_combo[$i]['children'];
 
                 //将数据写入套餐表
@@ -278,7 +287,8 @@ class Dish extends Controller
                     $is_ok = true;
 
                     for ($m = 0; $m < count($dish_little_group); $m ++){
-                        $little_dish_id = $dish_little_group[$m]['dish_id'];
+
+                        $little_dish_id  = $dish_little_group[$m]['dis_id'];
                         $little_quantity = $dish_little_group[$m]['quantity'];
 
                         $littleDishParams = [
@@ -329,6 +339,7 @@ class Dish extends Controller
                 $dishesCardPriceModel = new DishesCardPrice();
                 $is_ok = false;
                 for ($i = 0; $i <count($dishes_card_price); $i ++){
+
                     $card_id = $dishes_card_price[$i]['card_id'];
                     $price   = $dishes_card_price[$i]['price'];
 
@@ -378,6 +389,7 @@ class Dish extends Controller
             ->alias("d")
             ->join("dishes_attribute da","da.att_id = d.att_id")
             ->join("dishes_category dc","dc.cat_id = d.cat_id")
+            ->where("dis_id",$dis_id)
             ->where("d.is_delete","0")
             ->field($column)
             ->field("da.att_name")
@@ -411,6 +423,12 @@ class Dish extends Controller
 
         $dishes_combo = json_decode(json_encode($dishes_combo),true);
 
+        for ($i = 0; $i < count($dishes_combo); $i ++){
+            if ($dishes_combo[$i]['type']){
+                $dishes_combo[$i]['dis_name'] = $dishes_combo[$i]['type_desc'];
+            }
+        }
+
         $commonObj = new Common();
 
         $dishes_combo = $commonObj->make_tree($dishes_combo,"combo_id","parent_id");
@@ -428,7 +446,7 @@ class Dish extends Controller
     public function edit(Request $request)
     {
         $dis_id       = $request->param("dis_id","");//菜品id
-        $dis_type     = $request->param("dis_type","");//菜品类型  0 单品    1 套餐
+//        $dis_type     = $request->param("dis_type","");//菜品类型  0 单品    1 套餐
         $dis_name     = $request->param("dis_name","");//菜品名称
         $dis_img      = $request->param("dis_img","");//菜品图片
         $dis_desc     = $request->param("dis_desc","");//菜品规格属性描述
@@ -445,10 +463,12 @@ class Dish extends Controller
 
         $dishes_card_price = $request->param("dishes_card_price","");//菜品绑定卡价格
 
+        \think\Log::info("菜品绑定卡价格".$dishes_card_price);
+
 
         $rule = [
             "dis_id|菜品id"            => "require",
-            "dis_type|菜品类型"         => "require",
+//            "dis_type|菜品类型"         => "require",
             "dis_name|菜品名称"         => "require|max:100|unique_me:dishes,dis_id",
             "dis_img|菜品图片"          => "require",
             "dis_desc|菜品描述"         => "max:300",
@@ -466,7 +486,7 @@ class Dish extends Controller
 
         $check_res = [
             "dis_id"       => $dis_id,
-            "dis_type"     => $dis_type,
+//            "dis_type"     => $dis_type,
             "dis_name"     => $dis_name,
             "dis_img"      => $dis_img,
             "dis_desc"     => $dis_desc,
@@ -491,7 +511,7 @@ class Dish extends Controller
         $nowTime = time();
 
         $params = [
-            "dis_type"     => $dis_type,
+//            "dis_type"     => $dis_type,
             "dis_name"     => $dis_name,
             "dis_img"      => $dis_img,
             "dis_desc"     => $dis_desc,
@@ -623,7 +643,7 @@ class Dish extends Controller
             for ($i = 0; $i < count($dishes_combo); $i ++){
 
                 $type              = $dishes_combo[$i]['type'];
-                $combo_dish_id     = (int)$dishes_combo[$i]['dish_id'];
+                $combo_dish_id     = (int)$dishes_combo[$i]['dis_id'];
                 $type_desc         = $dishes_combo[$i]['type_desc'];
                 $quantity          = $dishes_combo[$i]['quantity'];
                 $dish_little_group = $dishes_combo[$i]['children'];
@@ -651,7 +671,7 @@ class Dish extends Controller
                     $is_ok = true;
 
                     for ($m = 0; $m < count($dish_little_group); $m ++){
-                        $little_dish_id = $dish_little_group[$m]['dish_id'];
+                        $little_dish_id = $dish_little_group[$m]['dis_id'];
                         $little_quantity = $dish_little_group[$m]['quantity'];
 
                         $littleDishParams = [

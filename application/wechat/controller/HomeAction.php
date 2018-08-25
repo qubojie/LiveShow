@@ -59,7 +59,7 @@ class HomeAction extends Controller
 
 
     /**
-     * 根据服务人员token获取服务人员信息
+     * 根据token获取服务人员信息
      * @param $token
      * @return array|false|PDOStatement|string|\think\Model
      * @throws \think\db\exception\DataNotFoundException
@@ -81,6 +81,8 @@ class HomeAction extends Controller
             ->field("st.stype_key,st.stype_name")
             ->field($manage_column)
             ->find();
+
+        $manageInfo = json_decode(json_encode($manageInfo),true);
 
         return $manageInfo;
     }

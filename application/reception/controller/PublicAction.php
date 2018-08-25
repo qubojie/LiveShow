@@ -27,7 +27,8 @@ class PublicAction extends Controller
             ->where("uid",$uid)
             ->where("table_id",$table_id)
             ->where("status",config("order.table_reserve_status")['reserve_success']['key'])
-            ->field("trid,status,subscription_type,subscription")
+            ->whereTime("reserve_time","today")
+            ->field("trid,status,subscription_type,subscription,reserve_time")
             ->find();
 
         $is_revenue = json_decode(json_encode($is_revenue),true);

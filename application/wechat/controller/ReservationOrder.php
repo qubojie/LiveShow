@@ -86,7 +86,7 @@ class ReservationOrder extends CommonAction
         try{
             /*创建预约吧台订单信息 On*/
             $subscription = 0;
-            $turnover     = $order_amount;
+            $turnover     = 0;
             $trid = $this->reservationOrderPublic("$sales_phone","$table_id","$date","$time","$subscription","$turnover_limit","$reserve_way","$uid","$turnover");
 
             if ($trid == false){
@@ -348,7 +348,7 @@ class ReservationOrder extends CommonAction
 
         $deal_time    = $nowTime;
 
-        $return_point = $order_amount * 0.1;
+        $return_point = intval($order_amount * 0.1);
 
         $params = [
             "pid"               => $pid,

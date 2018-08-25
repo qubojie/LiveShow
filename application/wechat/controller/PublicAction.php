@@ -62,7 +62,7 @@ class PublicAction extends Controller
             ->join("mst_table_area ta","ta.area_id = t.area_id")//区域
             ->join("mst_table_location tl","tl.location_id = ta.location_id")//位置
             ->join("mst_table_size ts","ts.size_id = t.size_id")//人数
-            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品相
+            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品项
             ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
             ->where("t.is_enable",1)
             ->where("t.is_delete",0)
@@ -190,8 +190,22 @@ class PublicAction extends Controller
 
             if (!empty($dateList)){
                 //是特殊日期
-                $turnover_limit = $res[$i]['turnover_limit_l3'];//特殊日期预约最低消费
-                $subscription   = $res[$i]['subscription_l3'];//特殊日期预约定金
+
+                $type          = $dateList['type'];//日期类型   0普通日  1周末假日  2节假日
+
+                if ($type == "0"){
+                    $turnover_limit = $res[$i]['turnover_limit_l1'];//平时预约最低消费
+                    $subscription   = $res[$i]['subscription_l1'];//平时预约定金
+                }elseif ($type == "1"){
+                    $turnover_limit = $res[$i]['turnover_limit_l2'];//周末日期预约最低消费
+                    $subscription   = $res[$i]['subscription_l2'];//周末日期预约定金
+                }elseif ($type == "2"){
+                    $turnover_limit = $res[$i]['turnover_limit_l3'];//特殊日期预约最低消费
+                    $subscription   = $res[$i]['subscription_l3'];//特殊日期预约定金
+                }else{
+                    $turnover_limit = $res[$i]['turnover_limit_l1'];//平时预约最低消费
+                    $subscription   = $res[$i]['subscription_l1'];//平时预约定金
+                }
 
             }else{
                 //不是特殊日期
@@ -263,11 +277,8 @@ class PublicAction extends Controller
             ->where("appointment",$appointment)
             ->find();
 
-        if (!empty($dateList)){
-            $dateList = json_decode(json_encode($dateList),true);
-        }else{
-            $dateList = [];
-        }
+        $dateList = json_decode(json_encode($dateList),true);
+
         return $dateList;
     }
 
@@ -323,6 +334,9 @@ class PublicAction extends Controller
         //预约时间
         $reserve_time = strtotime($reserve_date);
 
+        //获取是否是特殊日期,是否退换预约押金
+        $is_refund_sub = $this->revenueDateRefundSub($reserve_time);
+
         Db::startTrans();
         try{
 
@@ -333,7 +347,6 @@ class PublicAction extends Controller
 
             //订单押金id
             $suid = $UUID->generateReadableUUID("SU");
-
 
             //如果没有押金
             if ($subscription <= 0){
@@ -348,6 +361,7 @@ class PublicAction extends Controller
 
             }else{
                 //如果有押金生成待缴费定金订单
+
                 if (!empty($is_reception)){
                     //如果为前台预约,则不创建定金订单,直接预约成功
                     //预定成功状态1
@@ -365,7 +379,7 @@ class PublicAction extends Controller
                     $subscription_type = Config::get("order.subscription_type")['subscription']['key'];
 
                     //创建缴押金订单,返回相应数据
-                    $billSubscriptionReturn = $this->billSubscriptionCreate("$suid","$trid","$uid","$subscription");
+                    $billSubscriptionReturn = $this->billSubscriptionCreate("$suid","$trid","$uid","$subscription","$is_refund_sub");
                 }
             }
 
@@ -381,20 +395,22 @@ class PublicAction extends Controller
                     $userInfo = getUserInfo($uid);
                     $action_user = $userInfo["name"];
 
+                    $tableInfo = $this->tableIdGetInfo($table_id);
+
+                    $table_no = $tableInfo['table_no'];
+
+                    $desc = $action_user." 预约 $reserve_date 的".$table_no."桌";
+
+                    $type = config("order.table_action_type")['revenue_table']['key'];
+                    //记录日志
+                    insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$action_user",$desc,"","");
+
+
                 }else{
                     //如果是服务人员预定
                     $action_user = $ssname;
                 }
 
-                $tableInfo = $this->tableIdGetInfo($table_id);
-
-                $table_no = $tableInfo['table_no'];
-
-                $desc = $action_user." 预约 $reserve_date 的".$table_no."桌";
-
-                $type = config("order.table_action_type")['revenue_table']['key'];
-                //记录日志
-                insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$action_user",$desc,"","");
 
                 /*记录预约日志 off*/
 
@@ -407,6 +423,62 @@ class PublicAction extends Controller
             Db::rollback();
             return $this->com_return(false,$e->getMessage());
         }
+    }
+
+
+    /**
+     * 判断预约时 是否可退押金
+     * @param $reserve_time
+     * @return int
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function revenueDateRefundSub($reserve_time)
+    {
+        $begin_time = strtotime(date("Ymd",$reserve_time));
+
+        $openCardObj = new OpenCard();
+
+        //获取系统开关 0退  1不退
+        $is_refund_sys = $openCardObj->getSysSettingInfo("reserve_refund_flag");
+
+        if ($is_refund_sys == "1"){
+
+            $is_refund_sub = 1;//系统设置,不退押金
+
+            return $is_refund_sub;
+
+        }
+
+        $reserveDateModel = new MstTableReserveDate();
+
+        $is_exist = $reserveDateModel
+            ->where("appointment",$begin_time)
+            ->where("is_expiry","1")
+            ->find();
+
+        $is_exist = json_decode(json_encode($is_exist),true);
+
+        if (empty($is_exist)){
+
+            $is_refund_sub = 0;//未设置特殊日期,退换押金
+
+            return $is_refund_sub;
+
+        }
+
+        $is_refund_sub = $is_exist['is_refund_sub'];//是否可退押金 0退  1不退
+
+        if ($is_refund_sub == "1"){
+
+            $is_refund_sub = 1;//特殊日期,设置不退押金
+
+        }else{
+            $is_refund_sub = 0;//特殊日期,设置退押金
+        }
+
+        return $is_refund_sub;
     }
 
 
@@ -476,10 +548,11 @@ class PublicAction extends Controller
      * @param $trid
      * @param $uid
      * @param $subscription
+     * @param $is_refund_sub
      * @param string $pay_type
      * @return bool
      */
-    protected function billSubscriptionCreate($suid,$trid,$uid,$subscription,$pay_type = "wxpay")
+    protected function billSubscriptionCreate($suid,$trid,$uid,$subscription,$is_refund_sub,$pay_type = "wxpay")
     {
         $billSubscriptionModel = new BillSubscription();
 
@@ -491,6 +564,7 @@ class PublicAction extends Controller
             'uid'           => $uid,
             'status'        => config("order.reservation_subscription_status")['pending_payment']['key'],
             'subscription'  => $subscription,
+            'is_refund_sub' => $is_refund_sub,
             'pay_type'      => $pay_type,
             'created_at'    => $time,
             'updated_at'    => $time
@@ -545,9 +619,9 @@ class PublicAction extends Controller
 
         $turnover_num = 0;
 
-        if ($turnover > 0){
+        /*if ($turnover > 0){
             $turnover_num = 1;
-        }
+        }*/
 
         $params = [
             'trid'              => $trid,               //台位预定id  前缀T
@@ -692,7 +766,7 @@ class PublicAction extends Controller
 
         $table_size = json_decode(json_encode($table_size),true);
 
-        //获取品相选项
+        //获取品项选项
         $tableAppearanceModel = new MstTableAppearance();
         $table_appearance = $tableAppearanceModel
             ->where("is_delete",0)
@@ -730,7 +804,25 @@ class PublicAction extends Controller
             }
         }
 
+        $reserveDateModel = new MstTableReserveDate();
 
+        foreach ($date_select as $key => $val){
+
+            $can_date = $val["date"];
+
+            $is_exist = $reserveDateModel
+                ->where("appointment",$can_date)
+                ->where("is_expiry","1")
+                ->where("is_revenue","0")
+                ->count();
+
+            if ($is_exist){
+                unset($date_select[$key]);
+            }
+
+        }
+
+        $date_select = array_values($date_select);
 
         //获取可预约时间选项
         $reserve_time_frame = $openCardObj->getSysSettingInfo("reserve_time_frame");
@@ -829,6 +921,8 @@ class PublicAction extends Controller
                     $referrer_id   = $manageInfo['sid'];
                     $referrer_type = $manageInfo['stype_key'];
                 }
+            }else{
+                return $this->com_return(false,\config("params.SALESMAN_NOT_EXIST"));
             }
         }
 

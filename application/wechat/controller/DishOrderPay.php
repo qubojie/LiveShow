@@ -15,7 +15,7 @@ use think\Request;
 class DishOrderPay extends CommonAction
 {
     /**
-     * 钱包支付预约点单订单
+     * 钱包支付点单订单
      * @param Request $request
      * @return array
      * @throws \think\db\exception\DataNotFoundException
@@ -51,7 +51,7 @@ class DishOrderPay extends CommonAction
         }
 
 
-        $uid = $orderInfo['uid'];
+        $uid  = $orderInfo['uid'];
         $trid = $orderInfo['trid'];
 
         $order_amount = $orderInfo['order_amount'];//订单总金额
@@ -108,7 +108,7 @@ class DishOrderPay extends CommonAction
                 "updated_at"   => time()
             ];
 
-            //插入用户充值明细
+            //插入用户余额消费明细
             $insertUserAccountReturn = $cardCallBackObj->updateUserAccount($insertUserAccountParams);
 
             if ($insertUserAccountReturn == false) {
@@ -145,6 +145,57 @@ class DishOrderPay extends CommonAction
         }
     }
 
+    /**
+     * 现金支付点单订单
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function cashPay(Request $request)
+    {
+        $pid = $request->param("vid", "");//订单id
+
+        if (empty($pid)) {
+            return $this->com_return(false, config("params.ABNORMAL_ACTION"));
+        }
+
+        $billPayModel = new BillPay();
+
+        $orderInfo = $billPayModel
+            ->where("pid", $pid)
+            ->find();
+
+        $orderInfo = json_decode(json_encode($orderInfo), true);
+
+        if (empty($orderInfo)) {
+            return $this->com_return(false, "订单异常");
+        }
+
+        $sale_status = $orderInfo['sale_status'];
+
+        if ($sale_status != config("order.bill_pay_sale_status")['pending_payment_return']['key']) {
+
+            return $this->com_return(false, config("params.ORDER")['NOW_STATUS_NOT_PAY']);
+
+        }
+
+//        dump($orderInfo);die;
+
+        $uid  = $orderInfo['uid'];
+        $trid = $orderInfo['trid'];
+
+        $order_amount = $orderInfo['order_amount'];//订单总金额
+        $payable_amount = $orderInfo['payable_amount'];//应付且未付金额
+
+        Db::startTrans();
+        try {
+
+        }catch (Exception $e){
+
+        }
+    }
 
 }
 

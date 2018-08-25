@@ -21,4 +21,21 @@ class BillPayDetail extends Model
     protected $primaryKey = 'id';
 
     public $timestamps    = false;
+
+    public $column = [
+        "id",
+        "parent_id",
+        "pid",
+        "trid",
+        "is_refund",
+        "is_give",
+        "dis_id",
+        "dis_type",
+        "dis_sn",
+        "dis_name",
+        "dis_desc",
+        "quantity",
+        "price",
+        "amount"
+    ];
 }

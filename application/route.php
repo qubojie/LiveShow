@@ -80,6 +80,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
     //钱包支付
     Route::rule('walletPay','DishOrderPay/walletPay','post|options');
 
+    //现金支付
+    Route::rule('cashPay','DishOrderPay/cashPay','post|options');
+
     //退款
     Route::rule('reFund','wechatPay/reFund','get|post|options');
 
@@ -177,7 +180,7 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             Route::rule('reservationOrder','MyInfo/reservationOrder','post|options');
 
             //我的订单列表
-            Route::rule('reservationOrder','MyInfo/reservationOrder','post|options');
+            Route::rule('dishOrder','MyInfo/dishOrder','post|options');
 
         });
 
@@ -202,6 +205,16 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //预约点单结算
             Route::rule('settlementOrder','ReservationOrder/settlementOrder','post|options');
 
+        });
+
+        //点单
+        Route::group(['name' => 'pointList'],function (){
+
+            //用户点单
+            Route::rule('createPointList','PointList/createPointList','post|options');
+
+            //用户手动取消未支付订单
+            Route::rule('cancelDishOrder','PointList/cancelDishOrder','post|options');
 
         });
 
@@ -246,6 +259,16 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //清台
             Route::rule("cleanTable","TableAction/cleanTable","post|options");
 
+            Route::group(['name' => 'pointList'],function (){
+
+                //订台可退订单列表
+                Route::rule('canRefundOrderList','ManagePointList/canRefundOrderList','post|options');
+
+
+                //退单
+                Route::rule('refundOrder','ManagePointList/refundOrder','post|options');
+            });
+
 
         });
 
@@ -255,6 +278,10 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
 //后台路由群组
 Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
+
+    //二维码测试
+    Route::rule('WxQrcodeCreate','WxQrcode/create');
+
 
     //图片上传至本地
     Route::rule('imageUpload','ImageUpload/uploadLocal');
@@ -606,6 +633,9 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
             //台位排序
             Route::rule("sortEdit",'tableInfo/sortEdit','post/options');
+
+            //桌位二维码打包下载
+            Route::rule("zipTableQrCode",'DownloadTableQrCode/zipTableQrCode');
         });
 
         //特殊日期设置
@@ -622,8 +652,8 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             //特殊日期删除
             Route::rule("delete",'TableSpecialDate/delete','post/options');
 
-            //是否启用
-            Route::rule("enable",'TableSpecialDate/enable','post/options');
+            //是否启用,是否允许预定,是否可退押金
+            Route::rule("statusAction",'TableSpecialDate/enableOrRevenueOrRefund','post/options');
         });
 
         //酒桌位置设置
@@ -671,18 +701,18 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             Route::rule("enable",'tableArea/enable','post/options');
         });
 
-        //酒桌品相设置
+        //酒桌品项设置
         Route::group(['name' => 'tableAppearance'],function (){
-            //品相列表
+            //品项列表
             Route::rule("index",'tableAppearance/index','post/options');
 
-            //品相添加
+            //品项添加
             Route::rule("add",'tableAppearance/add','post/options');
 
-            //品相编辑
+            //品项编辑
             Route::rule("edit",'tableAppearance/edit','post/options');
 
-            //品相删除
+            //品项删除
             Route::rule("delete",'tableAppearance/delete','post/options');
 
             //排序编辑

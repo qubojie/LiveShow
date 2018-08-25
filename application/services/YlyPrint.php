@@ -130,7 +130,6 @@ class YlyPrint extends Controller
      */
     public function printDish($accessToken,$pid)
     {
-
         //获取菜品信息
         $dishPublicActionObj = new DishPublicAction();
 
@@ -138,7 +137,7 @@ class YlyPrint extends Controller
 
         $tableName = $orderInfo['location_title']."-".$orderInfo['area_title']."-".$orderInfo['table_no']."号桌";
 
-        $dishInfo = $orderInfo['dish_info'];
+        $dishInfo  = $orderInfo['dish_info'];
 
         $api = new \YLYOpenApiClient();
 
@@ -168,26 +167,60 @@ class YlyPrint extends Controller
         $content .= str_repeat('-',48)."\n";
         $content .= '<FS>金额: '.$allPrice.'元</FS>';
 
-       /* $content = '';                          //打印内容
-        $content .= '<FS><center>8号桌</center></FS>';
-        $content .= str_repeat('-',48);
-        $content .= '<FS><table>';
-        $content .= '<tr><td>商品</td><td>数量</td><td>价格</td></tr>';
-        $content .= '<tr><td>土豆回锅肉</td><td>x1</td><td>￥20</td></tr>';
-        $content .= '<tr><td>干煸四季豆</td><td>x1</td><td>￥12</td></tr>';
-        $content .= '<tr><td>苦瓜炒蛋</td><td>x1</td><td>￥15</td></tr>';
-        $content .= '</table></FS>';
-        $content .= str_repeat('-',48)."\n";
-        $content .= '<FS>金额: 47元</FS>';*/
-
-        $machineCode = '4004566461';                      //授权的终端号
-        $originId = '1234567890';                         //商户自定义id
-        $timesTamp = time();                    //当前服务器时间戳(10位)
+        $machineCode = '4004566461';  //授权的终端号
+        $originId = '1234567890';     //商户自定义id
+        $timesTamp = time();          //当前服务器时间戳(10位)
 
         $res = $api->printIndex($machineCode,$accessToken,$content,$originId,$timesTamp);
 
         $res = json_decode($res,true);
 
         return $res;
+    }
+
+    public function refundDish($accessToken,$params)
+    {
+        $api = new \YLYOpenApiClient();
+
+        $tableName = $params['table_name'];
+
+        $dishInfo = $params['dis_info'];
+
+//        dump($dishInfo);die;
+
+        $content  = "";                          //打印内容
+        $content .= '<FS><center>退单</center></FS>';
+        $content .= '<FS><center>'.$tableName.'</center></FS>';
+        $content .= str_repeat('-',48);
+        $content .= '<FS><table>';
+        $content .= '<tr><td>商品</td><td>数量</td><td>价格</td></tr>';
+
+        for ($i = 0; $i <count($dishInfo); $i ++){
+            $content .= '<tr><td>'.$dishInfo[$i]['dis_name'].'</td><td>x'.$dishInfo[$i]['quantity'].'</td><</tr>';
+            if ($dishInfo[$i]['dis_type']){
+                $children = $dishInfo[$i]['children'];
+                for ($m = 0; $m < count($children); $m ++){
+                    $content .= '<FS><table>';
+                    $content .= '<tr><td> </td><td>'.$children[$m]['dis_name'].'</td><td>'.$children[$m]['quantity'].'</td></tr>';
+                    $content .= '</table></FS>';
+                }
+            }
+
+        }
+
+        $content .= '</table></FS>';
+        $content .= str_repeat('-',48)."\n";
+
+        $machineCode = '4004566461';  //授权的终端号
+        $originId = '1234567890';     //商户自定义id
+        $timesTamp = time();          //当前服务器时间戳(10位)
+
+        $res = $api->printIndex($machineCode,$accessToken,$content,$originId,$timesTamp);
+
+        $res = json_decode($res,true);
+
+        return $res;
+
+
     }
 }

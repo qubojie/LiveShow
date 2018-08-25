@@ -77,6 +77,7 @@ class Common extends Controller
             $pid = $v[$parent_id];  //获取当前分类的父级id
             if($pid == 0){
                 $arr[$k]['parent_id'] = (string)$arr[$k]['parent_id'];
+                $arr[$k]['children'] = [];
                 $tree[] = & $arr[$k];  //顶级栏目
 
             }else{

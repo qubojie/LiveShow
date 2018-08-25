@@ -189,7 +189,6 @@ class Reservation extends CommonAction
 
             if ($status == \config("order.table_reserve_status")['pending_payment']['key']){
                 //如果是待付款状态,
-
                 if ($is_subscription){
                     //如果收取定金
                     $table_params = [
@@ -273,16 +272,16 @@ class Reservation extends CommonAction
                         $billInfo = $this->getBillSubscriptionInfo($trid);
                         $subscription = $billInfo['subscription'];
                         $suid         = $billInfo['suid'];
+                        $pay_type     = $billInfo['pay_type'];
+                        $is_refund_sub= $billInfo['is_refund_sub'];
 
-                        $payRes = $this->callBackPay($suid,$subscription,$subscription);
-
-                        if (!empty($payRes)){
-
+                        if ($is_refund_sub == 1){
+                            //不退款
                             $table_params = [
                                 "status"        => \config("order.table_reserve_status")['cancel']['key'],
                                 "cancel_user"   => "user",
                                 "cancel_time"   => $time,
-                                "cancel_reason" => "已付款,未超出取消时间范围内,用户手动取消",
+                                "cancel_reason" => "已付款,未超出取消时间范围内,特殊日期不退款,用户手动取消",
                                 "updated_at"    => $time
                             ];
 
@@ -291,18 +290,55 @@ class Reservation extends CommonAction
                                 "cancel_user"   => "user",
                                 "cancel_time"   => $time,
                                 "auto_cancel"   => 0,
-                                "cancel_reason" => "已付款,超出取消时间范围内,用户手动取消",
+                                "cancel_reason" => "已付款,未超出取消时间范围内,特殊日期不退款,用户手动取消",
                                 "is_refund"     => 1,
                                 "refund_amount" => $subscription,
                                 "updated_at"    => $time
                             ];
 
                             $tableReturn = $this->updatedTableRevenueInfo($table_params,$trid);
-                            $billReturn = $this->updatedBillSubscription($bill_params,$trid);
+
+                            $billReturn  = $this->updatedBillSubscription($bill_params,$trid);
 
                         }else{
-                            $tableReturn = false;
-                            $billReturn  = false;
+
+                            //可以退款
+                            //微信支付时,走退款接口
+                            if ($pay_type == \config("order.pay_method")['wxpay']['key']){
+                                $payRes = $this->callBackPay($suid,$subscription,$subscription);
+                            }else{
+                                $payRes = true;
+                            }
+
+                            if (!empty($payRes)){
+
+                                $table_params = [
+                                    "status"        => \config("order.table_reserve_status")['cancel']['key'],
+                                    "cancel_user"   => "user",
+                                    "cancel_time"   => $time,
+                                    "cancel_reason" => "已付款,未超出取消时间范围内,用户手动取消",
+                                    "updated_at"    => $time
+                                ];
+
+                                $bill_params = [
+                                    "status"        => \config("order.reservation_subscription_status")['cancel_revenue']['key'],
+                                    "cancel_user"   => "user",
+                                    "cancel_time"   => $time,
+                                    "auto_cancel"   => 0,
+                                    "cancel_reason" => "已付款,未超出取消时间范围内,用户手动取消",
+                                    "is_refund"     => 1,
+                                    "refund_amount" => $subscription,
+                                    "updated_at"    => $time
+                                ];
+
+                                $tableReturn = $this->updatedTableRevenueInfo($table_params,$trid);
+                                $billReturn = $this->updatedBillSubscription($bill_params,$trid);
+
+                            }else{
+                                $tableReturn = false;
+                                $billReturn  = false;
+                            }
+
                         }
                     }
                 }else{

@@ -7,6 +7,7 @@ use app\admin\model\MstTableAreaCard;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
+use app\services\YlyPrint;
 use app\wechat\controller\OpenCard;
 use app\wechat\model\BillSubscription;
 use think\Controller;
@@ -31,7 +32,7 @@ class DiningRoom extends CommonAction
         $keyword       = $request->param("keyword","");//关键字搜索
         $location_id   = $request->param("location_id","");//位置id
         $area_id       = $request->param("area_id","");//区域id;
-        $appearance_id = $request->param("appearance_id","");//品相id
+        $appearance_id = $request->param("appearance_id","");//品项id
 
         $location_where = [];
         if (!empty($location_id)){
@@ -59,7 +60,7 @@ class DiningRoom extends CommonAction
             ->join("mst_table_area ta","ta.area_id = t.area_id")//区域
             ->join("mst_table_location tl","tl.location_id = ta.location_id")//位置
             ->join("mst_table_size ts","ts.size_id = t.size_id")//人数
-            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品相
+            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品项
             ->join("table_revenue tr","tr.table_id = t.table_id","LEFT")//预约表
             ->join("user u","u.uid = tr.uid","LEFT")
             ->where('t.is_delete',0)
@@ -453,156 +454,246 @@ class DiningRoom extends CommonAction
             //查看当前用户是否预约当前桌,并且是未开台状态
             $is_revenue = $publicObj->userTableStatus($uid,$table_id);
 
-            Log::info("查看当前桌状态 --- ".var_export($is_revenue,true));
-
             if (!empty($is_revenue)){
-                $status = $is_revenue['status'];
+                //如果是当前用户当天预约
+                $status            = $is_revenue['status'];
+                $trid              = $is_revenue["trid"];//预约桌台id
+                $subscription_type = $is_revenue["subscription_type"];//类型
+                $subscription      = $is_revenue["subscription"];//金额
 
-                if ($status != config("order.table_reserve_status")['reserve_success']['key']){
-                    return $this->com_return(false,config("params.REVENUE")['STATUS_NO_OPEN']);
-                }
-
-                //是当前用户的预约桌台,更改当前桌台为 开台状态
-                $trid = $is_revenue['trid'];
-
-                $status = config("order.table_reserve_status")['already_open']['key'];
-
-                $openTable = $publicObj->changeRevenueTableStatus($trid,$status);
-
-                if ($openTable){
-                    /*如果开台成功,查看当前用户是否为定金预约用户,如果是则执行退款*/
-                    Log::info("开台成功 ---- ");
-
-                    $trid              = $is_revenue["trid"];//预约桌台id
-                    $subscription_type = $is_revenue["subscription_type"];//类型
-                    $subscription      = $is_revenue["subscription"];//金额
-                    if ($subscription_type == config("order.subscription_type")['subscription']['key']){
-                        //如果预约定金类型为定金 1
-                        if ($subscription > 0){
-                            //此时执行开台成功,定金退还操作
-                            $suid_info = Db::name("bill_subscription")
-                                ->where("trid",$trid)
-                                ->field("suid")
-                                ->find();
-                            $suid_info = json_decode(json_encode($suid_info),true);
-
-                            $suid = $suid_info["suid"];
-
-                            $refund_return = $this->refundDeposit($suid,$subscription);
-
-                            $res = json_decode($refund_return,true);
-
-                            if (isset($res["result"])){
-                                if ($res["result"]){
-                                    //退款成功则变更定金状态
-                                    $status = config("order.reservation_subscription_status")['open_table_refund']['key'];
-                                    $params = [
-                                        "status"        => $status,
-                                        "is_refund"     => 1,
-                                        "refund_amount" => $subscription,
-                                        "updated_at"    => time()
-                                    ];
-
-                                    Db::name("bill_subscription")
-                                        ->where("suid",$suid)
-                                        ->update($params);
-
-                                }else{
-                                    return $res;
-                                }
-                            }else{
-                                return $res;
-                            }
-                            Log::info("开台退押金 ---- ".var_export($refund_return,true));
-                        }
-                    }
-
-
-                    /*记录开台日志 on*/
-
-                    $type = config("order.table_action_type")['open_table']['key'];
-
-                    $desc = " 为用户 ".$user_name."($user_phone)"." 开 ".$table_no."桌的预约";
-
-                    insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
-                    /*记录开台日志 off*/
-                    //预约用户开台成功
-                    return $this->com_return(true,config("params.SUCCESS"));
-                }else{
-                    return $this->com_return(false,config("params.FAIL"));
-                }
+                return $this->isUserRevenueOpen("$status","$trid","$subscription_type","$subscription","$user_name","$user_phone","$table_no","$table_id","$sales_name");
 
             }else{
-                //不是当前用户的预约
-                //查看当前桌,并且是可开台状态
-                $status_str = "0,1,2";
-                $tableRevenueModel = new TableRevenue();
-                $can_open = $tableRevenueModel
-                    ->where("table_id",$table_id)
-                    ->where("status","IN",$status_str)
-                    ->count();
-                if ($can_open > 0){
-                    //此时不可开台
-                    return $this->com_return(false,config("params.REVENUE")['DO_NOT_OPEN']);
-                }
-
-                $insertTableRevenueReturn = $publicObj->insertTableRevenue("$table_id","$uid","$open_time","$referrer_id","$referrer_name");
-
-                if ($insertTableRevenueReturn){
-
-                    /*记录开台日志 on*/
-
-                    $type = config("order.table_action_type")['open_table']['key'];
-
-                    $desc = " 为用户 ".$user_name."($user_phone)"." 开 ".$table_no."桌";
-
-                    insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
-                    /*记录开台日志 off*/
-
-                    //非预约用户开台成功
-                    return $this->com_return(true,config("params.SUCCESS"));
-                }else{
-                    return $this->com_return(false,config("params.FAIL"));
-                }
-
+                //不是预约用户开台
+                return $this->notIsUserRevenueOpen("$table_id","$uid","$open_time","$referrer_id","$referrer_name","$user_name","$user_phone","$table_no","$sales_name");
             }
 
         }else{
-            //未录入用户信息
-            //查看当前桌,并且是可开台状态
-            $status_str = "0,1,2";
-            $tableRevenueModel = new TableRevenue();
-            $can_open = $tableRevenueModel
-                ->where("table_id",$table_id)
-                ->where("status","IN",$status_str)
-                ->count();
-            if ($can_open > 0){
-                //此时不可开台
-                return $this->com_return(false,config("params.REVENUE")['DO_NOT_OPEN']);
-            }
-
-            //此时直接开台
-
-            $insertRevenueReturn = $publicObj->insertTableRevenue("$table_id","","$open_time","","");
-
-            if ($insertRevenueReturn){
-                /*记录开台日志 on*/
-
-                $type = config("order.table_action_type")['open_table']['key'];
-
-                $desc = "直接"." 开 ".$table_no."桌";
-
-                insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
-                /*记录开台日志 off*/
-
-                //未录入任何信息直接开台成功
-                return $this->com_return(true,config("params.SUCCESS"));
-            }else{
-                return $this->com_return(false,config("params.FAIL"));
-            }
-
+            //未注册的用户开台
+            return $this->notRegisterUserOpen("$table_id","$open_time","$table_no","$sales_name");
         }
     }
+
+    /**
+     * 是当前用户预约开台
+     * @param $status
+     * @param $trid
+     * @param $subscription_type
+     * @param $subscription
+     * @param $user_name
+     * @param $user_phone
+     * @param $table_no
+     * @param $table_id
+     * @param $sales_name
+     * @return array|mixed
+     * @throws \think\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\exception\PDOException
+     */
+    protected function isUserRevenueOpen($status,$trid,$subscription_type,$subscription,$user_name,$user_phone,$table_no,$table_id,$sales_name)
+    {
+        if ($status != config("order.table_reserve_status")['reserve_success']['key']){
+            return $this->com_return(false,config("params.REVENUE")['STATUS_NO_OPEN']);
+        }
+
+        //是当前用户当天预约桌台,更改当前桌台为 开台状态
+
+        $status_now = config("order.table_reserve_status")['already_open']['key'];
+
+        $publicObj = new PublicAction();
+
+        $openTable = $publicObj->changeRevenueTableStatus($trid,$status_now);
+//        $openTable = 1;
+
+        if ($openTable){
+            /*如果开台成功,查看当前用户是否为定金预约用户,如果是则执行退款*/
+            Log::info("开台成功 ---- ");
+            if ($subscription_type == config("order.subscription_type")['subscription']['key']){
+                //如果预约定金类型为定金 1
+                if ($subscription > 0){
+                    //此时执行开台成功,定金退还操作
+                    $suid_info = Db::name("bill_subscription")
+                        ->where("trid",$trid)
+                        ->field("suid")
+                        ->find();
+                    $suid_info = json_decode(json_encode($suid_info),true);
+
+                    $suid = $suid_info["suid"];
+
+                    $refund_return = $this->refundDeposit($suid,$subscription);
+
+                    $res = json_decode($refund_return,true);
+
+                    if (isset($res["result"])){
+                        if ($res["result"]){
+                            //退款成功则变更定金状态
+                            $status = config("order.reservation_subscription_status")['open_table_refund']['key'];
+                            $params = [
+                                "status"        => $status,
+                                "is_refund"     => 1,
+                                "refund_amount" => $subscription,
+                                "updated_at"    => time()
+                            ];
+
+                            Db::name("bill_subscription")
+                                ->where("suid",$suid)
+                                ->update($params);
+
+                        }else{
+                            return $res;
+                        }
+                    }else{
+                        return $res;
+                    }
+                    Log::info("开台退押金 ---- ".var_export($refund_return,true));
+                }
+            }else{
+                //如果预约方式为订单,则调起打印机,打印订单
+
+                //获取当前预约订台 已支付的点单信息
+                $pid_res = Db::name("bill_pay")
+                    ->where("trid",$trid)
+                    ->where("sale_status",config("order.bill_pay_sale_status")['completed']['key'])
+                    ->field("pid")
+                    ->find();
+
+                $pid_res = json_decode(json_encode($pid_res),true);
+
+                $pid = $pid_res['pid'];
+
+                $is_print = $this->openTableToPrintYly($pid);
+
+//                $is_print = json_encode($is_print);
+
+                $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
+
+                if (!is_dir($dateTimeFile)){
+
+                    $res = mkdir($dateTimeFile,0777,true);
+
+                }
+
+                //打印结果日志
+                error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
+            }
+            /*记录开台日志 on*/
+
+            $type = config("order.table_action_type")['open_table']['key'];
+
+            $desc = " 为用户 ".$user_name."($user_phone)"." 开 ".$table_no."桌的预约";
+
+            insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+            /*记录开台日志 off*/
+
+
+
+            //预约用户开台成功
+            return $this->com_return(true,config("params.SUCCESS"));
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
+    }
+
+    /**
+     * 未注册用户开台
+     * @param $table_id
+     * @param $open_time
+     * @param $table_no
+     * @param $sales_name
+     * @return array
+     */
+    protected function notRegisterUserOpen($table_id,$open_time,$table_no,$sales_name)
+    {
+        //未注册用户开台
+        //查看当前桌,并且是可开台状态
+        $status_str = "0,1,2";
+        $tableRevenueModel = new TableRevenue();
+        $can_open = $tableRevenueModel
+            ->where("table_id",$table_id)
+            ->where("status","IN",$status_str)
+            ->count();
+        if ($can_open > 0){
+            //此时不可开台
+            return $this->com_return(false,config("params.REVENUE")['DO_NOT_OPEN']);
+        }
+
+        //此时直接开台
+        $publicObj = new PublicAction();
+        $insertRevenueReturn = $publicObj->insertTableRevenue("$table_id","","$open_time","","");
+
+        if ($insertRevenueReturn){
+            /*记录开台日志 on*/
+
+            $type = config("order.table_action_type")['open_table']['key'];
+
+            $desc = "直接"." 开 ".$table_no."桌";
+
+            insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+            /*记录开台日志 off*/
+
+            //未录入任何信息直接开台成功
+            return $this->com_return(true,config("params.SUCCESS"));
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
+
+    }
+
+    /**
+     * 不是预约用户开台
+     * @param $table_id
+     * @param $uid
+     * @param $open_time
+     * @param $referrer_id
+     * @param $referrer_name
+     * @param $user_name
+     * @param $user_phone
+     * @param $table_no
+     * @param $sales_name
+     * @return array
+     */
+    protected function notIsUserRevenueOpen($table_id,$uid,$open_time,$referrer_id,$referrer_name,$user_name,$user_phone,$table_no,$sales_name)
+    {
+        //不是当前用户的预约
+        //查看当前桌,并且是可开台状态
+        $status_str = "0,1,2";
+        $tableRevenueModel = new TableRevenue();
+        $can_open = $tableRevenueModel
+            ->where("table_id",$table_id)
+            ->where("status","IN",$status_str)
+            ->whereTime("reserve_time","today")
+            ->count();
+
+        if ($can_open > 0){
+            //此时不可开台
+            return $this->com_return(false,config("params.REVENUE")['DO_NOT_OPEN']);
+        }
+
+        $publicObj = new PublicAction();
+
+        $insertTableRevenueReturn = $publicObj->insertTableRevenue("$table_id","$uid","$open_time","$referrer_id","$referrer_name");
+
+        if ($insertTableRevenueReturn){
+
+            /*记录开台日志 on*/
+
+            $type = config("order.table_action_type")['open_table']['key'];
+
+            $desc = " 为用户 ".$user_name."($user_phone)"." 开 ".$table_no."桌";
+
+            insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+            /*记录开台日志 off*/
+
+            //非预约用户开台成功
+            return $this->com_return(true,config("params.SUCCESS"));
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
+    }
+
+
 
     /**
      * 补充已开台基本信息

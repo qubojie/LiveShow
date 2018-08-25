@@ -1,6 +1,6 @@
 <?php
 /**
- * 酒桌品相管理.
+ * 酒桌品项管理.
  * User: qubojie
  * Date: 2018/7/26
  * Time: 下午6:39
@@ -14,7 +14,7 @@ use think\Validate;
 class TableAppearance extends CommandAction
 {
     /**
-     * 品相列表
+     * 品项列表
      * @param Request $request
      * @return array
      * @throws \think\exception\DbException
@@ -43,7 +43,7 @@ class TableAppearance extends CommandAction
     }
 
     /**
-     * 品相添加
+     * 品项添加
      * @param Request $request
      * @return array
      */
@@ -51,13 +51,13 @@ class TableAppearance extends CommandAction
     {
         $tableAppearanceModel = new MstTableAppearance();
 
-        $appearance_title = $request->param("appearance_title","");//品相标题
-        $appearance_desc  = $request->param("appearance_desc","");//品相描述
+        $appearance_title = $request->param("appearance_title","");//品项标题
+        $appearance_desc  = $request->param("appearance_desc","");//品项描述
         $sort             = $request->param("sort","");//排序
 
         $rule = [
-            "appearance_title|品相标题"  => "require|max:30|unique:mst_table_appearance",
-            "appearance_desc|品相描述"   => "require|max:200",
+            "appearance_title|品项标题"  => "require|max:30|unique:mst_table_appearance",
+            "appearance_desc|品项描述"   => "require|max:200",
             "sort|排序"                 => "number",
         ];
         $check_data = [
@@ -94,7 +94,7 @@ class TableAppearance extends CommandAction
 
 
     /**
-     * 品相编辑
+     * 品项编辑
      * @param Request $request
      * @return array
      */
@@ -102,15 +102,15 @@ class TableAppearance extends CommandAction
     {
         $tableAppearanceModel = new MstTableAppearance();
 
-        $appearance_id    = $request->param("appearance_id","");//品相id
-        $appearance_title = $request->param("appearance_title","");//品相标题
-        $appearance_desc  = $request->param("appearance_desc","");//品相描述
+        $appearance_id    = $request->param("appearance_id","");//品项id
+        $appearance_title = $request->param("appearance_title","");//品项标题
+        $appearance_desc  = $request->param("appearance_desc","");//品项描述
         $sort             = $request->param("sort","");//排序
 
         $rule = [
-            "appearance_id|品相id"      => "require",
-            "appearance_title|品相标题"  => "require|max:30|unique:mst_table_appearance",
-            "appearance_desc|品相描述"   => "require|max:200",
+            "appearance_id|品项id"      => "require",
+            "appearance_title|品项标题"  => "require|max:30|unique:mst_table_appearance",
+            "appearance_desc|品项描述"   => "require|max:200",
             "sort|排序"                 => "number",
         ];
         $check_data = [
@@ -147,7 +147,7 @@ class TableAppearance extends CommandAction
     }
 
     /**
-     * 品相删除
+     * 品项删除
      * @param Request $request
      * @return array
      */
@@ -155,7 +155,7 @@ class TableAppearance extends CommandAction
     {
         $tableAppearanceModel = new MstTableAppearance();
 
-        $appearance_id    = $request->param("appearance_id","");//品相id
+        $appearance_id    = $request->param("appearance_id","");//品项id
 
         if(empty($appearance_id)) return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
 
@@ -187,11 +187,11 @@ class TableAppearance extends CommandAction
     {
         $tableAppearanceModel = new MstTableAppearance();
 
-        $appearance_id = $request->param("appearance_id","");//品相id
+        $appearance_id = $request->param("appearance_id","");//品项id
         $sort          = $request->param("sort","");
 
         $rule = [
-            "appearance_id|品相id" => "require",
+            "appearance_id|品项id" => "require",
             "sort|排序"            => "require|number",
         ];
         $check_data = [

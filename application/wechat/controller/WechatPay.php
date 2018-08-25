@@ -454,7 +454,7 @@ class WechatPay extends Controller
 
             }else{
                 //如果是微信支付
-                //更新预约点单充值单据状态参数
+                //更新预约点单单据状态参数
                 $updateBillPayParams = [
                     "sale_status"    => config("order.bill_pay_sale_status")['completed']['key'],
                     "pay_time"       => time(),
@@ -479,28 +479,47 @@ class WechatPay extends Controller
             }
             /*更改订单状态 off */
 
-            /*更新预约台位状态为预订成功 on*/
 
-            $tableRevenueParams = [
-                "status"     => config("order.table_reserve_status")['reserve_success']['key'],
-                "updated_at" => time()
-            ];
+            /*更新预约台位信息 on*/
+
+            //获取当前台位点单数量
+            $turnover_num = Db::name('table_revenue')
+                ->where("trid",$trid)
+                ->field("turnover_num,turnover,status")
+                ->find();
+            $turnover_num = json_decode(json_encode($turnover_num),true);
+
+            $new_turnover_num = $turnover_num['turnover_num'] + 1;
+            $new_turnover     = $turnover_num['turnover'] + $cash_fee;
+            $status           = $turnover_num['status'];
+
+            if ($status == config("order.table_reserve_status")['already_open']['key']){
+                $updateTableRevenueParams = [
+                    "turnover_num"      => $new_turnover_num,
+                    "turnover"          => $new_turnover,
+                    "updated_at"        => time()
+                ];
+            }else{
+                $updateTableRevenueParams = [
+                    "status"            => config("order.table_reserve_status")['reserve_success']['key'],
+                    "turnover_num"      => $new_turnover_num,
+                    "turnover"          => $new_turnover,
+                    "subscription_time" => time(),
+                    "updated_at"        => time()
+                ];
+            }
 
             $subscriptionCallBackObj = new SubscriptionCallBack();
 
             //更新台位预定信息表中台位状态
-            $updateTableRevenueParams = [
-                "status"            => config("order.table_reserve_status")['reserve_success']['key'],
-                "subscription_time" => time(),
-                "updated_at"        => time()
-            ];
+
             $changeTableRevenueReturn = $subscriptionCallBackObj->changeTableRevenueInfo($updateTableRevenueParams,$trid,$uid);
 
             if ($changeTableRevenueReturn == false){
                 return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL001.1'.']]></return_msg> </xml>';
             }
 
-            /*更新预约台位状态为预订成功 off*/
+            /*更新预约台位信息 off*/
 
 
             /*用户积分操作 on*/
@@ -546,36 +565,34 @@ class WechatPay extends Controller
             }
             /*用户积分操作 off*/
 
-            /*调用打印机 处理落单 on*/
-            $YlyPrintObj = new YlyPrint();
+            if ($status == config("order.table_reserve_status")['already_open']['key']){
+                //如果是已开台状态,调起打印机打印菜品信息 落单
 
-            $printToken = $YlyPrintObj->getToken();
+                //获取当前预约订台 已支付的点单信息
+                $pid_res = Db::name("bill_pay")
+                    ->where("trid",$trid)
+                    ->where("sale_status",config("order.bill_pay_sale_status")['completed']['key'])
+                    ->field("pid")
+                    ->select();
 
-            $message = $printToken['message'];
+                $pid_res = json_decode(json_encode($pid_res),true);
 
-            if ($printToken['result'] == false){
-                //获取token失败
-                return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$message.']]></return_msg> </xml>';
-//                echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$message.']]></return_msg> </xml>';
-//                die;
+                $is_print = $this->openTableToPrintYly($pid_res);
+
+//                $is_print = json_encode($is_print);
+
+                $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
+
+                if (!is_dir($dateTimeFile)){
+
+                    $res = mkdir($dateTimeFile,0777,true);
+
+                }
+                //打印结果日志
+                error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
             }
 
-            $data = $printToken['data'];
 
-            $access_token = $data['access_token'];
-
-            $refresh_token = $data['refresh_token'];
-
-
-            $printRes = $YlyPrintObj->printDish($access_token,$pid);
-
-            if ($printRes['error'] != "0"){
-                //落单失败
-                return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$printRes['error_description'].']]></return_msg> </xml>';
-//                echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.$printRes['error_description'].']]></return_msg> </xml>';
-//                die;
-            }
-            /*调用打印机 处理落单 off*/
 
             Db::commit();
             return '<xml> <return_code><![CDATA[SUCCESS]]></return_code> <return_msg><![CDATA[OK]]></return_msg> </xml>';

@@ -7,12 +7,15 @@
  */
 namespace app\wechat\controller;
 
+use app\admin\controller\Common;
 use app\admin\model\MstTableImage;
 use app\admin\model\MstUserLevel;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\services\Sms;
 use app\wechat\model\BillCardFees;
+use app\wechat\model\BillPay;
+use app\wechat\model\BillPayDetail;
 use app\wechat\model\JobUser;
 use app\wechat\model\UserAccount;
 use app\wechat\model\UserAccountCashGift;
@@ -237,9 +240,9 @@ class MyInfo extends CommonAction
 
         $nowPage  = $request->param("nowPage","1");
 
-        $token =  $request->header('Token','');
+        $token    =  $request->header('Token','');
 
-        $status = $request->param("status",'');//  0待付定金或结算   1 预定成功   2已开台  3已清台   9取消预约
+        $status   = $request->param("status",'');//  0待付定金或结算   1 预定成功   2已开台  3已清台   9取消预约
 
         if (empty($status)){
             $status = 0;
@@ -294,11 +297,78 @@ class MyInfo extends CommonAction
     }
 
 
-    //我的订单列表
+    /**
+     * 我的订单列表
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
     public function dishOrder(Request $request)
     {
+        $token =  $request->header('Token','');
 
+        $uid   = $this->tokenGetUserInfo($token)['uid'];//获取uid
+
+        $pagesize = $request->param("pagesize",config('PAGESIZE'));//显示个数,不传时为10
+
+        $nowPage  = $request->param("nowPage","1");
+
+        $config = [
+            "page" => $nowPage,
+        ];
+
+
+        $billPayModel = new BillPay();
+
+        $column = $billPayModel->column;
+
+        foreach ($column as $k => $v){
+            $column[$k] = "bp.".$v;
+        }
+
+        $list = $billPayModel
+            ->alias("bp")
+            ->join("table_revenue tr","tr.trid = bp.trid")
+            ->where("bp.uid",$uid)
+            ->order("bp.created_at")
+            ->field("tr.table_no")
+            ->field($column)
+            ->paginate($pagesize,false,$config);
+
+        $list = json_decode(json_encode($list),true);
+
+        $billPayDetail = new BillPayDetail();
+
+        $bill_pay_column = $billPayDetail->column;
+
+        foreach ($bill_pay_column as $k => $v){
+            $bill_pay_column[$k] = "bp.".$v;
+        }
+
+        $commonObj = new Common();
+
+        for ($i = 0; $i < count($list['data']); $i ++){
+
+            $pid = $list['data'][$i]['pid'];
+
+            $bill_pay_detail = $billPayDetail
+                ->alias("bp")
+                ->join("dishes d","d.dis_id = bp.dis_id")
+                ->where("bp.pid",$pid)
+                ->field("d.dis_img,d.dis_desc")
+                ->field($bill_pay_column)
+                ->select();
+
+            $bill_pay_detail = json_decode(json_encode($bill_pay_detail),true);
+
+            $bill_pay_detail = $commonObj->make_tree($bill_pay_detail,"id","parent_id");
+
+            $list['data'][$i]['bill_pay_count'] = count($bill_pay_detail);
+            $list['data'][$i]['bill_pay_detail'] = $bill_pay_detail;
+
+        }
+        return $this->com_return(true,config("params.SUCCESS"),$list);
     }
-
-
 }

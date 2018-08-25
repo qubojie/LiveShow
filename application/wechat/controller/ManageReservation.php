@@ -259,7 +259,6 @@ class ManageReservation extends HomeAction
         }
         /*权限判断 off*/
 
-
         //获取当前台位信息
         $tableInfo = $this->getTableInfo($trid);
 
@@ -303,7 +302,6 @@ class ManageReservation extends HomeAction
                         "auto_cancel"   => 0,
                         "cancel_reason" => "未付款时,服务人员手动取消",
                         "updated_at"    => $time
-
                     ];
 
                     $tableReturn = $this->updatedTableRevenueInfo($table_params,$trid);
@@ -329,27 +327,16 @@ class ManageReservation extends HomeAction
                 //如果是已付款状态
                 //获取系统设置的最晚取消时间
                 $cardObj = new OpenCard();
-//                $reserve_time_frame = $cardObj->getSysSettingInfo("reserve_time_frame");
-
-//                $reserve_time_frame_arr = explode("|",$reserve_time_frame);
-
-//                $start_time = $reserve_time_frame_arr[0];
 
                 $reserve_cancel_time = $cardObj->getSysSettingInfo("reserve_cancel_time");
 
-                $reserve_time = $tableInfo['reserve_time'];//预约时间
+                $reserve_time        = $tableInfo['reserve_time'];//预约时间
 
-                $kc_date = date("Y-m-d",$reserve_time);
+                $kc_date             = date("Y-m-d",$reserve_time);
 
-                $kc_time = $kc_date." ".$reserve_cancel_time;//最晚取消时间
+                $kc_time             = $kc_date." ".$reserve_cancel_time;//最晚取消时间
 
-                $kc_time = strtotime($kc_time);
-
-                /*$can_time = 30;//分钟,获取最晚允许取消时间
-
-                $can_time_s = $can_time * 60;
-
-                $bj_time = $kc_time - $can_time_s;*/
+                $kc_time             = strtotime($kc_time);
 
                 $now_time = time();
 
@@ -388,22 +375,15 @@ class ManageReservation extends HomeAction
                         $subscription = $billInfo['subscription'];
                         $suid         = $billInfo['suid'];
                         $pay_type     = $billInfo['pay_type'];
+                        $is_refund_sub= $billInfo['is_refund_sub'];
 
-                        //微信支付时,走退款接口
-                        if ($pay_type == \config("order.pay_method")['wxpay']['key']){
-                            $payRes = $this->callBackPay($suid,$subscription,$subscription);
-                        }else{
-                            $payRes = true;
-                        }
-
-
-                        if (!empty($payRes)){
-
+                        if ($is_refund_sub == 1){
+                            //不退款
                             $table_params = [
                                 "status"        => \config("order.table_reserve_status")['cancel']['key'],
                                 "cancel_user"   => "salesman",
                                 "cancel_time"   => $time,
-                                "cancel_reason" => "已付款,未超出取消时间范围内,服务人员手动取消",
+                                "cancel_reason" => "已付款,未超出取消时间范围内,特殊日期不退款,服务人员手动取消",
                                 "updated_at"    => $time
                             ];
 
@@ -412,7 +392,7 @@ class ManageReservation extends HomeAction
                                 "cancel_user"   => "user",
                                 "cancel_time"   => $time,
                                 "auto_cancel"   => 0,
-                                "cancel_reason" => "已付款,超出取消时间范围内,服务人员手动取消",
+                                "cancel_reason" => "已付款,超出取消时间范围内,特殊日期不退款,服务人员手动取消",
                                 "is_refund"     => 1,
                                 "refund_amount" => $subscription,
                                 "updated_at"    => $time
@@ -421,9 +401,44 @@ class ManageReservation extends HomeAction
                             $tableReturn = $this->updatedTableRevenueInfo($table_params,$trid);
                             $billReturn = $this->updatedBillSubscription($bill_params,$trid);
 
+
                         }else{
-                            $tableReturn = false;
-                            $billReturn  = false;
+                            //微信支付时,走退款接口
+                            if ($pay_type == \config("order.pay_method")['wxpay']['key']){
+                                $payRes = $this->callBackPay($suid,$subscription,$subscription);
+                            }else{
+                                $payRes = true;
+                            }
+
+                            if (!empty($payRes)){
+
+                                $table_params = [
+                                    "status"        => \config("order.table_reserve_status")['cancel']['key'],
+                                    "cancel_user"   => "salesman",
+                                    "cancel_time"   => $time,
+                                    "cancel_reason" => "已付款,未超出取消时间范围内,服务人员手动取消",
+                                    "updated_at"    => $time
+                                ];
+
+                                $bill_params = [
+                                    "status"        => \config("order.reservation_subscription_status")['cancel_revenue']['key'],
+                                    "cancel_user"   => "user",
+                                    "cancel_time"   => $time,
+                                    "auto_cancel"   => 0,
+                                    "cancel_reason" => "已付款,超出取消时间范围内,服务人员手动取消",
+                                    "is_refund"     => 1,
+                                    "refund_amount" => $subscription,
+                                    "updated_at"    => $time
+                                ];
+
+                                $tableReturn = $this->updatedTableRevenueInfo($table_params,$trid);
+                                $billReturn = $this->updatedBillSubscription($bill_params,$trid);
+
+                            }else{
+                                $tableReturn = false;
+                                $billReturn  = false;
+                            }
+
                         }
                     }
 

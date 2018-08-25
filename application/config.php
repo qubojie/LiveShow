@@ -238,6 +238,7 @@ return [
         'list_rows' => 15,
     ],
 
+    //默认密码
     "DEFAULT_PASSWORD" => "000000",
 
     /*
@@ -280,6 +281,7 @@ return [
         "PHONE_EXIST"           => "电话号码已存在",
         "NOT_OPEN_CARD"         => "未开卡,或者卡已失效",
         "SALESMAN_PHONE_ERROR"  => "请输入正确的营销人员号码",
+        "SALESMAN_NOT_EXIST"    => "您输入的营销手机号码不存在,请核对后重试",
         "TABLE_INVALID"         => "所订吧台无效",
         "TABLE_IS_RESERVE"      => "很遗憾,该吧台已被其他顾客预约,请从新挑选",
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
@@ -300,6 +302,12 @@ return [
             "completed"         => "订单已支付,请勿重复操作",
             "NOW_STATUS_NOT_PAY"=> "支付操作异常",
             "BALANCE_NOT_ENOUGH"=> "余额不足",
+            "NOW_STATUS_ERROR"  => "当前状态不允许此操作",
+            "ORDER_ABNORMAL"    => "订单异常",
+            "STATUS_NO_CANCEL"  => "订单已支付,不可取消",
+            "ORDER_NOT_REFUND"  => "订单不可退",
+            "REFUND_WAIT_AUDIT" => "退单成功,等待审核",
+            "REFUND_ABNORMAL"   => "退单异常"
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -498,14 +506,14 @@ return [
             2 => ['key' => 'user',     'name' => '会员'],
             3 => ['key' => 'platform', 'name' => '平台推荐'],
             4 => ['key' => 'boss',     'name' => '董事长'],
-            5 => ['key' => 'service',  'name' => '服务人员'],
+            5 => ['key' => 'service',  'name' => '服务员'],
             6 => ['key' => 'reserve',  'name' => '前台']
         ],
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | 二维码前缀规则配置
+    | 二维码规则配置
     |--------------------------------------------------------------------------
     */
     "qrcode" => [
@@ -513,10 +521,15 @@ return [
         //前缀规则
         'prefix' => [
             '0' => ['key' => '258TR', 'name' => '开台二维码'],
-            '1' => ['key' => '258LQ', 'name' => '礼券二维码']
+            '1' => ['key' => '258LQ', 'name' => '礼券二维码'],
+            '2' => ['key' => '258DD', 'name' => '扫码点单']
         ],
+
         //分隔符
-        'delimiter' => [ 'key' => '|','name' => '分隔符'],
+        'delimiter' => [ 'key' => ',','name' => '分隔符'],
+
+        //小程序生成二维码是否透明底色 true OR false
+        'is_hyaline'=> ['key' => true, 'name' => '是']
     ],
 
     /*
@@ -581,12 +594,13 @@ return [
 
         //支付方式
         'pay_method' => [
-            'wxpay'   => ['key' => 'wxpay',  'name' => '微信'],
-            'alipay'  => ['key' => 'alipay', 'name' => '支付宝'],
-            'bank'    => ['key' => 'bank',   'name' => '银行转账'],
-            'cash'    => ['key' => 'cash',   'name' => '现金'],
-            'offline' => ['key' => 'offline','name' => '线下'],
-            'balance' => ['key' => 'balance','name' => '余额'],
+            'wxpay'     => ['key' => 'wxpay',    'name' => '微信'],
+            'alipay'    => ['key' => 'alipay',   'name' => '支付宝'],
+            'bank'      => ['key' => 'bank',     'name' => '银行转账'],
+            'cash'      => ['key' => 'cash',     'name' => '现金'],
+            'offline'   => ['key' => 'offline',  'name' => '线下'],
+            'balance'   => ['key' => 'balance',  'name' => '余额'],
+            'cash_gift' => ['key' => 'cash_gift','name' => '礼金支付'],
         ],
 
         //支付场景
@@ -628,7 +642,8 @@ return [
             'change_order' => ['key' => '1', 'name' => '换单'],
             'retire_dish'  => ['key' => '2', 'name' => '退菜'],
             'retire_order' => ['key' => '3', 'name' => '退单'],
-            'give'         => ['key' => '4', 'name' => '赠送']
+            'give'         => ['key' => '4', 'name' => '赠送'],
+            'cash_gift'    => ['key' => '5', 'name' => '礼金'],
         ],
 
         //消费单缴费单状态
@@ -672,7 +687,7 @@ return [
         'sys'     => "系统设置",
         'card'    => "会籍卡设置",
         'reserve' => "预约设置",
-        'sms'     => "短讯设置",
+        'sms'     => "短信设置",
         'user'    => "用户设置",
     ],
 

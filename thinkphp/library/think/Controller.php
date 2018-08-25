@@ -15,6 +15,9 @@ namespace think;
 
 use app\admin\model\SysAdminUser;
 use app\admin\model\SysSetting;
+use app\services\YlyPrint;
+use app\wechat\controller\DishPublicAction;
+use app\wechat\model\BillPayDetail;
 use think\exception\ValidateException;
 
 class Controller
@@ -256,4 +259,135 @@ class Controller
         return md5(sha1($str).time());
     }
 
+
+    /**
+     * 调用打印机打印订单(消费)
+     * @param $pid
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function openTableToPrintYly($pid)
+    {
+        /*调用打印机 处理落单 on*/
+        $YlyPrintObj = new YlyPrint();
+
+        $printToken = $YlyPrintObj->getToken();
+
+        $message = $printToken['message'];
+
+        if ($printToken['result'] == false){
+            //获取token失败
+            return $this->com_return(false,$message);
+        }
+
+        $data = $printToken['data'];
+
+        $access_token = $data['access_token'];
+
+        $refresh_token = $data['refresh_token'];
+
+
+        /*for ($i = 0; $i <count($pids); $i ++){
+            $pid = $pids[$i]['pid'];
+
+            $printRes = $YlyPrintObj->printDish($access_token,$pid);
+
+            if ($printRes['error'] != "0"){
+                //落单失败
+                return $this->com_return(false,$printRes['error_description'],$pid);
+            }
+        }*/
+
+        $printRes = $YlyPrintObj->printDish($access_token,$pid);
+
+        if ($printRes['error'] != "0"){
+            //落单失败
+            return $this->com_return(false,$printRes['error_description'],$pid);
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"));
+        /*调用打印机 处理落单 off*/
+    }
+
+    /**
+     * 调用打印机打印订单(退单)
+     * @param $pid
+     * @param $detail_ids
+     * @return array
+     * @throws db\exception\DataNotFoundException
+     * @throws db\exception\ModelNotFoundException
+     * @throws exception\DbException
+     */
+    public function refundToPrintYly($pid,$detail_ids)
+    {
+        //获取菜品信息
+        $dishPublicActionObj = new DishPublicAction();
+
+        $orderInfo = $dishPublicActionObj->pidGetTableInfo($pid);
+
+        $tableName = $orderInfo['location_title']." - ".$orderInfo['area_title']." - ".$orderInfo['table_no']."号桌";
+
+        $detail_id_arr = explode(",",$detail_ids);
+
+        $billPayDetailModel = new BillPayDetail();
+
+        $dis_info = [];
+        foreach ($detail_id_arr as $detail_id){
+
+            $detail_info = $billPayDetailModel
+                ->where("id",$detail_id)
+                ->field("dis_name,quantity,dis_type")
+                ->find();
+
+            $detail_info = json_decode(json_encode($detail_info),true);
+
+            $dis_type = $detail_info['dis_type'];
+
+            $children = [];
+            if ($dis_type){
+                $children = $billPayDetailModel
+                    ->where("parent_id",$detail_id)
+                    ->field("dis_name,quantity,dis_type")
+                    ->select();
+                $children = json_decode(json_encode($children),true);
+            }
+
+            $detail_info['children'] = $children;
+
+            $dis_info[] = $detail_info;
+        }
+
+        $params = [
+            "table_name" => $tableName,
+            "dis_info"   => $dis_info
+        ];
+
+        $YlyPrintObj = new YlyPrint();
+
+        $printToken = $YlyPrintObj->getToken();
+
+        $message = $printToken['message'];
+
+        if ($printToken['result'] == false){
+            //获取token失败
+            return $this->com_return(false,$message);
+        }
+
+        $data = $printToken['data'];
+
+        $access_token = $data['access_token'];
+
+        $refresh_token = $data['refresh_token'];
+
+        $printRes = $YlyPrintObj->refundDish($access_token,$params);
+
+        if ($printRes['error'] != "0"){
+            //落单失败
+            return $this->com_return(false,$printRes['error_description'],$pid);
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"));
+    }
 }

@@ -8,6 +8,7 @@
 namespace app\wechat\controller;
 
 use app\admin\controller\Common;
+use app\wechat\model\BillPay;
 use app\wechat\model\BillPayDetail;
 use think\Controller;
 
@@ -23,9 +24,39 @@ class DishPublicAction extends Controller
      */
     public function pidGetOrderDishInfo($pid)
     {
+        $tableInfo = $this->pidGetTableInfo($pid);
+
         $billPayDetailModel = new BillPayDetail();
 
-        $tableInfo = $billPayDetailModel
+        $list = $billPayDetailModel
+            ->alias("bpd")
+            ->where("bpd.is_refund","0")
+            ->field("bpd.id,bpd.parent_id,bpd.pid,bpd.trid,bpd.is_refund,bpd.is_give,bpd.dis_id,bpd.dis_type,bpd.dis_sn,bpd.dis_name,bpd.dis_desc,bpd.quantity,bpd.price,bpd.amount")
+            ->select();
+
+        $list = json_decode(json_encode($list),true);
+
+        $commonObj = new Common();
+
+        $list = $commonObj->make_tree($list,"id","parent_id");
+
+        $tableInfo['dish_info'] = $list;
+
+        return $tableInfo;
+    }
+
+    /**
+     * 获取桌位信息
+     * @param $pid
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function pidGetTableInfo($pid)
+    {
+        $billPayModel = new BillPay();
+
+        $tableInfo = $billPayModel
             ->alias("bpd")
             ->join("table_revenue tr","tr.trid = bpd.trid")
             ->join("mst_table_area ta","ta.area_id = tr.area_id")
@@ -37,19 +68,6 @@ class DishPublicAction extends Controller
             ->find();
 
         $tableInfo = json_decode(json_encode($tableInfo),true);
-
-        $list = $billPayDetailModel
-            ->alias("bpd")
-            ->field("bpd.id,bpd.parent_id,bpd.pid,bpd.trid,bpd.is_refund,bpd.is_give,bpd.dis_id,bpd.dis_type,bpd.dis_sn,bpd.dis_name,bpd.dis_desc,bpd.quantity,bpd.price,bpd.amount")
-            ->select();
-
-        $list = json_decode(json_encode($list),true);
-
-        $commonObj = new Common();
-
-        $list = $commonObj->make_tree($list,"id","parent_id");
-
-        $tableInfo['dish_info'] = $list;
 
         return $tableInfo;
     }
