@@ -269,8 +269,10 @@ class MyInfo extends CommonAction
 
         $list = $tableRevenueModel
             ->alias("tr")
+            ->join("mst_table t","t.table_id = tr.table_id")
             ->join("mst_table_area ta","ta.area_id = tr.area_id")
             ->join("mst_table_location tl","ta.location_id = tl.location_id")
+            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")
             ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
             ->where('tr.uid',$uid)
             ->where($where_status)
@@ -278,6 +280,7 @@ class MyInfo extends CommonAction
             ->field("ms.phone")
             ->field("tl.location_title")
             ->field("ta.area_title")
+            ->field("tap.appearance_title")
             ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);
@@ -289,6 +292,29 @@ class MyInfo extends CommonAction
         for ($i = 0; $i <count($data); $i++){
 
             $table_id = $data[$i]['table_id'];
+
+            $trid     = $data[$i]['trid'];
+
+            $is_refund_sub_res = Db::name("bill_subscription")
+                ->where("trid",$trid)
+                ->field("is_refund_sub")
+                ->find();
+
+            if (!empty($is_refund_sub_res)){
+                $is_refund_sub = $is_refund_sub_res['is_refund_sub'];
+            }else{
+                $is_refund_sub = 0;
+            }
+
+            if ($is_refund_sub){
+                //不退
+                $list["data"][$i]['is_refund_sub_msg'] = getSysSetting("reserve_warning_no");
+
+            }else{
+                //退
+                $list["data"][$i]['is_refund_sub_msg'] = getSysSetting("reserve_warning");
+
+            }
 
             $tableImage = $tableImageModel
                 ->where('table_id',$table_id)

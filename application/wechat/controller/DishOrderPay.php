@@ -39,7 +39,9 @@ class DishOrderPay extends CommonAction
         $orderInfo = json_decode(json_encode($orderInfo), true);
 
         if (empty($orderInfo)) {
+
             return $this->com_return(false, "订单异常");
+
         }
 
         $sale_status = $orderInfo['sale_status'];
@@ -50,21 +52,24 @@ class DishOrderPay extends CommonAction
 
         }
 
-
-        $uid  = $orderInfo['uid'];
-        $trid = $orderInfo['trid'];
-
-        $order_amount = $orderInfo['order_amount'];//订单总金额
-        $payable_amount = $orderInfo['payable_amount'];//应付且未付金额
-
         //获取用户信息
-        $userInfo = getUserInfo($uid);
+        $token = $request->param("Token");
+
+        $userInfo = $this->tokenGetUserInfo($token);
 
         if (empty($userInfo)) {
 
             return $this->com_return(false, config("params.ABNORMAL_ACTION"));
 
         }
+
+        $uid  = $userInfo['uid'];
+
+        $trid = $orderInfo['trid'];
+
+        $order_amount = $orderInfo['order_amount'];//订单总金额
+
+        $payable_amount = $orderInfo['payable_amount'];//应付且未付金额
 
         $account_balance = $userInfo['account_balance'];//用户钱包可用余额
 

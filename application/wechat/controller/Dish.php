@@ -7,6 +7,7 @@
  */
 namespace app\wechat\controller;
 
+use app\admin\controller\Common;
 use app\admin\model\Dishes;
 use app\admin\model\DishesCategory;
 use think\Controller;
@@ -24,14 +25,19 @@ class Dish extends CommonAction
      */
     public function dishClassify()
     {
-        $dishCateGateModel = new DishesCategory();
+        $pointListPublicObj = new PointListPublicAction();
 
-        $list = $dishCateGateModel
-            ->where("is_enable",1)
-            ->where("is_delete",0)
-            ->order("sort")
-            ->field("cat_id,cat_name,cat_img")
-            ->select();
+        $res = $pointListPublicObj->dishTypePublic();
+
+        $list = json_decode(json_encode($res),true);
+
+        $is_vip = [
+            "cat_id"   => "vip",
+            "cat_name" => "会员专享",
+            "cat_img"  => ""
+        ];
+
+        array_unshift($list['data'],$is_vip);
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
@@ -54,7 +60,7 @@ class Dish extends CommonAction
 
         $cat_id   = $request->param("cat_id","");//分类id
 
-        $is_vip   = $request->param("is_vip","");//会员专享
+        //$is_vip   = $request->param("is_vip","");//会员专享
 
         $dis_type = $request->param("dis_type","");//套餐
 
@@ -62,8 +68,13 @@ class Dish extends CommonAction
 
         $is_give  = $request->param("is_give","");//可否赠送  0否   1是
 
+        if ($cat_id == "vip"){
+            $is_vip = 1;
+            $cat_id = "";
+        }
+
         $cat_where = [];
-        if (!empty($cat_where)){
+        if (!empty($cat_id)){
             $cat_where['d.cat_id'] = ["eq",$cat_id];
         }
 
@@ -95,9 +106,17 @@ class Dish extends CommonAction
             $is_give_where['d.is_give'] = ["eq",1];
             $is_gift_where = [];
         }else{
-            $is_gift_where['d.is_give'] = ["eq",0];
+            $is_give_where['d.is_give'] = ["eq",0];
             $is_gift_where = [];
         }
+
+        $pagesize = $request->param("pagesize",config('PAGESIZE'));
+
+        $nowPage = $request->has("nowPage") ? $request->param("nowPage") : "1"; //当前页
+
+        $config = [
+            "page" => $nowPage
+        ];
 
         $dishesModel = new Dishes();
 
@@ -111,6 +130,7 @@ class Dish extends CommonAction
             ->where($is_give_where)
             ->where("d.is_enable",1)
             ->where("d.is_delete",0)
+//            ->paginate($pagesize,'',$config);
             ->select();
 
         $list = json_decode(json_encode($list),true);
@@ -259,7 +279,7 @@ class Dish extends CommonAction
             //套餐
             $dishesComboInfo = Db::name("dishes_combo")
                 ->alias("dc")
-                ->join("dishes d","d.dis_id = dc.dis_id")
+                ->join("dishes d","d.dis_id = dc.dis_id","LEFT")
                 ->where("dc.main_dis_id",$dis_id)
                 ->field("d.dis_name")
                 ->field("dc.combo_id,dc.dis_id,dc.type,dc.type_desc,dc.parent_id,dc.quantity")
@@ -267,12 +287,24 @@ class Dish extends CommonAction
 
             $dishesComboInfo = json_decode(json_encode($dishesComboInfo),true);
 
-            dump($dishesComboInfo);die;
+            foreach ($dishesComboInfo as $k => $v){
+                if ($v['type']){
+                    $dishesComboInfo[$k]['dis_name'] = $v['type_desc'];
+                }
+            }
+            $commonObj = new Common();
+
+            $dishesComboInfo = $commonObj->make_tree($dishesComboInfo,"combo_id","parent_id");
+
+            $dishInfo['dishes_combo_info'] = $dishesComboInfo;
+
+        }else{
+
+            $dishInfo['dishes_combo_info'] = [];
 
         }
 
-
-
+        return $this->com_return(true,config("params.SUCCESS"),$dishInfo);
 
     }
 }

@@ -11,17 +11,6 @@
 
 use think\Route;
 
-
-/*return [
-    '__pattern__' => [
-        'name' => '\w+',
-    ],
-    '[hello]'     => [
-        ':id'   => ['index/hello', ['method' => 'get'], ['id' => '\d+']],
-        ':name' => ['index/hello', ['method' => 'post']],
-    ],
-];*/
-
 Route::rule('test','index/test');
 
 //测试资源路由注册
@@ -156,12 +145,12 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
         //充值
         Route::group(['name' => 'Recharge'],function (){
+
             //充值列表
             Route::rule('index','Recharge/rechargeList','post|options');
 
             //充值确认
             Route::rule('rechargeConfirm','Recharge/rechargeConfirm','post|options');
-
 
         });
 
@@ -169,7 +158,7 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
         Route::group(['name' => 'dishes'],function (){
 
             //菜品分类
-            Route::rule('dishClassify','Dish/dishClassify','get|options');
+            Route::rule('dishClassify','Dish/dishClassify','post|options');
 
             //菜品列表
             Route::rule('index','Dish/index','post|options');
@@ -265,13 +254,31 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //清台
             Route::rule("cleanTable","TableAction/cleanTable","post|options");
 
+            //菜品
+            Route::group(['name' => 'dishes'],function (){
+
+                //菜单分类
+                Route::rule('dishClassify','ManageDish/dishClassify','post|options');
+
+                //菜品列表
+                Route::rule('index','ManageDish/index','post|options');
+
+
+            });
+
             //点单
             Route::group(['name' => 'pointList'],function (){
 
                 //选台列表
                 Route::rule('selectionTableList','ManagePointList/selectionTableList','post|options');
 
-                //订台可退订单列表
+                //工作人员点单
+                Route::rule('createPointList','ManagePointList/createPointList','post|options');
+
+                //工作人员取消未支付的点单
+                Route::rule('cancelDishOrder','ManagePointList/cancelDishOrder','post|options');
+
+                //订台可退菜品订单列表
                 Route::rule('canRefundOrderList','ManagePointList/canRefundOrderList','post|options');
 
                 //退单

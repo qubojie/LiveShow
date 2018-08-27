@@ -54,7 +54,6 @@ class HomeBanner extends Controller
     {
         $banner_title = $request->param("banner_title","");
         $banner_img   = $request->param("banner_img","");
-        $type         = $request->param("type","");
         $link         = $request->param("link","");
         $sort         = $request->param("sort","100");
         $is_show      = $request->param("is_show","0");
@@ -62,7 +61,6 @@ class HomeBanner extends Controller
         $rule = [
             "banner_title|banner标题"  => "require|max:100|unique:page_banner",
             "banner_img|banner图片"    => "require|max:300",
-            "type|类型"                => "require|number",
             "link|链接地址"             => "max:200",
             "sort|排序"                => "number",
             "is_show|是否展示"          => "number",
@@ -71,7 +69,6 @@ class HomeBanner extends Controller
         $request_res = [
             "banner_title" => $banner_title,
             "banner_img"   => $banner_img,
-            "type"         => $type,
             "link"         => $link,
             "sort"         => $sort,
             "is_show"      => $is_show,
@@ -90,7 +87,6 @@ class HomeBanner extends Controller
         $params = [
             "banner_title" => $banner_title,
             "banner_img"   => $banner_img,
-            "type"         => $type,
             "link"         => $link,
             "sort"         => $sort,
             "is_show"      => $is_show,
@@ -118,7 +114,6 @@ class HomeBanner extends Controller
         $banner_id    = $request->param("banner_id","");
         $banner_title = $request->param("banner_title","");
         $banner_img   = $request->param("banner_img","");
-        $type         = $request->param("type","");
         $link         = $request->param("link","");
         $sort         = $request->param("sort","100");
         $is_show      = $request->param("is_show","0");
@@ -127,7 +122,6 @@ class HomeBanner extends Controller
             "banner_id|id"             => "require",
             "banner_title|banner标题"  => "require|max:100|unique:page_banner",
             "banner_img|banner图片"    => "require|max:300",
-            "type|类型"                => "require|number",
             "link|链接地址"             => "max:200",
             "sort|排序"                => "number",
             "is_show|是否展示"          => "number",
@@ -137,7 +131,6 @@ class HomeBanner extends Controller
             "banner_id"    => $banner_id,
             "banner_title" => $banner_title,
             "banner_img"   => $banner_img,
-            "type"         => $type,
             "link"         => $link,
             "sort"         => $sort,
             "is_show"      => $is_show,
@@ -153,7 +146,6 @@ class HomeBanner extends Controller
         $params = [
             "banner_title" => $banner_title,
             "banner_img"   => $banner_img,
-            "type"         => $type,
             "link"         => $link,
             "sort"         => $sort,
             "is_show"      => $is_show,
