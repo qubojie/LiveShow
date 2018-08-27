@@ -452,6 +452,7 @@ class WechatPay extends Controller
                     "updated_at"      => time()
                 ];
 
+
             }else{
                 //如果是微信支付
                 //更新预约点单单据状态参数
@@ -509,11 +510,13 @@ class WechatPay extends Controller
                 ];
             }
 
+
             $subscriptionCallBackObj = new SubscriptionCallBack();
 
             //更新台位预定信息表中台位状态
 
             $changeTableRevenueReturn = $subscriptionCallBackObj->changeTableRevenueInfo($updateTableRevenueParams,$trid,$uid);
+
 
             if ($changeTableRevenueReturn == false){
                 return '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA['.config('params.ABNORMAL_ACTION').'PL001.1'.']]></return_msg> </xml>';
@@ -568,18 +571,17 @@ class WechatPay extends Controller
             if ($status == config("order.table_reserve_status")['already_open']['key']){
                 //如果是已开台状态,调起打印机打印菜品信息 落单
 
-                //获取当前预约订台 已支付的点单信息
+                /*//获取当前预约订台 已支付的点单信息
                 $pid_res = Db::name("bill_pay")
                     ->where("trid",$trid)
                     ->where("sale_status",config("order.bill_pay_sale_status")['completed']['key'])
                     ->field("pid")
                     ->select();
 
-                $pid_res = json_decode(json_encode($pid_res),true);
+                $pid_res = json_decode(json_encode($pid_res),true);*/
 
-                $is_print = $this->openTableToPrintYly($pid_res);
-
-//                $is_print = json_encode($is_print);
+//                $is_print = $this->openTableToPrintYly($pid_res);
+                $is_print = $this->openTableToPrintYly($pid);
 
                 $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
 

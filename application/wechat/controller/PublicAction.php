@@ -16,6 +16,7 @@ use app\admin\model\MstTableLocation;
 use app\admin\model\MstTableReserveDate;
 use app\admin\model\MstTableSize;
 use app\admin\model\TableRevenue;
+use app\admin\model\User;
 use app\common\controller\UUIDUntil;
 use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
@@ -23,6 +24,8 @@ use think\Config;
 use think\Controller;
 use think\Db;
 use think\Exception;
+use think\Request;
+use think\Validate;
 
 class PublicAction extends Controller
 {
@@ -967,11 +970,42 @@ class PublicAction extends Controller
 
     /**
      * 获取预约时,温馨提示信息
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
-    public function getReserveWaringInfo()
+    public function getReserveWaringInfo(Request $request)
     {
-        //获取当前退款和不退款的设置信息
+        $date = $request->param("date","");
+
+        if (empty($date)){
+            return $this->com_return(false,\config("params.PARAM_NOT_EMPTY"));
+        }
+
+        $tsDate = Db::name("mst_table_reserve_date")
+            ->where("appointment",$date)
+            ->find();
+
         $openCardObj = new OpenCard();
+
+        if (!empty($tsDate)){
+
+            $is_refund_sub = $tsDate['is_refund_sub'];
+
+            //0退1不退
+            if ($is_refund_sub){
+                $info = $openCardObj->getSysSettingInfo("reserve_warning_no");
+            }else{
+
+                $info = $openCardObj->getSysSettingInfo("reserve_warning");
+            }
+
+            return $this->com_return(true,\config("params.SUCCESS"),$info);
+        }
+
+        //获取当前退款和不退款的设置信息
 
         $reserve_refund_flag = $openCardObj->getSysSettingInfo("reserve_refund_flag");
 
@@ -985,4 +1019,70 @@ class PublicAction extends Controller
     }
 
 
+    /**
+     * 检测手机号码是否存在
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function checkPhoneExist(Request $request)
+    {
+
+        $type  = $request->param("type","");
+        $phone = $request->param("phone","");
+
+        $rule = [
+            "type|类型"      => "require",
+            "phone|电话号码"  => "regex:1[3-8]{1}[0-9]{9}|number",
+        ];
+
+        $request_res = [
+            "type"  => $type,
+            "phone" => $phone,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError());
+        }
+
+        $info = "";
+
+        if (empty($phone)){
+            return $this->com_return(true,\config("params.SUCCESS"));
+        }
+
+        if ($type == "salesman"){
+            $manageModel = new ManageSalesman();
+
+            $info = $manageModel
+                ->where("phone",$phone)
+                ->where("statue",\config("salesman.salesman_status")['working']['key'])
+                ->field("sales_name name")
+                ->find();
+
+            $info = json_decode(json_encode($info),true);
+
+        }
+        if ($type == "user"){
+            $userModel = new User();
+
+            $info = $userModel
+                ->where("phone",$phone)
+                ->field("name")
+                ->find();
+            $info = json_decode(json_encode($info),true);
+        }
+
+        if (!empty($info)){
+            $name = $info['name'];
+            return $this->com_return(true,\config("params.SUCCESS"),$name);
+        }else{
+            return $this->com_return(false,\config("params.SALESMAN_NOT_EXIST"));
+        }
+
+    }
 }

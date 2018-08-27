@@ -108,6 +108,15 @@ class MyInfo extends CommonAction
 
         $user_info['gift_voucher_num'] = $gift_voucher_num;
 
+        //获取用户预约数量
+        $tableRevenueModel = new TableRevenue();
+        $user_revenue_num = $tableRevenueModel
+            ->where("uid",$uid)
+            ->where("status",config("order.table_reserve_status")['reserve_success']['key'])
+            ->count();
+
+        $user_info['revenue_num'] = $user_revenue_num;
+
         return $this->com_return(true,config("SUCCESS"),$user_info);
     }
 

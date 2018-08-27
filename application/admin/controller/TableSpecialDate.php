@@ -127,6 +127,7 @@ class TableSpecialDate extends CommandAction
 
         $desc           = $request->param('desc','');//
         $is_expiry      = $request->param('is_expiry','');//是否启用  0否 1是
+        $is_refund_sub  = $request->param('is_refund_sub','');//是否可退押金 0不退  1退
 
         $rule = [
             "appointment|指定押金预定日期" => "require",
@@ -159,6 +160,7 @@ class TableSpecialDate extends CommandAction
 //            'turnover_limit'    => $turnover_limit,
             'desc'              => $desc,
             'is_expiry'         => $is_expiry,
+            'is_refund_sub'     => $is_refund_sub,
             'updated_at'        => $time
         ];
 

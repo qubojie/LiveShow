@@ -10,6 +10,7 @@ namespace app\services;
 use app\wechat\controller\DishPublicAction;
 use think\Cache;
 use think\Controller;
+use think\Env;
 use think\Loader;
 
 Loader::import('yly.YLYTokenClient');
@@ -23,7 +24,6 @@ class YlyPrint extends Controller
      */
     public function getToken()
     {
-
         $yly_access_token  = Cache::get("yly_access_token");
         $yly_refresh_token = Cache::get("yly_refresh_token");
 
@@ -154,9 +154,7 @@ class YlyPrint extends Controller
             if ($dishInfo[$i]['dis_type']){
                 $children = $dishInfo[$i]['children'];
                 for ($m = 0; $m < count($children); $m ++){
-                    $content .= '<FS><table>';
                     $content .= '<tr><td> </td><td>'.$children[$m]['dis_name'].'</td><td>'.$children[$m]['quantity'].'</td></tr>';
-                    $content .= '</table></FS>';
                 }
             }
 
@@ -167,7 +165,7 @@ class YlyPrint extends Controller
         $content .= str_repeat('-',48)."\n";
         $content .= '<FS>金额: '.$allPrice.'元</FS>';
 
-        $machineCode = '4004566461';  //授权的终端号
+        $machineCode = Env::get("YLY_MACHINE_CODE_1");  //授权的终端号
         $originId = '1234567890';     //商户自定义id
         $timesTamp = time();          //当前服务器时间戳(10位)
 
@@ -186,23 +184,22 @@ class YlyPrint extends Controller
 
         $dishInfo = $params['dis_info'];
 
-//        dump($dishInfo);die;
-
         $content  = "";                          //打印内容
-        $content .= '<FS><center>退单</center></FS>';
+        $content .= '<MS>0,0</MS>';
+        $content .= '<FS2><center>退 单</center></FS2>';
         $content .= '<FS><center>'.$tableName.'</center></FS>';
         $content .= str_repeat('-',48);
         $content .= '<FS><table>';
-        $content .= '<tr><td>商品</td><td>数量</td><td>价格</td></tr>';
+        $content .= '<tr><td>商品</td><td>数量</td></tr>';
+        $content .= str_repeat('-',48);
 
         for ($i = 0; $i <count($dishInfo); $i ++){
-            $content .= '<tr><td>'.$dishInfo[$i]['dis_name'].'</td><td>x'.$dishInfo[$i]['quantity'].'</td><</tr>';
+            $content .= '<tr><td>'.$dishInfo[$i]['dis_name'].'</td><td> x '.$dishInfo[$i]['quantity'].'</td></tr>';
             if ($dishInfo[$i]['dis_type']){
                 $children = $dishInfo[$i]['children'];
                 for ($m = 0; $m < count($children); $m ++){
-                    $content .= '<FS><table>';
-                    $content .= '<tr><td> </td><td>'.$children[$m]['dis_name'].'</td><td>'.$children[$m]['quantity'].'</td></tr>';
-                    $content .= '</table></FS>';
+                    $num = $m+1;
+                    $content .= '<tr><td> --- '.$num.')'.$children[$m]['dis_name'].'</td><td> x '.$children[$m]['quantity'].'</td></tr>';
                 }
             }
 
@@ -210,8 +207,9 @@ class YlyPrint extends Controller
 
         $content .= '</table></FS>';
         $content .= str_repeat('-',48)."\n";
+        $content .= '打印时间'.date("Y-m-d H:i:s");
 
-        $machineCode = '4004566461';  //授权的终端号
+        $machineCode = Env::get("YLY_MACHINE_CODE_1");  //授权的终端号
         $originId = '1234567890';     //商户自定义id
         $timesTamp = time();          //当前服务器时间戳(10位)
 

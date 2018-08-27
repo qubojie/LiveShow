@@ -81,7 +81,6 @@ class Reservation extends CommonAction
         return $this->com_return(true,config("params.SUCCESS"),$res_data);
     }
 
-
     /**
      * 预约确认
      * @param Request $request

@@ -302,6 +302,8 @@ class Controller
 
         $printRes = $YlyPrintObj->printDish($access_token,$pid);
 
+        Log::info("易连云打印结果 -----".var_export($printRes,true));
+
         if ($printRes['error'] != "0"){
             //落单失败
             return $this->com_return(false,$printRes['error_description'],$pid);
@@ -314,13 +316,13 @@ class Controller
     /**
      * 调用打印机打印订单(退单)
      * @param $pid
-     * @param $detail_ids
+     * @param $detail_dis_info
      * @return array
      * @throws db\exception\DataNotFoundException
      * @throws db\exception\ModelNotFoundException
      * @throws exception\DbException
      */
-    public function refundToPrintYly($pid,$detail_ids)
+    public function refundToPrintYly($pid,$detail_dis_info)
     {
         //获取菜品信息
         $dishPublicActionObj = new DishPublicAction();
@@ -329,12 +331,16 @@ class Controller
 
         $tableName = $orderInfo['location_title']." - ".$orderInfo['area_title']." - ".$orderInfo['table_no']."号桌";
 
-        $detail_id_arr = explode(",",$detail_ids);
+        $detail_id_arr = json_decode($detail_dis_info,true);
 
         $billPayDetailModel = new BillPayDetail();
 
         $dis_info = [];
-        foreach ($detail_id_arr as $detail_id){
+
+        foreach ($detail_id_arr as $detail_ids){
+
+            $detail_id = $detail_ids['detail_id'];//退菜单id
+            $quantity  = $detail_ids['quantity'];//退菜数量
 
             $detail_info = $billPayDetailModel
                 ->where("id",$detail_id)
@@ -342,6 +348,8 @@ class Controller
                 ->find();
 
             $detail_info = json_decode(json_encode($detail_info),true);
+
+            $detail_info['quantity'] = $quantity;
 
             $dis_type = $detail_info['dis_type'];
 
@@ -381,7 +389,7 @@ class Controller
 
         $refresh_token = $data['refresh_token'];
 
-        $printRes = $YlyPrintObj->refundDish($access_token,$params);
+        $printRes = $YlyPrintObj->refunxdDish($access_token,$params);
 
         if ($printRes['error'] != "0"){
             //落单失败

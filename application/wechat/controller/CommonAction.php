@@ -44,7 +44,7 @@ class CommonAction extends Controller
                     $time = time();//当前时间
                     $token_lastime = $is_exist['token_lastime'];//上次刷新token时间
 
-                    $over_time = $token_lastime + 6000;   //过期时间
+                    $over_time = $token_lastime + (24 * 60 * 60);   //过期时间
                     if ($time < $over_time){
 
                     }else{

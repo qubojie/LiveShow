@@ -151,6 +151,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
         //获取预约时退款提示信息
         Route::rule('getReserveWaringInfo','PublicAction/getReserveWaringInfo');
 
+        //检测手机号码是否存在
+        Route::rule('checkPhoneExist','PublicAction/checkPhoneExist');
+
         //充值
         Route::group(['name' => 'Recharge'],function (){
             //充值列表
@@ -170,6 +173,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
             //菜品列表
             Route::rule('index','Dish/index','post|options');
+
+            //菜品详情
+            Route::rule('dishDetail','Dish/dishDetail','post|options');
 
         });
 
@@ -259,14 +265,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //清台
             Route::rule("cleanTable","TableAction/cleanTable","post|options");
 
+            //点单
             Route::group(['name' => 'pointList'],function (){
+
+                //选台列表
+                Route::rule('selectionTableList','ManagePointList/selectionTableList','post|options');
 
                 //订台可退订单列表
                 Route::rule('canRefundOrderList','ManagePointList/canRefundOrderList','post|options');
 
-
                 //退单
-                Route::rule('refundOrder','ManagePointList/refundOrder','post|options');
+                Route::rule('refundOrder','ManageRefundList/refundOrder','post|options');
             });
 
 
