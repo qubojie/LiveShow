@@ -232,6 +232,23 @@ class ManageReservation extends HomeAction
     }
 
     /**
+     * 管理员取消支付,释放桌台
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function releaseTable(Request $request)
+    {
+        $suid = $request->param("vid","");
+
+        $publicActionObj = new PublicAction();
+
+        return $publicActionObj->releaseTablePublic($suid);
+    }
+
+    /**
      * 取消预约
      * @param Request $request
      * @return array
@@ -248,7 +265,6 @@ class ManageReservation extends HomeAction
         if (empty($trid)){
             return $this->com_return(false,\config("params.PARAM_NOT_EMPTY"));
         }
-
 
         /*权限判断 on*/
         $manageInfo = $this->tokenGetManageInfo($token);

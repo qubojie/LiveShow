@@ -10,7 +10,9 @@ namespace app\wechat\controller;
 use app\admin\model\ManageSalesman;
 use app\admin\model\TableRevenue;
 use think\Controller;
+use think\Log;
 use think\Request;
+use think\Validate;
 
 class ManageAuth extends Controller
 {
@@ -26,6 +28,13 @@ class ManageAuth extends Controller
     {
         $phone    = $request->param("phone","");
         $password = $request->param("password","");
+
+        $res = $request->host();
+
+        Log::info("来源 ---- ".$res);
+
+        Log::info("登陆 ---- ".$phone);
+        Log::info("密码 ---- ".$password);
 
         if (empty($phone) || empty($password)){
             return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
@@ -69,7 +78,7 @@ class ManageAuth extends Controller
                 ->where('password',$password)
                 ->update($update_params);
 
-            if ($is_ok){
+            if ($is_ok !== false){
 
                 $manageInfo = $manageSalesmanModel
                     ->alias("ms")
@@ -92,6 +101,63 @@ class ManageAuth extends Controller
 
         }else{
             return $this->com_return(false,config("params.ACCOUNT_PASSWORD_DIF"));
+        }
+    }
+
+    /**
+     * 小程序微信授权信息绑定
+     * @param Request $request
+     * @return array
+     */
+    public function phoneBindWechat(Request $request)
+    {
+        $phone      = $request->param('phone','');
+
+        $openid     = $request->param('openid',"");     //openid
+        $nickname   = $request->param('nickname',"");   //昵称
+        $headimgurl = $request->param('headimgurl',""); //头像
+
+        $params = $request->param();
+
+        Log::info("授权信息 ----- ".var_export($params,true));
+
+        $rule = [
+            "phone|电话"      => "require",
+            "openid|openid"  => "require",
+            "nickname|昵称"   => "require",
+            "headimgurl|头像"  => "require",
+        ];
+
+        $request_res = [
+            "phone"        => $phone,
+            "openid"       => $openid,
+            "nickname"     => $nickname,
+            "headimgurl"   => $headimgurl,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError());
+        }
+
+        $params = [
+            'wxid'       => $openid,
+            'avatar'     => $headimgurl,
+            'nickname'   => $nickname,
+            'updated_at' => time()
+        ];
+
+        $salesmanModel = new ManageSalesman();
+
+        $is_ok = $salesmanModel
+            ->where('phone',$phone)
+            ->update($params);
+
+        if ($is_ok !== false){
+            return $this->com_return(true,'绑定成功');
+        }else{
+            return $this->com_return(false,'绑定失败');
         }
     }
 }

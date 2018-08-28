@@ -107,9 +107,9 @@ class ManageInfo extends HomeAction
 
         $nowPage  = $request->param("nowPage","1");
 
-        $token =  $request->header('Token','');
+        $token    =  $request->header('Token','');
 
-        $status = $request->param("status",'');//  0待付定金或结算   1 预定成功   2已开台  3已清台   9取消预约
+        $status   = $request->param("status",'');//  0待付定金或结算   1 预定成功   2已开台  3已清台   9取消预约
 
         if (empty($status)){
             $status = 0;
@@ -127,23 +127,25 @@ class ManageInfo extends HomeAction
             "page" => $nowPage,
         ];
 
-        $reserve_way = Config::get("order.reserve_way")['service']['key'];//预定途径  client  客户预订（小程序）    service 服务端预定（内部小程序）   manage 管理端预定（pc管理端暂保留）
-
+//        $reserve_way = Config::get("order.reserve_way")['service']['key'];//预定途径  client  客户预订（小程序）    service 服务端预定（内部小程序）   manage 管理端预定（pc管理端暂保留）
 
         $list = $tableRevenueModel
             ->alias("tr")
+            ->join("mst_table t","t.table_id = tr.table_id")
+            ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")
             ->join("mst_table_area ta","ta.area_id = tr.area_id")
             ->join("mst_table_location tl","ta.location_id = tl.location_id")
             ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
             ->join("user u","u.uid = tr.uid")
             ->where('tr.ssid',$sid)
-            ->where('reserve_way',$reserve_way)
+//            ->where('reserve_way',$reserve_way)
             ->where($where_status)
             ->field("tr.trid,tr.table_id,tr.table_no,tr.status,tr.reserve_time,tr.subscription,tr.subscription_type,tr.reserve_way,tr.ssid,tr.ssname")
             ->field("u.name,u.nickname,u.phone as userPhone")
             ->field("ms.phone")
             ->field("tl.location_title")
             ->field("ta.area_title")
+            ->field("tap.appearance_title")
             ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);

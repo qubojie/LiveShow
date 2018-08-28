@@ -318,6 +318,7 @@ class HomeArticles extends CommandAction
         }
 
         $links = $url."?article=".$link;
+//        $links = $link;
 
         $update_data = [
             "article_id"    => $article_id,

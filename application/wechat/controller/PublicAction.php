@@ -532,10 +532,13 @@ class PublicAction extends Controller
         //获取当天的24点的时间戳
         $date_end = $date + 24 * 60 * 60;
 
+        $date_start = date("Y-m-d",$date);
+        $date_end   = date("Y-m-d",$date_end);
+
         $is_exist = $tableRevenueModel
             ->where('table_id',$table_id)
             ->where($where_status)
-            ->whereTime('reserve_time','between',["$date","$date_end"])
+            ->whereTime('reserve_time','between',["$date_start","$date_end"])
             ->count();
 
         if ($is_exist > 0){
@@ -1084,5 +1087,101 @@ class PublicAction extends Controller
             return $this->com_return(false,\config("params.SALESMAN_NOT_EXIST"));
         }
 
+    }
+
+
+    /**
+     * 取消支付释放桌台公共部分
+     * @param $suid
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function releaseTablePublic($suid)
+    {
+        if (empty($suid)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $billSubscriptionModel = new BillSubscription();
+
+        $billInfo = $billSubscriptionModel
+            ->where("suid",$suid)
+            ->where("status",\config("order.reservation_subscription_status")['pending_payment']['key'])
+            ->find();
+
+        $billInfo = json_decode(json_encode($billInfo),true);
+
+        if (empty($billInfo)){
+            return $this->com_return(true,\config("params.SUCCESS"));
+        }
+
+        $trid = $billInfo['trid'];
+
+        Db::startTrans();
+        try{
+            //更新预约订台状态为交易取消
+            $table_params = [
+                "status"        => \config("order.table_reserve_status")['cancel']['key'],
+                "cancel_user"   => "user",
+                "cancel_time"   => time(),
+                "cancel_reason" => "取消支付",
+                "updated_at"    => time()
+            ];
+
+            $this->updatedTableRevenueInfo($table_params,$trid);
+
+            $bill_params = [
+                "status"        => \config("order.reservation_subscription_status")['cancel']['key'],
+                "cancel_user"   => "user",
+                "cancel_time"   => time(),
+                "auto_cancel"   => 0,
+                "cancel_reason" => "取消支付",
+                "updated_at"    => time()
+            ];
+
+            $this->updatedBillSubscription($bill_params,$trid);
+
+            Db::commit();
+
+            return $this->com_return(true,\config("params.SUCCESS"));
+
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage());
+        }
+    }
+
+    //更新预约台位信息(取消预约)
+    public function updatedTableRevenueInfo($params = array(),$trid)
+    {
+        $tableModel = new TableRevenue();
+
+        $is_ok = $tableModel
+            ->where("trid",$trid)
+            ->update($params);
+
+        if ($is_ok !== false){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    //更新定金信息
+    public function updatedBillSubscription($params = array(),$trid)
+    {
+        $billSubscriptionModel = new BillSubscription();
+
+        $is_ok = $billSubscriptionModel
+            ->where('trid',$trid)
+            ->update($params);
+
+        if ($is_ok){
+            return true;
+        }else{
+            return false;
+        }
     }
 }

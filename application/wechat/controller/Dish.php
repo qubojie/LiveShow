@@ -37,7 +37,13 @@ class Dish extends CommonAction
             "cat_img"  => ""
         ];
 
-        array_unshift($list['data'],$is_vip);
+        $is_combo = [
+            "cat_id"  => "combo",
+            "cat_name" => "套餐",
+            "cat_img" => ""
+        ];
+
+        array_unshift($list['data'],$is_vip,$is_combo);
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
@@ -70,6 +76,11 @@ class Dish extends CommonAction
 
         if ($cat_id == "vip"){
             $is_vip = 1;
+            $cat_id = "";
+        }
+
+        if ($cat_id == "combo"){
+            $dis_type = 1;
             $cat_id = "";
         }
 
@@ -153,6 +164,7 @@ class Dish extends CommonAction
         }else{
             $card_id = 0;
         }
+
         /*获取用户开卡信息 off*/
 
         for ($i = 0; $i <count($list); $i ++){
@@ -172,10 +184,13 @@ class Dish extends CommonAction
 
                 if ($dishes_card_price[$m]['dis_id'] == $dis_id){
                     if ($dishes_card_price[$m]['card_id'] == $card_id){
-                        $list[$i]['dis_vip_price']  = $dishes_card_price[$m]['price'];
-                    }else{
-                        $list[$i]['dis_vip_price']  = $list[$i]['normal_price'];
+                        $list[$i]['dis_vip_price']  = (int)$dishes_card_price[$m]['price'];
                     }
+
+                    if ($card_id == 0){
+                        $list[$i]['dis_vip_price']  = (int)$list[$i]['normal_price'];
+                    }
+
                 }else{
                     $list[$i]['dis_vip_price']  = $list[$i]['normal_price'];
                 }
@@ -207,8 +222,8 @@ class Dish extends CommonAction
         }
 
         /*获取用户开卡信息 on*/
-        $token    = $request->header("Token");
-        $obj = new CommonAction();
+        $token = $request->header("Token");
+        $obj   = new CommonAction();
 
         $userInfo = $obj->tokenGetUserInfo($token);
 

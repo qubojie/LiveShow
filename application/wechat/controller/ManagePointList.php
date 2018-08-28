@@ -11,6 +11,7 @@ namespace app\wechat\controller;
 use app\admin\model\MstTable;
 use app\admin\model\MstTableArea;
 use app\admin\model\MstTableLocation;
+use app\wechat\model\BillPay;
 use app\wechat\model\BillPayDetail;
 use think\Db;
 use think\Request;
@@ -26,23 +27,43 @@ class ManagePointList extends HomeAction
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function canRefundOrderList(Request $request)
+    public function canActionOrderList(Request $request)
     {
         $trid = $request->param("trid","");
 
         $billPayDetailModel = new BillPayDetail();
 
-        $billPayDetailList = Db::name("bill_pay_detail")
+        /*$billPayDetailList = Db::name("bill_pay_detail")
             ->alias("bpd")
             ->join("dishes d","d.dis_id = bpd.dis_id")
             ->join("bill_pay bp","bp.pid = bpd.pid")
             ->where("bpd.trid",$trid)
-            ->where("bp.sale_status","neq",config("order.bill_pay_sale_status")['cancel']['key'])
+//            ->where("bp.sale_status","neq",config("order.bill_pay_sale_status")['cancel']['key'])
+            ->where("bp.sale_status","eq",config("order.bill_pay_sale_status")['completed']['key'])
+            ->field("d.dis_img")
+            ->field('bpd.dis_id,sum(bpd.quantity) quantity')
+            ->group("bpd.dis_id")
+            ->having('sum(quantity)>0')
+            ->select();*/
+
+        $billPayModel = new BillPay();
+
+        $dishInfo = $billPayModel
+            ->alias("bp")
+            ->join("bill_pay_detail bpd","bpd.pid = bp.pid")
+            ->join("dishes d","d.dis_id = bpd.dis_id")
+            ->where("bp.trid",$trid)
+            ->where("bp.sale_status","eq",config("order.bill_pay_sale_status")['completed']['key'])
+            ->where("bpd.parent_id","0")
             ->field("d.dis_img")
             ->field('bpd.dis_id,sum(bpd.quantity) quantity')
             ->group("bpd.dis_id")
             ->having('sum(quantity)>0')
             ->select();
+
+        $dishInfo = json_decode(json_encode($dishInfo),true);
+
+        dump($dishInfo);die;
 
         for ($i = 0; $i < count($billPayDetailList); $i ++){
 

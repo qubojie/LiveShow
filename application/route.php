@@ -42,6 +42,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
     //微信三方登陆
     Route::rule('wechatLogin','wechat/ThirdLogin/wechatLogin');
 
+    //管理端小程序获取openid
+    Route::rule('getManageOpenId','wechat/ThirdLogin/getManageOpenId');
+
     //发送验证码
     Route::rule('captcha','auth/sendVerifyCode','post|options');
 
@@ -65,6 +68,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
     //小程序支付
     Route::rule('smallapp','wechatPay/smallapp','get|post|options');
+
+    //manage小程序支付
+    Route::rule('manageSmallApp','wechatPay/manageSmallApp','get|post|options');
 
     //钱包支付
     Route::rule('walletPay','DishOrderPay/walletPay','post|options');
@@ -221,13 +227,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
         //工作人员
         Route::group(['name' => 'manage'],function (){
+
             //登陆
             Route::rule('login','ManageAuth/login','post|options');
+
+            //绑定授权信息
+            Route::rule('phoneBindWechat','ManageAuth/phoneBindWechat','post|options');
 
             //变更密码
             Route::rule('changePass','ManageInfo/changePass','post|options');
 
-            //phoneGetUserName
+            //电话获取用户姓名
             Route::rule('getUserName','ManageReservation/phoneGetUserName','post|options');
 
             //可预约吧台列表
@@ -235,6 +245,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
             //预约确认
             Route::rule('reservationConfirm','ManageReservation/reservationConfirm','post|options');
+
+            //主动取消支付,释放桌台
+            Route::rule('releaseTable','ManageReservation/releaseTable','post|options');
 
             //我的预约列表
             Route::rule('reservationOrder','ManageInfo/reservationOrder','post|options');
@@ -263,6 +276,8 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
                 //菜品列表
                 Route::rule('index','ManageDish/index','post|options');
 
+                //菜品详情
+                Route::rule('dishDetail','ManageDish/dishDetail','post|options');
 
             });
 
@@ -278,18 +293,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
                 //工作人员取消未支付的点单
                 Route::rule('cancelDishOrder','ManagePointList/cancelDishOrder','post|options');
 
-                //订台可退菜品订单列表
-                Route::rule('canRefundOrderList','ManagePointList/canRefundOrderList','post|options');
+                //订台可操作菜品订单列表
+                Route::rule('canActionOrderList','ManagePointList/canActionOrderList','post|options');
 
                 //退单
                 Route::rule('refundOrder','ManageRefundList/refundOrder','post|options');
+
+                //换单
+                Route::rule('changeList','ManageChangeList/changeList','post|options');
             });
-
-
         });
-
     });
-
 });
 
 //后台路由群组

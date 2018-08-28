@@ -283,7 +283,7 @@ return [
         "SALESMAN_PHONE_ERROR"  => "请输入正确的营销人员号码",
         "SALESMAN_NOT_EXIST"    => "您输入的营销手机号码不存在,请核对后重试",
         "TABLE_INVALID"         => "所订吧台无效",
-        "TABLE_IS_RESERVE"      => "很遗憾,该吧台已被其他顾客预约,请从新挑选",
+        "TABLE_IS_RESERVE"      => "很遗憾,该吧台已被其他顾客预约,请重新挑选",
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
         "PHONE_NOT_EXIST"       => "未找到相关会员信息",
         "TODAY_NOT_HAVA_TABLE"  => "今日无预约",
@@ -293,7 +293,8 @@ return [
             "CANCELED"          => "预约已取消,请重新预约",
             "UNPAY"             => "未支付定金,不可开台",
             "ALREADYOPEN"       => "预约已开台,不可重复操作",
-            "CLEARTABLE"        => "桌已清台,不可扫码开台"
+            "CLEARTABLE"        => "桌已清台,不可扫码开台",
+            "OPEN_RETURN"       => "不是当日预约信息或其他异常,请核实"
         ],
         "MANAGE_INFO"           => [
             "UsrLMT"            => "权限不足",
@@ -307,7 +308,7 @@ return [
             "STATUS_NO_CANCEL"  => "订单已支付,不可取消",
             "ORDER_NOT_REFUND"  => "订单不可退",
             "REFUND_WAIT_AUDIT" => "退单成功,等待审核",
-            "REFUND_ABNORMAL"   => "退单异常"
+            "REFUND_ABNORMAL"   => "退单异常",
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",

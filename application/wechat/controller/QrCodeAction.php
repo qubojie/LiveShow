@@ -26,11 +26,14 @@ class QrCodeAction extends Controller
         $qrCodeParam = $request->param("qrCodeParam", "");
 
         if (empty($qrCodeParam)) {
+
             return $this->com_return(false, config("params.PARAM_NOT_EMPTY"));
+
         }
 
-        $prefix_arr = config("qrcode.prefix");//前缀配置数组
-        $delimiter  = config("qrcode.delimiter")['key'];//分隔符
+        $prefix_arr   = config("qrcode.prefix");//前缀配置数组
+
+        $delimiter    = config("qrcode.delimiter")['key'];//分隔符
 
         $qrCodeParams = explode("$delimiter","$qrCodeParam");
 
@@ -38,7 +41,7 @@ class QrCodeAction extends Controller
             //开台
             $trid = $qrCodeParams[1];
 
-            $res  = $this->checkTableStatus($trid);//
+            $res  = $this->checkTableStatus($trid);
 
             return $res;
 

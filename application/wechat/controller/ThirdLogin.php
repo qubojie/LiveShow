@@ -140,4 +140,21 @@ class ThirdLogin extends Controller
         curl_close($info);
         return $output;
     }
+
+    /**
+     * 管理端小程序获取openid
+     * @param Request $request
+     * @return mixed
+     */
+    public function getManageOpenId(Request $request)
+    {
+        $code = $request->param('code','');
+
+        $Appid  = Env::get("WECHAT_XCX_MANAGE_APPID");
+        $Secret = Env::get("WECHAT_XCX_MANAGE_APPSECRET");
+        $url    = 'https://api.weixin.qq.com/sns/jscode2session?appid='.$Appid.'&secret='.$Secret.'&js_code=' . $code . '&grant_type=authorization_code';
+        $info   = $this->vget($url);
+        $info   = json_decode($info,true);//对json数据解码
+        return $this->com_return(true,config("params.SUCCESS"),$info);
+    }
 }

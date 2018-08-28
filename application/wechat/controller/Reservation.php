@@ -394,62 +394,21 @@ class Reservation extends CommonAction
         }
     }
 
-    //用户主动取消支付,释放桌台
+    /**
+     * 用户主动取消支付,释放桌台
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
     public function releaseTable(Request $request)
     {
         $suid = $request->param("vid","");
 
-        if (empty($suid)){
-            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
-        }
+        $publicActionObj = new PublicAction();
 
-        $billSubscriptionModel = new BillSubscription();
-
-        $billInfo = $billSubscriptionModel
-            ->where("suid",$suid)
-            ->where("status",\config("order.reservation_subscription_status")['pending_payment']['key'])
-            ->find();
-
-        $billInfo = json_decode(json_encode($billInfo),true);
-
-        if (empty($billInfo)){
-            return $this->com_return(true,\config("params.SUCCESS"));
-        }
-
-        $trid = $billInfo['trid'];
-
-        Db::startTrans();
-        try{
-            //更新预约订台状态为交易取消
-            $table_params = [
-                "status"        => \config("order.table_reserve_status")['cancel']['key'],
-                "cancel_user"   => "user",
-                "cancel_time"   => time(),
-                "cancel_reason" => "取消支付",
-                "updated_at"    => time()
-            ];
-
-            $this->updatedTableRevenueInfo($table_params,$trid);
-
-            $bill_params = [
-                "status"        => \config("order.reservation_subscription_status")['cancel']['key'],
-                "cancel_user"   => "user",
-                "cancel_time"   => time(),
-                "auto_cancel"   => 0,
-                "cancel_reason" => "取消支付",
-                "updated_at"    => time()
-            ];
-
-            $this->updatedBillSubscription($bill_params,$trid);
-
-            Db::commit();
-
-            return $this->com_return(true,\config("params.SUCCESS"));
-
-        }catch (Exception $e){
-            Db::rollback();
-            return $this->com_return(false,$e->getMessage());
-        }
+        return $publicActionObj->releaseTablePublic($suid);
     }
 
 

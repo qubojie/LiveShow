@@ -118,6 +118,7 @@ class MyInfo extends CommonAction
         $user_info['revenue_num'] = $user_revenue_num;
 
         return $this->com_return(true,config("SUCCESS"),$user_info);
+
     }
 
     /**
@@ -327,10 +328,8 @@ class MyInfo extends CommonAction
                 $list["data"][$i]['image_group'][] = $tableImage[$m]['image'];
             }
         }
-
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
-
 
     /**
      * 我的订单列表
@@ -353,7 +352,6 @@ class MyInfo extends CommonAction
         $config = [
             "page" => $nowPage,
         ];
-
 
         $billPayModel = new BillPay();
 

@@ -148,6 +148,9 @@ class SalesUser extends CommandAction
      * 人员添加
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function add(Request $request)
     {
@@ -196,7 +199,7 @@ class SalesUser extends CommandAction
         $rule = [
             "department_id|部门"          => "require",
             "stype_id|销售员类型"          => "require",
-            "is_governor|是否负责人"       => "require",
+//            "is_governor|是否负责人"       => "require",
             "sales_name|姓名"             => "require",
             "statue|销售员状态"            => "require",
 //            "id_no|身份证号"             => "require|unique:manage_salesman",
@@ -209,7 +212,7 @@ class SalesUser extends CommandAction
         $request_res = [
             "department_id"         => $department_id,
             "stype_id"              => $stype_id,
-            "is_governor"           => $is_governor,
+//            "is_governor"           => $is_governor,
             "sales_name"            => $sales_name,
             "statue"                => $statue,
 //            "id_no"                 => $id_no,
@@ -314,18 +317,18 @@ class SalesUser extends CommandAction
             return $common->com_return(false,config("PARAM_NOT_EMPTY"));
         }
 
-        $department_id  = $request->param("department_id","");//部门id
-        $stype_id       = $request->param("stype_id","");//销售员类型ID
-        $is_governor    = $request->param("is_governor","");//是否业务主管 0否,1是
-        $sales_name     = $request->param("sales_name","");//姓名
-        $phone          = $request->param("phone","");//电话号码 必须唯一 未来可用于登录 实名验证等使用
+        $department_id    = $request->param("department_id","");//部门id
+        $stype_id         = $request->param("stype_id","");//销售员类型ID
+        $is_governor      = $request->param("is_governor","");//是否业务主管 0否,1是
+        $sales_name       = $request->param("sales_name","");//姓名
+        $phone            = $request->param("phone","");//电话号码 必须唯一 未来可用于登录 实名验证等使用
 
 
 
         $rule = [
             "department_id|部门"          => "require",
             "stype_id|销售员类型"          => "require",
-            "is_governor|是否是负责人"          => "require",
+//            "is_governor|是否是负责人"     => "require",
             "sales_name|姓名"             => "require",
 //            "id_no|身份证号"             => "require|unique:manage_salesman",
 //            "id_img1|身份证正面照片"      => "require",
@@ -337,7 +340,7 @@ class SalesUser extends CommandAction
         $request_res = [
             "department_id"         => $department_id,
             "stype_id"             => $stype_id,
-            "is_governor"             => $is_governor,
+//            "is_governor"             => $is_governor,
             "sales_name"            => $sales_name,
 //            "id_no"                 => $id_no,
 //            "id_img1"               => $id_img1,
@@ -349,7 +352,7 @@ class SalesUser extends CommandAction
         $validate = new Validate($rule);
 
         if (!$validate->check($request_res)){
-            return $common->com_return(false,$validate->getError(),null);
+            return $common->com_return(false,$validate->getError());
         }
 
         //判断电话号码是否存在
@@ -366,13 +369,28 @@ class SalesUser extends CommandAction
 
         $time = time();
 
-        if (isset($param["password"]) && isset($param["password_confirmation"])) {
+        if (isset($param["password"]) && !empty($param["password"])) {
 
-            if ($param["password"] !== $param["password_confirmation"]) {
-                return $common->com_return(false,config("PASSWORD_DIF"));
+            $rule = [
+                "password|密码"        => "alphaNum|length:6,20",
+            ];
+
+            $request_res = [
+                "password"            => $param["password"],
+            ];
+
+            $validate = new Validate($rule);
+
+            if (!$validate->check($request_res)){
+                return $common->com_return(false,$validate->getError(),null);
             }
 
-            $param = $common->bykey_reitem($param,'password_confirmation');
+            $param["password"] = sha1($param["password"]);
+        }
+
+        if (empty($param["password"])){
+            //如果为空,移除
+            $param = $common->bykey_reitem($param,"password");
         }
 
         $param["updated_at"] = $time;

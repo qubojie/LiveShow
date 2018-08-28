@@ -51,7 +51,9 @@ class TableAction extends HomeAction
         $info = json_decode(json_encode($info),true);
 
         if (empty($info)){
-            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+
+            return $this->com_return(false,config("params.OPEN_TABLE_STATUS")['OPEN_RETURN']);
+
         }
 
         $status = $info["status"];

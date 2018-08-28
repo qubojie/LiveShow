@@ -107,7 +107,63 @@ class WechatPay extends Controller
     }
 
     /**
-     * 小程序支付
+     * 服务端小程序支付
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function manageSmallApp(Request $request)
+    {
+        $vid = $request->param("vid","");
+
+        $openId = $request->param('openid','');
+
+        $scene  = $request->param("scene","");//支付场景
+
+        if (empty($vid)){
+            return $this->com_return(false,'订单号不能为空');
+        }
+
+        $payable_amount = false;
+
+        if ($scene == config("order.pay_scene")['reserve']['key']){
+            //这里去处理预约定金回调逻辑
+            //获取订台金额
+            $payable_amount = $this->getSubscriptionPayableAmount($vid);
+
+        }
+
+        if ($scene == config("order.pay_scene")['point_list']['key']){
+            //获取点单支付金额
+            $payable_amount = $this->getBillPayAmount($vid);
+
+        }
+
+        if ($payable_amount == false){
+            return $this->com_return(false,'订单有误');
+        }
+
+        $params = [
+            'body'         => Env::get("PAY_BODY"),
+            'out_trade_no' => $vid,
+            'total_fee'    => $payable_amount * 100,
+        ];
+
+        Log::info("充值组装参数 --- ".var_export($params,true));
+
+        $result = JsapiPay::getParamsManage($params,$openId,$scene);
+
+        return $result;
+
+
+
+    }
+
+
+    /**
+     * 客户端小程序支付
      * @param Request $request
      * @return array|\json数据，可直接填入js函数作为参数
      * @throws \think\db\exception\DataNotFoundException
@@ -125,6 +181,8 @@ class WechatPay extends Controller
         if (empty($vid)){
             return $this->com_return(false,'订单号不能为空');
         }
+
+
 
         $payable_amount = false;
 
