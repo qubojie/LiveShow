@@ -300,15 +300,20 @@ return [
             "UsrLMT"            => "权限不足",
         ],
         "ORDER"                 => [
+            "ORDER_ID_EMPTY"    => "订单号不能为空",
             "completed"         => "订单已支付,请勿重复操作",
             "NOW_STATUS_NOT_PAY"=> "支付操作异常",
-            "BALANCE_NOT_ENOUGH"=> "余额不足",
+            "BALANCE_NOT_ENOUGH"=> "钱包余额不足",
+            "GIFT_NOT_ENOUGH"   => "礼金账户余额不足",
             "NOW_STATUS_ERROR"  => "当前状态不允许此操作",
             "ORDER_ABNORMAL"    => "订单异常",
             "STATUS_NO_CANCEL"  => "订单已支付,不可取消",
             "ORDER_NOT_REFUND"  => "订单不可退",
             "REFUND_WAIT_AUDIT" => "退单成功,等待审核",
             "REFUND_ABNORMAL"   => "退单异常",
+            "PAY_SUCCESS"       => "支付成功",
+            "ORDER_CANCEL"      => "订单已取消",
+            "WAIT_RESULT"       => "等待支付结果"
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -321,7 +326,8 @@ return [
             "DATE_NOT_EMPTY"    => "日期不能为空",
             "TURN_OBJ_NO_SELF"  => "转至对象不能是自身",
             "XD_TABLE_FALL"     => "用户权限不足以预定本桌",
-            "CLEAN_BEFORE_USER" => "清台之前,请完善用户信息"
+            "CLEAN_BEFORE_USER" => "清台之前,请完善用户信息",
+            "NOT_OPEN_NOT_DISH" => "请先开台"
         ],
         "DISHES"                => [
             "CLASS_EXIST_DISHES"=>  "当前分类下存在菜品,不可直接删除",
@@ -521,9 +527,10 @@ return [
 
         //前缀规则
         'prefix' => [
-            '0' => ['key' => '258TR', 'name' => '开台二维码'],
-            '1' => ['key' => '258LQ', 'name' => '礼券二维码'],
-            '2' => ['key' => '258DD', 'name' => '扫码点单']
+            '0' => ['key' => '258TR',  'name' => '开台二维码'],
+            '1' => ['key' => '258LQ',  'name' => '礼券二维码'],
+            '2' => ['key' => '258DD',  'name' => '扫码点单'],
+            '3' => ['key' => '258PAY', 'name' => '客户扫码钱包支付']
         ],
 
         //分隔符
@@ -704,6 +711,10 @@ return [
         'dish_type' => [
             0 => ['key' => '0', 'name' => '单品'],
             1 => ['key' => '1', 'name' => '套餐']
+        ],
+        'xcx_dish_menu' => [
+            0 => ['key' => 'vip',   'name' => '会员专享', 'img' => ''],
+            1 => ['key' => 'combo', 'name' => '套餐',     'img' => '']
         ],
     ],
 

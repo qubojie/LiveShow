@@ -27,7 +27,6 @@ class YlyPrint extends Controller
         $yly_access_token  = Cache::get("yly_access_token");
         $yly_refresh_token = Cache::get("yly_refresh_token");
 
-
         if ($yly_access_token !== false){
 
             $params = [
@@ -142,19 +141,23 @@ class YlyPrint extends Controller
         $api = new \YLYOpenApiClient();
 
         $content = "";                          //打印内容
+        $content .= '<MS>0,0</MS>';
+        $content .= '<FS2><center>点 单</center></FS2>';
         $content .= '<FS><center>'.$tableName.'</center></FS>';
         $content .= str_repeat('-',48);
         $content .= '<FS><table>';
-        $content .= '<tr><td>商品</td><td>数量</td><td>价格</td></tr>';
+        $content .= '<tr><td>商品</td><td>数量</td></tr>';
 
         $allPrice = 0;
         for ($i = 0; $i <count($dishInfo); $i ++){
             $price = $dishInfo[$i]['quantity'] * $dishInfo[$i]['price'];
-            $content .= '<tr><td>'.$dishInfo[$i]['dis_name'].'</td><td>x'.$dishInfo[$i]['quantity'].'</td><td>￥'.$price.'</td></tr>';
+            if (!$dishInfo[$i]['dis_type']){
+                $content .= '<tr><td>'.$dishInfo[$i]['dis_name'].'</td><td>'.$dishInfo[$i]['quantity'].'</td></tr>';
+            }
             if ($dishInfo[$i]['dis_type']){
                 $children = $dishInfo[$i]['children'];
                 for ($m = 0; $m < count($children); $m ++){
-                    $content .= '<tr><td> </td><td>'.$children[$m]['dis_name'].'</td><td>'.$children[$m]['quantity'].'</td></tr>';
+                    $content .= '<tr><td>'.$children[$m]['dis_name'].'</td><td>'.$children[$m]['quantity'].'</td></tr>';
                 }
             }
 
@@ -163,11 +166,11 @@ class YlyPrint extends Controller
 
         $content .= '</table></FS>';
         $content .= str_repeat('-',48)."\n";
-        $content .= '<FS>金额: '.$allPrice.'元</FS>';
+        $content .= '打印时间 '.date("Y-m-d H:i:s");
 
         $machineCode = Env::get("YLY_MACHINE_CODE_1");  //授权的终端号
-        $originId = '1234567890';     //商户自定义id
-        $timesTamp = time();          //当前服务器时间戳(10位)
+        $originId    = '1234567890';     //商户自定义id
+        $timesTamp   = time();          //当前服务器时间戳(10位)
 
         $res = $api->printIndex($machineCode,$accessToken,$content,$originId,$timesTamp);
 
@@ -176,6 +179,12 @@ class YlyPrint extends Controller
         return $res;
     }
 
+    /**
+     * 退单落单
+     * @param $accessToken
+     * @param $params
+     * @return mixed
+     */
     public function refundDish($accessToken,$params)
     {
         $api = new \YLYOpenApiClient();

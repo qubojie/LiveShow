@@ -8,6 +8,7 @@
 namespace app\wechat\controller;
 
 use app\admin\model\TableRevenue;
+use app\wechat\model\BillPay;
 use think\Controller;
 use think\Request;
 
@@ -43,15 +44,20 @@ class QrCodeAction extends Controller
 
             $res  = $this->checkTableStatus($trid);
 
-            return $res;
+        } else if ($qrCodeParams[0] == $prefix_arr[3]['key']){
 
-        } else {
+            //扫码余额支付订单,获取点单信息
+            $pid = $qrCodeParams[1];
+
+            $res = $this->getBillPayInfo($pid);
+
+        } else{
             //使用礼券
             $res = $this->giftVoucherUse();
 
-            return $res;
-
         }
+
+        return $res;
 
     }
 
@@ -110,8 +116,8 @@ class QrCodeAction extends Controller
             ->alias("tr")
             ->join("user u","u.uid = tr.uid")
             ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
-            ->join("mst_table_area ta","ta.area_id = tr.area_id")
-            ->join("mst_table_location tl","tl.location_id = ta.area_id")
+            ->join("mst_table_area ta","ta.area_id = tr.area_id","LEFT")
+            ->join("mst_table_location tl","tl.location_id = ta.location_id","LEFT")
             ->join("mst_table t","t.table_id = tr.table_id")
             ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")
             ->field("tl.location_title")
@@ -129,6 +135,47 @@ class QrCodeAction extends Controller
 
         return $res;
 
+    }
+
+    /**
+     * 获取订单金额
+     * @param $pid
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getBillPayInfo($pid)
+    {
+        $billPayModel = new BillPay();
+
+        $res = $billPayModel
+            ->where("pid",$pid)
+            ->field("pid,order_amount,payable_amount,sale_status")
+            ->find();
+
+        $res = json_decode(json_encode($res),true);
+
+        if (empty($res)){
+            return $this->com_return(false,config("params.ORDER")['ORDER_ABNORMAL']);
+        }
+
+        /*$sale_status = $res['sale_status'];
+
+        if ($sale_status == config("order.bill_pay_sale_status")['completed']['key']) {
+            //订单已支付
+            return $this->com_return(false, config("params.ORDER")['completed']);
+
+        }
+
+        if ($sale_status != config("order.bill_pay_sale_status")['pending_payment_return']['key']){
+
+            return $this->com_return(false, config("params.ORDER")['NOW_STATUS_NOT_PAY']);
+
+        }*/
+
+
+        return $this->com_return(false,config("params.SUCCESS"),$res);
     }
 
 

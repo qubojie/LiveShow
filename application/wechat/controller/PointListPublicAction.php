@@ -44,18 +44,94 @@ class PointListPublicAction extends Controller
 
 
     /**
+     * 赠品下单公共部分
+     * @param $trid
+     * @param $sid
+     * @param $order_amount
+     * @param $dish_group
+     * @param $type
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function giveDishPublicAction($trid,$sid,$order_amount,$dish_group,$type)
+    {
+        $tableRevenueModel = new TableRevenue();
+
+        $revenue_column    = $tableRevenueModel->revenue_column;
+
+        $table_revenue_info = $tableRevenueModel
+            ->alias("tr")
+            ->where("tr.trid",$trid)
+            ->field($revenue_column)
+            ->find();
+
+        $table_revenue_info = json_decode(json_encode($table_revenue_info),true);
+
+        if (empty($table_revenue_info)){
+
+            return $this->com_return(false,config("params.ABNORMAL_ACTION")."(HOME-DD001)");
+
+        }
+
+        if ($table_revenue_info['status'] != config("order.table_reserve_status")['already_open']['key']){
+            //如果不是开台状态,是不能点单
+            return $this->com_return(false,config("params.ORDER")['NOW_STATUS_ERROR']."(HOME-DD002)");
+
+        }
+
+        Db::startTrans();
+        try{
+
+            /*创建消费单缴费单 On*/
+
+            $pay_offline_type = "";
+
+            $pay_type = "";
+
+            $pointListPublicObj = new  PointListPublicAction();
+
+            $uid = NULL;
+
+            $pid = $pointListPublicObj->createBillPay("$trid",$uid,"$sid","$type","$order_amount","$order_amount","$pay_type","$pay_offline_type");
+
+            if ($pid == false){
+                return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD003)");
+            }
+            /*创建消费单缴费单 Off*/
+
+            /*创建菜品订单付款详情 On*/
+            $this->createBillPayDetailAction($dish_group,$pid,$trid);
+            /*创建菜品订单付款详情 Off*/
+
+            Db::commit();
+            $orderInfo = $pointListPublicObj->pidGetOrderInfo($pid);
+            return $this->com_return(true,\config("params.SUCCESS"),$orderInfo);
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage());
+        }
+
+
+    }
+
+
+    /**
      * 点单公共部分
      * @param $trid
      * @param $sid
      * @param $order_amount
      * @param $dish_group
+     * @param $pay_type
+     * @param $type
      * @param $uid
      * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function pointListPublicAction($trid,$sid,$order_amount,$dish_group,$uid = NULL)
+    public function pointListPublicAction($trid,$sid,$order_amount,$dish_group,$pay_type,$type = 0,$uid = NULL)
     {
         $tableRevenueModel = new TableRevenue();
 
@@ -85,10 +161,10 @@ class PointListPublicAction extends Controller
         try{
             /*创建消费单缴费单 On*/
 
-            $type = \config("order.bill_pay_type")['consumption']['key'];
+//            $type = \config("order.bill_pay_type")['consumption']['key'];
             $pay_offline_type = "";
 
-            $pay_type = "wxpay";
+//            $pay_type = "wxpay";
 
             $pointListPublicObj = new  PointListPublicAction();
 
@@ -100,143 +176,9 @@ class PointListPublicAction extends Controller
             /*创建消费单缴费单 Off*/
 
             /*创建菜品订单付款详情 On*/
+            $this->createBillPayDetailAction($dish_group,$pid,$trid);
+            /*创建菜品订单付款详情 Off*/
 
-            $dish_group = json_decode($dish_group,true);
-
-            for ($i = 0; $i < count($dish_group); $i ++){
-                $dis_id   = $dish_group[$i]['dis_id'];
-
-                $dis_type = $dish_group[$i]['dis_type'];
-
-                $price    = $dish_group[$i]['price'];
-
-                $quantity = $dish_group[$i]['quantity'];
-
-                $dishInfo = $this->disIdGetDisInfo($dis_id);
-
-                if (empty($dishInfo)){
-                    return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD004)");
-                }
-
-                $dis_name  = $dishInfo['dis_name'];
-                $dis_sn    = $dishInfo['dis_sn'];
-                $dis_desc  = $dishInfo['dis_desc'];
-                $is_give   = $dishInfo['is_give'];
-                $parent_id = 0;
-
-                $z_params = [
-                    "parent_id" => $parent_id,
-                    "pid"       => $pid,
-                    "trid"      => $trid,
-                    "is_give"   => $is_give,
-                    "dis_id"    => $dis_id,
-                    "dis_type"  => $dis_type,
-                    "dis_sn"    => $dis_sn,
-                    "dis_name"  => $dis_name,
-                    "dis_desc"  => $dis_desc,
-                    "quantity"  => $quantity,
-                    "price"     => $price
-                ];
-
-                //创建主信息
-                $billPayDetailReturn = $pointListPublicObj->createBillPayDetail($z_params);
-                if ($billPayDetailReturn == false){
-                    return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD005)");
-                }
-
-                if ($dis_type){
-                    //如果是套餐
-                    $dishes_combo = $dish_group[$i]['dishes_combo'];
-
-                    if (empty($dishes_combo)){
-                        return $this->com_return(false,\config("params.DISHES")['COMBO_DIST_EMPTY']."(HOME-DD006)");
-                    }
-
-                    for ($m = 0; $m <count($dishes_combo); $m ++){
-                        $sc_dis_id   = $dishes_combo[$m]['dis_id'];
-                        $sc_type     = $dishes_combo[$m]['type'];
-                        $sc_quantity = $dishes_combo[$m]['quantity'];
-
-                        $scDisInfo = $this->disIdGetDisInfo($sc_dis_id);
-
-                        if (!empty($scDisInfo)){
-                            $sc_dis_name = $scDisInfo['dis_name'];
-                            $sc_dis_sn   = $scDisInfo['dis_sn'];
-                            $sc_is_give  = $scDisInfo['is_give'];
-                            $sc_dis_desc = $scDisInfo['dis_desc'];
-
-                            $cz_params = [
-                                "parent_id" => $billPayDetailReturn,
-                                "pid"       => $pid,
-                                "trid"      => $trid,
-                                "is_give"   => $sc_is_give,
-                                "dis_id"    => $sc_dis_id,
-                                "dis_type"  => $sc_type,
-                                "dis_sn"    => $sc_dis_sn,
-                                "dis_name"  => $sc_dis_name,
-                                "dis_desc"  => $sc_dis_desc,
-                                "quantity"  => $sc_quantity,
-                                "price"     => 0
-                            ];
-
-                            $czBillPayDetailReturn = $pointListPublicObj->createBillPayDetail($cz_params);
-                        }else{
-                            $czBillPayDetailReturn = 0;
-                        }
-
-                        if ($czBillPayDetailReturn === false){
-                            return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD007)");
-                        }
-
-                        if ($sc_type){
-                            //如果是套餐内换品组
-                            $children = $dishes_combo[$m]['children'];
-                            if (empty($children)){
-                                return $this->com_return(false,\config("params.DISHES")['COMBO_ID_NOT_EMPTY']."(HOME-DD008)");
-                            }
-
-                            for ($n = 0; $n <count($children); $n ++){
-                                $children_dis_id       = $children[$n]['dis_id'];
-                                $children_quantity     = $children[$n]['quantity'];
-
-                                $childrenDishInfo = $this->disIdGetDisInfo($children_dis_id);
-
-                                if (empty($childrenDishInfo)){
-                                    return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD009)");
-                                }
-
-
-                                $children_is_give  = $childrenDishInfo['is_give'];
-                                $children_dis_sn   = $childrenDishInfo['dis_sn'];
-                                $children_dis_name = $childrenDishInfo['dis_name'];
-                                $children_dis_desc = $childrenDishInfo['dis_desc'];
-
-
-                                $little_params = [
-                                    "parent_id" => $billPayDetailReturn,
-                                    "pid"       => $pid,
-                                    "trid"      => $trid,
-                                    "is_give"   => $children_is_give,
-                                    "dis_id"    => $children_dis_id,
-                                    "dis_sn"    => $children_dis_sn,
-                                    "dis_name"  => $children_dis_name,
-                                    "dis_desc"  => $children_dis_desc,
-                                    "quantity"  => $children_quantity,
-                                    "price"     => 0
-                                ];
-
-                                $lBillPayDetailReturn = $pointListPublicObj->createBillPayDetail($little_params);
-
-                                if ($lBillPayDetailReturn == false){
-                                    return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD010)");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            /*创建菜品订单付款详情 On*/
             Db::commit();
             $orderInfo = $pointListPublicObj->pidGetOrderInfo($pid);
             return $this->com_return(true,\config("params.SUCCESS"),$orderInfo);
@@ -244,6 +186,158 @@ class PointListPublicAction extends Controller
             Db::rollback();
             return $this->com_return(false,$e->getMessage());
         }
+    }
+
+    /**
+     * 创建菜品订单详情
+     * @param $dish_group
+     * @param $pid
+     * @param $trid
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function createBillPayDetailAction($dish_group,$pid,$trid)
+    {
+        /*创建菜品订单付款详情 On*/
+        $dish_group = json_decode($dish_group,true);
+
+        for ($i = 0; $i < count($dish_group); $i ++){
+            $dis_id   = $dish_group[$i]['dis_id'];
+
+            $dis_type = $dish_group[$i]['dis_type'];
+
+            $price    = $dish_group[$i]['price'];
+
+            $quantity = $dish_group[$i]['quantity'];
+
+            $dishInfo = $this->disIdGetDisInfo($dis_id);
+
+            if (empty($dishInfo)){
+                return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD004)");
+            }
+
+            $dis_name  = $dishInfo['dis_name'];
+            $dis_sn    = $dishInfo['dis_sn'];
+            $dis_desc  = $dishInfo['dis_desc'];
+            $is_give   = $dishInfo['is_give'];
+            $parent_id = 0;
+
+            $z_params = [
+                "parent_id" => $parent_id,
+                "pid"       => $pid,
+                "trid"      => $trid,
+                "is_give"   => $is_give,
+                "dis_id"    => $dis_id,
+                "dis_type"  => $dis_type,
+                "dis_sn"    => $dis_sn,
+                "dis_name"  => $dis_name,
+                "dis_desc"  => $dis_desc,
+                "quantity"  => $quantity,
+                "price"     => $price
+            ];
+
+            //创建主信息
+            $pointListPublicObj = new  PointListPublicAction();
+            $billPayDetailReturn = $pointListPublicObj->createBillPayDetail($z_params);
+            if ($billPayDetailReturn == false){
+                return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD005)");
+            }
+
+            if ($dis_type){
+                //如果是套餐
+                $dishes_combo = $dish_group[$i]['dishes_combo'];
+
+                if (empty($dishes_combo)){
+                    return $this->com_return(false,\config("params.DISHES")['COMBO_DIST_EMPTY']."(HOME-DD006)");
+                }
+
+                for ($m = 0; $m <count($dishes_combo); $m ++){
+                    $sc_dis_id   = $dishes_combo[$m]['dis_id'];
+                    $sc_type     = $dishes_combo[$m]['type'];
+                    $sc_quantity = $dishes_combo[$m]['quantity'];
+
+                    $scDisInfo = $this->disIdGetDisInfo($sc_dis_id);
+
+                    if (!empty($scDisInfo)){
+                        $sc_dis_name = $scDisInfo['dis_name'];
+                        $sc_dis_sn   = $scDisInfo['dis_sn'];
+                        $sc_is_give  = $scDisInfo['is_give'];
+                        $sc_dis_desc = $scDisInfo['dis_desc'];
+
+                        $cz_params = [
+                            "parent_id" => $billPayDetailReturn,
+                            "pid"       => $pid,
+                            "trid"      => $trid,
+                            "is_give"   => $sc_is_give,
+                            "dis_id"    => $sc_dis_id,
+                            "dis_type"  => $sc_type,
+                            "dis_sn"    => $sc_dis_sn,
+                            "dis_name"  => $sc_dis_name,
+                            "dis_desc"  => $sc_dis_desc,
+                            "quantity"  => $sc_quantity,
+                            "price"     => 0
+                        ];
+
+                        $czBillPayDetailReturn = $pointListPublicObj->createBillPayDetail($cz_params);
+                    }else{
+                        $czBillPayDetailReturn = 0;
+                    }
+
+                    if ($czBillPayDetailReturn === false){
+                        return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD007)");
+                    }
+
+                    if ($sc_type){
+                        //如果是套餐内换品组
+                        $children = $dishes_combo[$m]['children'];
+                        if (empty($children)){
+                            return $this->com_return(false,\config("params.DISHES")['COMBO_ID_NOT_EMPTY']."(HOME-DD008)");
+                        }
+
+                        for ($n = 0; $n <count($children); $n ++){
+                            $children_dis_id       = $children[$n]['dis_id'];
+                            $children_quantity     = $children[$n]['quantity'];
+
+                            $childrenDishInfo = $this->disIdGetDisInfo($children_dis_id);
+
+                            if (empty($childrenDishInfo)){
+                                return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD009)");
+                            }
+
+
+                            $children_is_give  = $childrenDishInfo['is_give'];
+                            $children_dis_sn   = $childrenDishInfo['dis_sn'];
+                            $children_dis_name = $childrenDishInfo['dis_name'];
+                            $children_dis_desc = $childrenDishInfo['dis_desc'];
+
+
+                            $little_params = [
+                                "parent_id" => $billPayDetailReturn,
+                                "pid"       => $pid,
+                                "trid"      => $trid,
+                                "is_give"   => $children_is_give,
+                                "dis_id"    => $children_dis_id,
+                                "dis_sn"    => $children_dis_sn,
+                                "dis_name"  => $children_dis_name,
+                                "dis_desc"  => $children_dis_desc,
+                                "quantity"  => $children_quantity,
+                                "price"     => 0
+                            ];
+
+                            $lBillPayDetailReturn = $pointListPublicObj->createBillPayDetail($little_params);
+
+                            if ($lBillPayDetailReturn == false){
+                                return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD010)");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        /*创建菜品订单付款详情 Off*/
     }
 
 
@@ -254,7 +348,22 @@ class PointListPublicAction extends Controller
 
         $pid          = $UUID->generateReadableUUID("P");
 
-        $sale_status  = \config("order.bill_pay_sale_status")['pending_payment_return']['key'];
+        if ($type == \config("order.bill_pay_type")['give']['key']){
+
+            //如果是赠品 -> 待审核
+            $sale_status  = \config("order.bill_pay_sale_status")['wait_audit']['key'];
+
+        }else{
+
+            $sale_status  = \config("order.bill_pay_sale_status")['pending_payment_return']['key'];
+
+        }
+
+        if ($pay_type == \config("order.pay_method")['offline']['key']){
+
+            $sale_status = \config("order.bill_pay_sale_status")['wait_audit']['key'];
+
+        }
 
         $nowTime      = time();
 

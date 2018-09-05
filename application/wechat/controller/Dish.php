@@ -32,17 +32,18 @@ class Dish extends CommonAction
         $list = json_decode(json_encode($res),true);
 
         $is_vip = [
-            "cat_id"   => "vip",
-            "cat_name" => "会员专享",
-            "cat_img"  => ""
+            "cat_id"   => config("dish.xcx_dish_menu")[0]['key'],
+            "cat_name" => config("dish.xcx_dish_menu")[0]['name'],
+            "cat_img"  => config("dish.xcx_dish_menu")[0]['img'],
         ];
 
         $is_combo = [
-            "cat_id"  => "combo",
-            "cat_name" => "套餐",
-            "cat_img" => ""
+            "cat_id"   => config("dish.xcx_dish_menu")[1]['key'],
+            "cat_name" => config("dish.xcx_dish_menu")[1]['name'],
+            "cat_img"  => config("dish.xcx_dish_menu")[1]['img'],
         ];
 
+        //向数组的前段新增元素
         array_unshift($list['data'],$is_vip,$is_combo);
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
@@ -77,6 +78,9 @@ class Dish extends CommonAction
         if ($cat_id == "vip"){
             $is_vip = 1;
             $cat_id = "";
+
+        }else{
+            $is_vip = "";
         }
 
         if ($cat_id == "combo"){
@@ -90,6 +94,7 @@ class Dish extends CommonAction
         }
 
         $is_normal_where = [];
+
         $is_vip_where = [];
         if (empty($is_vip)){
             $is_normal_where['d.is_normal'] = ["eq",1];
@@ -97,28 +102,29 @@ class Dish extends CommonAction
             $is_vip_where['d.is_vip'] = ["eq",1];
         }
 
+
         $dis_type_where = [];
         if ($dis_type == "1"){
             $dis_type_where['d.dis_type'] = ["eq",1];
         }else{
-            $dis_type_where['d.dis_type'] = ["eq",0];
+            if ($is_vip){
+                //如果是 会员专享,则显示左右的会员商品
+                $dis_type_where['d.dis_type'] = ["IN",'0,1'];
+            }else{
+                $dis_type_where['d.dis_type'] = ["eq",0];
+            }
         }
 
         $is_gift_where = [];
         if ($is_gift == "1"){
             $is_gift_where['d.is_gift'] = ["eq",1];
-        }else{
-            $is_gift_where['d.is_gift'] = ["eq",0];
-
         }
 
         $is_give_where = [];
         if ($is_give == "1"){
             $is_give_where['d.is_give'] = ["eq",1];
-            $is_gift_where = [];
         }else{
             $is_give_where['d.is_give'] = ["eq",0];
-            $is_gift_where = [];
         }
 
         $pagesize = $request->param("pagesize",config('PAGESIZE'));
@@ -183,12 +189,17 @@ class Dish extends CommonAction
             for ($m = 0; $m <count($dishes_card_price); $m ++){
 
                 if ($dishes_card_price[$m]['dis_id'] == $dis_id){
+
                     if ($dishes_card_price[$m]['card_id'] == $card_id){
+
                         $list[$i]['dis_vip_price']  = (int)$dishes_card_price[$m]['price'];
+
                     }
 
                     if ($card_id == 0){
+
                         $list[$i]['dis_vip_price']  = (int)$list[$i]['normal_price'];
+
                     }
 
                 }else{
@@ -197,6 +208,19 @@ class Dish extends CommonAction
 
                 $list[$i]['dis_vip_all_price'] = $dishes_card_price;
 
+            }
+
+            $list[$i]['deal_price']     = $list[$i]['normal_price'];
+            $list[$i]['discount_price'] = 0;
+
+            if ($is_vip){
+                $list[$i]['deal_price'] = $list[$i]['dis_vip_price'];
+                $list[$i]['discount_price'] = $list[$i]['normal_price'] - $list[$i]['dis_vip_price'];
+            }
+
+            if ($is_gift){
+                $list[$i]['deal_price'] = $list[$i]['gift_price'];
+                $list[$i]['discount_price'] = 0;
             }
         }
 
@@ -213,7 +237,9 @@ class Dish extends CommonAction
      */
     public function dishDetail(Request $request)
     {
-        $dis_id = $request->param("dis_id","");//菜品id
+        $dis_id  = $request->param("dis_id","");//菜品id
+        $is_vip  = $request->param("is_vip","");//会员专区
+        $is_gift = $request->param("is_gift","");//礼金区
 
         if (empty($dis_id)){
 
@@ -287,6 +313,20 @@ class Dish extends CommonAction
             $dishInfo['dis_vip_price'] = $dishInfo['normal_price'];
         }
 
+        $dishInfo['deal_price']     = $dishInfo['normal_price'];
+        $dishInfo['discount_price'] = 0;
+
+        if ($is_vip == "vip"){
+            $dishInfo['deal_price'] = $dishInfo['dis_vip_price'];
+            $dishInfo['discount_price'] = $dishInfo['normal_price'] - $dishInfo['dis_vip_price'];
+        }
+
+
+        if ($is_gift){
+            $dishInfo['deal_price'] = $dishInfo['gift_price'];
+            $dishInfo['discount_price'] = 0;
+        }
+
         $dis_type = $dishInfo['dis_type'];
 
         if ($dis_type){
@@ -296,7 +336,7 @@ class Dish extends CommonAction
                 ->alias("dc")
                 ->join("dishes d","d.dis_id = dc.dis_id","LEFT")
                 ->where("dc.main_dis_id",$dis_id)
-                ->field("d.dis_name")
+                ->field("d.dis_name,d.dis_img")
                 ->field("dc.combo_id,dc.dis_id,dc.type,dc.type_desc,dc.parent_id,dc.quantity")
                 ->select();
 

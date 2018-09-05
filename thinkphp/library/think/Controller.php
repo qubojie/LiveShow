@@ -105,12 +105,12 @@ class Controller
 
     /**
      * 加载模板输出
-     * @access protected
-     * @param string $template 模板文件名
-     * @param array  $vars     模板输出变量
-     * @param array  $replace  模板替换
-     * @param array  $config   模板参数
-     * @return mixed
+     * @param string $template
+     * @param array $vars
+     * @param array $replace
+     * @param array $config
+     * @return string
+     * @throws Exception
      */
     protected function fetch($template = '', $vars = [], $replace = [], $config = [])
     {
@@ -274,18 +274,18 @@ class Controller
         /*调用打印机 处理落单 on*/
         $YlyPrintObj = new YlyPrint();
 
-        $printToken = $YlyPrintObj->getToken();
+        $printToken  = $YlyPrintObj->getToken();
 
-        $message = $printToken['message'];
+        $message     = $printToken['message'];
 
         if ($printToken['result'] == false){
             //获取token失败
             return $this->com_return(false,$message);
         }
 
-        $data = $printToken['data'];
+        $data          = $printToken['data'];
 
-        $access_token = $data['access_token'];
+        $access_token  = $data['access_token'];
 
         $refresh_token = $data['refresh_token'];
 

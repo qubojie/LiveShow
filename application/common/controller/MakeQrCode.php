@@ -12,16 +12,16 @@ use think\Controller;
 
 class MakeQrCode extends Controller
 {
-    public function make($val = array())
+    public function make($val)
     {
         $qrCode = new QrCode();
 
-        $val = array(
+        /*$val = array(
             "prefix" => 'j',
             "value"  => '测试券'
         );
 
-        $val = json_encode($val);
+        $val = json_encode($val);*/
 
         $qrCode->setText($val);
         $qrCode->setSize(300);

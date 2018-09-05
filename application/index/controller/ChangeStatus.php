@@ -10,6 +10,7 @@ namespace app\index\controller;
 use app\admin\model\TableRevenue;
 use app\wechat\controller\OpenCard;
 use app\wechat\model\BillCardFees;
+use app\wechat\model\BillPay;
 use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
 use think\Controller;
@@ -266,4 +267,58 @@ class ChangeStatus extends Controller
         }
 
     }
+
+    public static function autoCancelRevenueListOrder()
+    {
+        $now_time = time();
+
+        //获取系统设置自动取消时间
+        $cardObj = new OpenCard();
+        $reserve_subscription_auto_time   = $cardObj->getSysSettingInfo("reserve_subscription_auto_time");
+
+        $reserve_subscription_auto_time_s = $reserve_subscription_auto_time * 60;//自动取消等待秒数
+
+        $billPayParams = [
+            "sale_status"      => config("order.bill_pay_sale_status")['cancel']['key'],
+            "cancel_user"      => "sys",
+            "cancel_time"      => $now_time,
+            "auto_cancel"      => 1,
+            "auto_cancel_time" => $now_time,
+            "cancel_reason"    => "时限内未付款",
+            "updated_at"       => $now_time
+        ];
+
+        $billPayModel = new BillPay();
+
+        $list = $billPayModel
+            ->where('sale_status',config("order.bill_pay_sale_status")['pending_payment_return']['key'])
+            ->where('type',config("order.bill_pay_type")['consumption']['key'])
+            ->where("created_at","lt",$now_time - $reserve_subscription_auto_time_s )
+            ->update($billPayParams);
+
+        if ($list){
+            return 1;
+        }else{
+            return "什么都没做";
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 }

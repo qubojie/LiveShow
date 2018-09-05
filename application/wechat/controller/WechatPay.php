@@ -7,6 +7,7 @@ header('Access-Control-Allow-Origin:*');
 use app\admin\controller\CommandAction;
 use app\admin\controller\Common;
 use app\admin\model\MstCardVip;
+use app\common\controller\MakeQrCode;
 use app\common\controller\UUIDUntil;
 use app\services\Sms;
 use app\services\YlyPrint;
@@ -22,12 +23,72 @@ use think\Log;
 use think\Request;
 use wxpay\JsapiPay;
 use wxpay\MicroPay;
+use wxpay\NativePay;
 use wxpay\Notify;
 use wxpay\Refund;
 use wxpay\WapPay;
 
 class WechatPay extends Controller
 {
+    /**
+     * 扫码支付
+     * @param Request $request
+     * @return array|string
+     * @throws \WxPayException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function scavengingPay(Request $request)
+    {
+        $pid = $request->param("vid","");
+
+        if (empty($pid)){
+            return $this->com_return(false,config("params.ORDER")['ORDER_ID_EMPTY']);
+        }
+
+        //获取点单支付金额
+        $payable_amount = $this->getBillPayAmount($pid);
+
+        $payable_amount = $payable_amount * 100;
+
+        //dump($payable_amount);die;
+
+        $params = [
+            "body"         => "LiveShow",
+            "out_trade_no" => $pid,
+            "total_fee"    => $payable_amount,
+            "product_id"   => $pid
+        ];
+
+        return  NativePay::getPayImage($params);//这里返回 code_url
+
+
+        /*$code_url =  NativePay::getPayImage($params);//这里返回 code_url
+
+
+        $savePath = APP_PATH . '/../public/upload/qrcode/';
+        $webPath = 'upload/qrcode/';
+
+        $qrData = $code_url;
+
+        $qrLevel = 'H';
+
+        $qrSize = '8';
+
+        $savePrefix = 'V';
+
+        $QrCodeObj = new MakeQrCode();
+        $qrCode = $QrCodeObj->createQrCode($savePath, $qrData, $qrLevel, $qrSize, $savePrefix);
+        if ($qrCode){
+            $pic = $webPath . $qrCode;
+        }else{
+            $pic = null;
+        }
+        dump($pic);die;*/
+    }
+
+
     /**
      * H5支付
      * @param Request $request
@@ -59,7 +120,6 @@ class WechatPay extends Controller
 
         $redirect_url = Env::get("WEB_DOMAIN_NAME").'page/orderspay.html';
 
-
         $result = WapPay::getPayUrl($params,$redirect_url);
 
         return $result;
@@ -75,7 +135,6 @@ class WechatPay extends Controller
      */
     public function jspay(Request $request)
     {
-
         $common = new Common();
         $vid = $request->param("vid","");
 
@@ -156,9 +215,6 @@ class WechatPay extends Controller
         $result = JsapiPay::getParamsManage($params,$openId,$scene);
 
         return $result;
-
-
-
     }
 
 
@@ -181,8 +237,6 @@ class WechatPay extends Controller
         if (empty($vid)){
             return $this->com_return(false,'订单号不能为空');
         }
-
-
 
         $payable_amount = false;
 
@@ -272,6 +326,8 @@ class WechatPay extends Controller
 
     /**
      * 微信退款
+     * @param Request $request
+     * @return array
      */
     public function reFund(Request $request)
     {
@@ -295,7 +351,6 @@ class WechatPay extends Controller
         ];
 
         $result = \wxpay\Refund::exec($params);
-
 
         //如果退款成功返回
         /*array(18) {
@@ -349,6 +404,46 @@ class WechatPay extends Controller
         }
         $result = \wxpay\DownloadBill::exec($date);
         return ($result);
+    }
+
+    /**
+     * 扫码支付回调
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function scavengingNotify()
+    {
+
+        $xml = file_get_contents("php://input");
+        libxml_disable_entity_loader(true);
+        $values= json_decode(json_encode(simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
+
+        Log::info("扫码-----支付返回支付回调信息".var_export($values,true));
+
+        /**
+         *  'appid' => 'wx946331ee6f54ddf8',
+            'bank_type' => 'CMB_DEBIT',
+            'cash_fee' => '100',
+            'fee_type' => 'CNY',
+            'is_subscribe' => 'Y',
+            'mch_id' => '1507786841',
+            'nonce_str' => 'p0kmb9552cdqoywlpmkt8i0fktvxipke',
+            'openid' => 'o8I7At4TZsiEjCesuHFmRUCTrQh0',
+            'out_trade_no' => 'P18083017252282923BE',
+            'result_code' => 'SUCCESS',
+            'return_code' => 'SUCCESS',
+            'sign' => 'BCD991F00F647FDB1B4DACBC92207375',
+            'time_end' => '20180901113109',
+            'total_fee' => '100',
+            'trade_type' => 'NATIVE',
+            'transaction_id' => '4200000181201809017338388205',
+         */
+
+        //这里去处理订单缴费回调逻辑
+        $res = $this->pointListNotify($values);
+        echo $res;die;
+
     }
 
     /**
@@ -450,6 +545,13 @@ class WechatPay extends Controller
      */
     public function pointListNotify($values = array(),$notifyType = "")
     {
+        Log::info("----------------------------------------------------");
+        Log::info("----------------------------------------------------");
+        Log::info("支付点单回调values参数".var_export($values,true));
+        Log::info("----------------------------------------------------");
+        Log::info("----------------------------------------------------");
+
+
         $pid = $values['out_trade_no'];
 
         //获取订单信息
@@ -499,6 +601,7 @@ class WechatPay extends Controller
 
             if ($pay_type == config("order.pay_method")['balance']['key']){
                 //如果是余额支付
+                //更新预约点单单据状态参数
                 $updateBillPayParams = [
                     "sale_status"     => config("order.bill_pay_sale_status")['completed']['key'],
                     "pay_time"        => time(),
@@ -510,6 +613,30 @@ class WechatPay extends Controller
                     "updated_at"      => time()
                 ];
 
+
+            }elseif ($pay_type == config("order.pay_method")['cash_gift']['key']){
+                //如果是礼金支付
+                //更新预约点单单据状态参数
+                $updateBillPayParams = [
+                    "sale_status"       => config("order.bill_pay_sale_status")['completed']['key'],
+                    "pay_time"          => time(),
+                    "finish_time"       => time(),
+                    "deal_amount"       => $cash_fee,
+                    "pay_type"          => $pay_type,
+                    "account_cash_gift" => $cash_fee,
+                    "payable_amount"    => $total_fee - $cash_fee,
+                    "updated_at"        => time()
+                ];
+
+            }elseif ($pay_type == config("order.pay_method")['offline']['key']){
+                //如果是线下支付
+                //更新预约点单单据状态参数
+                $updateBillPayParams = [
+                    "sale_status" => config("order.bill_pay_sale_status")['wait_audit']['key'],
+                    "pay_time"    => time(),
+                    "pay_type"    => $pay_type,
+                    "updated_at"  => time()
+                ];
 
             }else{
                 //如果是微信支付
@@ -546,6 +673,7 @@ class WechatPay extends Controller
                 ->where("trid",$trid)
                 ->field("turnover_num,turnover,status")
                 ->find();
+
             $turnover_num = json_decode(json_encode($turnover_num),true);
 
             $new_turnover_num = $turnover_num['turnover_num'] + 1;
@@ -553,12 +681,14 @@ class WechatPay extends Controller
             $status           = $turnover_num['status'];
 
             if ($status == config("order.table_reserve_status")['already_open']['key']){
+                //如果是已开台状态
                 $updateTableRevenueParams = [
                     "turnover_num"      => $new_turnover_num,
                     "turnover"          => $new_turnover,
                     "updated_at"        => time()
                 ];
             }else{
+                //如果是预约
                 $updateTableRevenueParams = [
                     "status"            => config("order.table_reserve_status")['reserve_success']['key'],
                     "turnover_num"      => $new_turnover_num,
@@ -627,32 +757,35 @@ class WechatPay extends Controller
             /*用户积分操作 off*/
 
             if ($status == config("order.table_reserve_status")['already_open']['key']){
-                //如果是已开台状态,调起打印机打印菜品信息 落单
 
-                /*//获取当前预约订台 已支付的点单信息
-                $pid_res = Db::name("bill_pay")
-                    ->where("trid",$trid)
-                    ->where("sale_status",config("order.bill_pay_sale_status")['completed']['key'])
-                    ->field("pid")
-                    ->select();
+                if ($pay_type != config("order.pay_method")['offline']['key']){
+                    //如果不是线下支付,且是已开台状态
+                    //调起打印机打印菜品信息 落单
 
-                $pid_res = json_decode(json_encode($pid_res),true);*/
+                    /*//获取当前预约订台 已支付的点单信息
+                    $pid_res = Db::name("bill_pay")
+                        ->where("trid",$trid)
+                        ->where("sale_status",config("order.bill_pay_sale_status")['completed']['key'])
+                        ->field("pid")
+                        ->select();
+
+                    $pid_res = json_decode(json_encode($pid_res),true);*/
 
 //                $is_print = $this->openTableToPrintYly($pid_res);
-                $is_print = $this->openTableToPrintYly($pid);
+                    $is_print = $this->openTableToPrintYly($pid);
 
-                $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
+                    $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
 
-                if (!is_dir($dateTimeFile)){
+                    if (!is_dir($dateTimeFile)){
 
-                    $res = mkdir($dateTimeFile,0777,true);
+                        $res = mkdir($dateTimeFile,0777,true);
+
+                    }
+                    //打印结果日志
+                    error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
 
                 }
-                //打印结果日志
-                error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
             }
-
-
 
             Db::commit();
             return '<xml> <return_code><![CDATA[SUCCESS]]></return_code> <return_msg><![CDATA[OK]]></return_msg> </xml>';
@@ -719,7 +852,6 @@ class WechatPay extends Controller
         $cash_gift = $order_info['cash_gift'];//赠送礼金数
 
         $time = time();
-
 
         $userOldMoneyInfo = Db::name('user')
             ->where('uid',$uid)

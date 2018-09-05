@@ -9,16 +9,49 @@
 namespace app\wechat\controller;
 
 use app\admin\model\TableRevenue;
-use app\wechat\model\BillPay;
-use app\wechat\model\BillPayDetail;
-use think\Controller;
-use think\Db;
-use think\Exception;
 use think\Request;
 use think\Validate;
 
 class PointList extends CommonAction
 {
+    /**
+     * 获取扫码点单对应的 trid
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getTableRevenueInfo(Request $request)
+    {
+        $table_id = $request->param("table_id","");//桌id
+
+        if (empty($table_id)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+
+        $tableRevenueModel = new TableRevenue();
+
+        $info = $tableRevenueModel
+            ->alias("tr")
+            ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
+            ->join("user u",'u.uid = tr.uid','LEFT')
+            ->where("tr.status",config("order.table_reserve_status")['already_open']['key'])
+            ->where("tr.table_id",$table_id)
+            ->field("tr.trid,tr.table_id,tr.table_no,tr.parent_trid,tr.ssid,tr.ssname,ms.phone sphone")
+            ->field("u.name,u.phone")
+            ->select();
+
+        $info = json_decode(json_encode($info),true);
+
+
+        if (empty($info)){
+            return $this->com_return(false,config("params.REVENUE")['NOT_OPEN_NOT_DISH']);
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"),$info);
+    }
+
     /**
      * 用户点单
      * @param Request $request
@@ -34,6 +67,8 @@ class PointList extends CommonAction
         $order_amount = $request->param('order_amount','');//订单总额
 
         $dish_group   = $request->param("dish_group",'');//菜品集合
+
+        $pay_type     = $request->param("pay_type",'');//支付方式
 
         $rule = [
             "trid|订台id"          => "require",
@@ -60,11 +95,13 @@ class PointList extends CommonAction
 
         $uid = $userInfo['uid'];
 
+        $type = config("order.bill_pay_type")['consumption']['key'];
+
         $sid = NULL;
 
         $pointListPublicObj = new PointListPublicAction();
 
-        return $pointListPublicObj->pointListPublicAction("$trid","$sid","$order_amount","$dish_group",$uid);
+        return $pointListPublicObj->pointListPublicAction("$trid","$sid","$order_amount","$dish_group","$pay_type","$type",$uid);
 
     }
 
@@ -79,7 +116,6 @@ class PointList extends CommonAction
      */
     public function cancelDishOrder(Request $request)
     {
-
         $pid = $request->param("pid","");//订单id
 
         $action_user = "user";

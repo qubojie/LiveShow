@@ -16,6 +16,11 @@ class DownloadTableQrCode extends Controller
 
     /**
      * 一键生成打包或者单独下载
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function zipTableQrCode(Request $request)
     {
@@ -110,10 +115,12 @@ class DownloadTableQrCode extends Controller
     }
 
 
-
-
     /**
      * 全部打包
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function allDownload()
     {

@@ -31,6 +31,7 @@ class DishPublicAction extends Controller
         $list = $billPayDetailModel
             ->alias("bpd")
             ->where("bpd.is_refund","0")
+            ->where("bpd.pid",$pid)
             ->field("bpd.id,bpd.parent_id,bpd.pid,bpd.trid,bpd.is_refund,bpd.is_give,bpd.dis_id,bpd.dis_type,bpd.dis_sn,bpd.dis_name,bpd.dis_desc,bpd.quantity,bpd.price,bpd.amount")
             ->select();
 

@@ -18,17 +18,11 @@ Route::resource('restTest','index/RestTest');
 
 Route::group(['name' => 'sys'],function (){
 
-    //定时处理未支付超出指定时间的订单
+    //定时处理未支付超出指定时间的订单selectionTableList
     Route::rule('changeOrderStatus','index/ChangeStatus/changeOrderStatus');
 
-    //自动收货完成订单
-    Route::rule('AutoFinishTime','index/ChangeStatus/AutoFinishTime');
+    Route::rule('autoCancelRevenueListOrder','index/ChangeStatus/autoCancelRevenueListOrder');
 
-    //定时取消未支付预约吧台订单
-    Route::rule('AutoCancelTableRevenue','index/ChangeStatus/AutoCancelTableRevenue');
-
-    //自动取消未支付单据
-    Route::rule('AutoCancelBillRefill','index/ChangeStatus/AutoCancelBillRefill');
 
 });
 
@@ -63,6 +57,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
     //H5支付
     Route::rule('wappay','wechatPay/wappay','get|post|options');
 
+    //扫码支付
+    Route::rule('scavengingPay','wechatPay/scavengingPay','get|post|options');
+
     //公众号支付
     Route::rule('jspay','wechatPay/jspay','get|post|options');
 
@@ -78,11 +75,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
     //现金支付
     Route::rule('cashPay','DishOrderPay/cashPay','post|options');
 
+    //礼金支付
+    Route::rule('cashGiftPay','DishOrderPay/cashGiftPay','post|options');
+
     //退款
     Route::rule('reFund','wechatPay/reFund','get|post|options');
 
     //回调地址
     Route::rule('notify','wechatPay/notify','get|post|options');
+
+    //扫码支付回调
+    Route::rule('scavengingNotify','wechatPay/scavengingNotify','get|post|options');
 
     Route::rule('putVoucher','wechatPay/putVoucher','get|post|options');
 
@@ -211,12 +214,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
         //点单
         Route::group(['name' => 'pointList'],function (){
 
+            //获取扫码点台 trid
+            Route::rule('getTableRevenueInfo','PointList/getTableRevenueInfo','post|options');
+
             //用户点单
             Route::rule('createPointList','PointList/createPointList','post|options');
 
             //用户手动取消未支付订单
             Route::rule('cancelDishOrder','PointList/cancelDishOrder','post|options');
 
+            //扫码钱包支付
+            Route::rule('qrCodeWalletPay','DishOrderPay/qrCodeWalletPay','post|options');
         });
 
         //二维码
@@ -290,11 +298,17 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
                 //工作人员点单
                 Route::rule('createPointList','ManagePointList/createPointList','post|options');
 
+                //检测订单状态
+                Route::rule('checkOrderStatus','ManagePointList/checkOrderStatus','post|options');
+
                 //工作人员取消未支付的点单
                 Route::rule('cancelDishOrder','ManagePointList/cancelDishOrder','post|options');
 
                 //订台可操作菜品订单列表
                 Route::rule('canActionOrderList','ManagePointList/canActionOrderList','post|options');
+
+                //点单线下支付
+                Route::rule('offlinePay','ManageDishOrderPay/offlinePay','post|options');
 
                 //退单
                 Route::rule('refundOrder','ManageRefundList/refundOrder','post|options');
@@ -932,6 +946,16 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
         });
 
+        //点单订单管理
+        Route::group(['name' => 'pointListOrder'],function (){
+
+            //单据列表
+            Route::rule('index','PointListOrder/index','post|options');
+
+            //订单审核
+            Route::rule('examineReceivables','PointListOrder/examineReceivables','post|options');
+        });
+
     });
 
     //系统设置
@@ -964,6 +988,7 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
         //角色路由组
         Route::group(['name' => 'roles'],function (){
+
             //角色一览
             Route::rule('index','roles/index','post|options');
 
@@ -980,6 +1005,7 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
         //设置
         Route::group(['name' => 'setting'],function (){
+
             //设置类型列表
             Route::rule('lists','setting/lists','post|options');
 

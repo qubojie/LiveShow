@@ -145,10 +145,12 @@ class MyInfo extends CommonAction
 
         $cash_gift = $cashGiftModel
             ->where('uid',$uid)
+            ->order("created_at DESC")
             ->select();
 
         $account = $userAccountModel
             ->where('uid',$uid)
+            ->order("created_at DESC")
             ->select();
 
         $res['account']   = $account;

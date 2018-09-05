@@ -50,7 +50,7 @@ class SubscriptionCallBack extends Controller
 
         $is_ok = $tableRevenueModel
             ->where("trid",$trid)
-            ->where("uid",$uid)
+//            ->where("uid",$uid)
             ->update($params);
         if ($is_ok !== false) {
             return true;
