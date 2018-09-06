@@ -18,8 +18,8 @@ use think\Exception;
 use think\Request;
 use think\Validate;
 
-//class Dish extends CommandAction
-class Dish extends Controller
+class Dish extends CommandAction
+//class Dish extends Controller
 {
 
     /**

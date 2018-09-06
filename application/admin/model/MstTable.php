@@ -29,6 +29,7 @@ class MstTable extends Model
         'appearance_id',
         'size_id',
         'area_id',
+        'reserve_type',//台位预定类型   all全部无限制  vip 会员用户  normal  普通用户   keep  保留
         'turnover_limit_l1',
         'turnover_limit_l2',
         'turnover_limit_l3',

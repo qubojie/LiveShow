@@ -11,6 +11,7 @@ use app\admin\controller\Common;
 use app\wechat\model\BillPay;
 use app\wechat\model\BillPayDetail;
 use think\Controller;
+use think\Db;
 
 class DishPublicAction extends Controller
 {
@@ -47,8 +48,65 @@ class DishPublicAction extends Controller
     }
 
     /**
+     * 厨房打印根据pid获取当前订单的菜品信息
+     * @param $pid
+     * @return false|\PDOStatement|string|\think\Collection
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function pidGetOrderDishInfo2($pid)
+    {
+        $tableInfo = $this->pidGetTableInfo($pid);
+
+        $billPayDetailModel = new BillPayDetail();
+
+        $list = $billPayDetailModel
+            ->alias("bpd")
+            ->join("dishes d","d.dis_id = bpd.dis_id")
+            ->join("dishes_attribute da","da.att_id = d.att_id")
+            ->where("bpd.is_refund","0")
+            ->where("bpd.pid",$pid)
+            ->group("bpd.dis_id")
+            ->field("bpd.pid")
+            ->field("d.dis_id,d.dis_name,d.dis_type")
+            ->field("sum(bpd.quantity) quantity")
+            ->field("da.att_name,da.att_id")
+            ->select();
+
+        $list = json_decode(json_encode($list),true);
+
+        foreach ($list as $key => $val){
+
+            $att_id = $val['att_id'];
+
+            $att_print_info = Db::name("dishes_attribute_printer")
+                ->where("att_id",$att_id)
+                ->field("printer_sn,print_num")
+                ->find();
+
+            $printer_sn = $att_print_info['printer_sn'];
+            $print_num  = $att_print_info['print_num'];
+
+            $list[$key]['printer_sn'] = $printer_sn;
+            $list[$key]['print_num']  = $print_num;
+
+            if ($val['dis_type']){
+                unset($list[$key]);
+            }
+        }
+
+        $list = array_values($list);
+
+        $tableInfo['dish_info'] = $list;
+
+        return $tableInfo;
+    }
+
+    /**
      * 获取桌位信息
      * @param $pid
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException

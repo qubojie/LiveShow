@@ -2,14 +2,14 @@
 /**
  * Created by PhpStorm.
  * User: qubojie
- * Date: 2018/7/27
- * Time: 上午10:45
+ * Date: 2018/9/5
+ * Time: 下午2:58
  */
 namespace app\admin\model;
 
 use think\Model;
 
-class MstTableAreaCard extends Model
+class MstTableCard extends Model
 {
     /**
      * 关联到模型的数据表
@@ -18,10 +18,7 @@ class MstTableAreaCard extends Model
      *
      * @var string
      */
-    protected $table = 'EL_MST_TABLE_AREA_CARD';
-
-    protected $primaryKey = 'area_id';
+    protected $table = 'EL_MST_TABLE_CARD';
 
     public $timestamps = false;
-
 }

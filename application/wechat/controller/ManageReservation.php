@@ -49,6 +49,27 @@ class ManageReservation extends HomeAction
             return $this->com_return(false,$validate->getError(),null);
         }
 
+        /*查询当前号码是否在营销职位 on*/
+        $manageSalesModel = new ManageSalesman();
+
+        $isManage = $manageSalesModel
+            ->alias("ms")
+            ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")
+            ->where("ms.phone",$phone)
+            ->field("stype_key")
+            ->find();
+
+        $isManage = json_decode(json_encode($isManage),true);
+
+        if (!empty($isManage)){
+            $stype_key = $isManage['stype_key'];
+
+            if ($stype_key == \config("salesman.salesman_type")[1]['key']){
+                return $this->com_return(false,\config("params.REVENUE")['PHONE_NOT_IS_SALES']);
+            }
+        }
+        /*查询当前号码是否在营销职位 off*/
+
         $userModel = new User();
 
         $userNameRes = $userModel

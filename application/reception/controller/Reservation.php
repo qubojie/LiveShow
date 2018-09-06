@@ -8,7 +8,7 @@
 namespace app\reception\controller;
 use app\admin\model\ManageSalesman;
 use app\admin\model\MstTable;
-use app\admin\model\MstTableAreaCard;
+use app\admin\model\MstTableCard;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
@@ -82,7 +82,6 @@ class Reservation extends CommonAction
         $tableInfo = $tableModel
             ->alias("t")
             ->join("mst_table_area ta","ta.area_id = t.area_id")//区域
-//            ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
             ->join("mst_table_location tl","tl.location_id = ta.location_id")//位置
             ->join("mst_table_size ts","ts.size_id = t.size_id")//人数
             ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品项
@@ -98,7 +97,6 @@ class Reservation extends CommonAction
             ->where($size_where)
             ->group("t.table_id")
             ->order('tl.location_id,ta.area_id,t.table_no,tap.appearance_id')
-            //            ->field("t.table_id,t.table_no,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
             ->field("t.table_id,t.table_no,t.people_max,t.table_desc")
             ->field("ta.area_id,ta.area_title,ta.area_desc")
             ->field("tl.location_title")
@@ -201,6 +199,7 @@ class Reservation extends CommonAction
             "t.is_enable",
             "t.table_id",
             "t.area_id",
+            "t.reserve_type",
             "t.turnover_limit_l1",
             "t.turnover_limit_l2",
             "t.turnover_limit_l3",
@@ -222,18 +221,24 @@ class Reservation extends CommonAction
 
 
         /*会员限定 on*/
-        $area_id = $tableInfo['area_id'];
+        $reserve_type = $tableInfo['reserve_type'];
 
-        $cardInfo = Db::name("mst_table_area_card")
-            ->alias("tac")
-            ->join("mst_card_vip cv","cv.card_id = tac.card_id")
-            ->where('tac.area_id',$area_id)
-            ->field("cv.card_name")
-            ->select();
+        if ($reserve_type == config("table.reserve_type")['1']['key']){
 
-        $cardInfo = json_decode(json_encode($cardInfo),true);
+            $cardInfo = Db::name("mst_table_card")
+                ->alias("tc")
+                ->join("mst_card_vip cv","cv.card_id = tc.card_id")
+                ->where('tc.table_id',$table_id)
+                ->field("cv.card_id,cv.card_name")
+                ->select();
 
-        $tableInfo['card_vip'] = $cardInfo;
+            $cardInfo = json_decode(json_encode($cardInfo),true);
+
+            $tableInfo['card_vip'] = $cardInfo;
+        }else{
+            $tableInfo['card_vip'] = [];
+        }
+
         /*会员限定 off*/
 
 
@@ -314,7 +319,7 @@ class Reservation extends CommonAction
 
         $tableInfo["revenueInfo"] = $revenueInfo;
 
-        $tableInfo = _unsetNull($tableInfo);
+//        $tableInfo = _unsetNull($tableInfo);
 
         return $this->com_return(true,config("params.SUCCESS"),$tableInfo);
     }
@@ -453,7 +458,7 @@ class Reservation extends CommonAction
 
         //查看当前桌子是否是限定桌
         $tableModel        = new \app\Reception\model\MstTable();
-        $tableCardModel    = new MstTableAreaCard();
+        $tableCardModel    = new MstTableCard();
         $tableRevenueModel = new TableRevenue();
 
         $tableInfo = $tableModel
@@ -467,8 +472,9 @@ class Reservation extends CommonAction
         $table_no = $tableInfo['table_no'];
 
         $tableCardInfo = $tableCardModel
-            ->where("area_id",$area_id)
+            ->where("table_id",$table_id)
             ->select();
+
         $tableCardInfo = json_decode(json_encode($tableCardInfo),true);
 
         //判断桌台是否限定

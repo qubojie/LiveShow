@@ -57,34 +57,34 @@ class ManagePointList extends HomeAction
             ->where("bp.trid",$trid)
             ->where("bp.sale_status","eq",config("order.bill_pay_sale_status")['completed']['key'])
             ->where("bpd.parent_id","0")
+            ->group("bpd.dis_id")
             ->field("d.dis_img")
             ->field('bpd.dis_id,sum(bpd.quantity) quantity')
-            ->group("bpd.dis_id")
             ->having('sum(quantity)>0')
             ->select();
 
         $dishInfo = json_decode(json_encode($dishInfo),true);
 
-        dump($dishInfo);die;
+        for ($i = 0; $i < count($dishInfo); $i ++){
 
-        for ($i = 0; $i < count($billPayDetailList); $i ++){
-
-            $dis_id = $billPayDetailList[$i]['dis_id'];
+            $dis_id = $dishInfo[$i]['dis_id'];
 
             $dis_info = $billPayDetailModel
+                ->where("trid",$trid)
                 ->where("dis_id",$dis_id)
+                ->where("parent_id",'0')
                 ->field("dis_name,price")
                 ->find();
 
             $dis_info = json_decode(json_encode($dis_info),true);
 
-            $billPayDetailList[$i]['dis_name'] = $dis_info['dis_name'];
+            $dishInfo[$i]['dis_name'] = $dis_info['dis_name'];
 
-            $billPayDetailList[$i]['price']    = $dis_info['price'];
+            $dishInfo[$i]['price']    = $dis_info['price'];
 
         }
 
-        return $this->com_return(true,config("params.SUCCESS"),$billPayDetailList);
+        return $this->com_return(true,config("params.SUCCESS"),$dishInfo);
 
     }
 

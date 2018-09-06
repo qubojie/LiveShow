@@ -132,25 +132,65 @@ class YlyPrint extends Controller
         //获取菜品信息
         $dishPublicActionObj = new DishPublicAction();
 
-        $orderInfo = $dishPublicActionObj->pidGetOrderDishInfo($pid);
+        $orderInfo = $dishPublicActionObj->pidGetOrderDishInfo2($pid);
 
-        $tableName = $orderInfo['location_title']."-".$orderInfo['area_title']."-".$orderInfo['table_no']."号桌";
+//        dump($orderInfo);die;
+
+//        $tableName = $orderInfo['location_title']."-".$orderInfo['area_title']."-".$orderInfo['table_no'];
+        $tableName = $orderInfo['table_no'];
 
         $dishInfo  = $orderInfo['dish_info'];
 
+        $nowTime = date("Y-m-d H:i");
+
         $api = new \YLYOpenApiClient();
 
-        $content = "";                          //打印内容
+        foreach ($dishInfo as $key => $val){
+
+            $content = "";                          //打印内容
+            $content .= '<MS>0,0</MS>';
+            $content .= '<FS><center>'.$val['att_name'].'分单</center></FS>';
+            $content .= '<FS2> 桌号: '.$tableName.'</FS2>'."\n";
+            $content .= '单号:'.$pid.'   '.$nowTime.''."\n";
+            $content .= '<FS>'.str_repeat('-',36)."</FS>\n";
+            $content .= '<FS><table>';
+            $content .= '<tr><td>商品</td><td>数量</td></tr>';
+            $content .= '<tr><td>'.$val['dis_name'].'</td><td>'.$val['quantity'].'</td></tr>';
+            $content .= '</table></FS>';
+            $content .= '<FS>'.str_repeat('-',36)."</FS>\n";
+
+            $machineCode = $val['printer_sn'];  //授权的终端号
+            $originId    = '1234567890';     //商户自定义id
+            $timesTamp   = time();          //当前服务器时间戳(10位)
+
+            $print_num = $val['print_num'];
+
+            for ($i = 0; $i < $print_num; $i ++){
+
+                $res = $api->printIndex($machineCode,$accessToken,$content,$originId,$timesTamp);
+                $res = json_decode($res,true);
+
+                if ($res['error'] != "0"){
+                    //落单失败
+                    return $this->com_return(false,$res['error_description'],$pid);
+                }
+
+            }
+        }
+//        return $res;
+        /*$content = "";                          //打印内容
         $content .= '<MS>0,0</MS>';
-        $content .= '<FS2><center>点 单</center></FS2>';
-        $content .= '<FS><center>'.$tableName.'</center></FS>';
-        $content .= str_repeat('-',48);
+        $content .= '<FS><center>热菜分单</center></FS>';
+        $content .= '<FS2> 桌号: '.$tableName.'</FS2>'."\n";
+        $content .= '单号:'.$pid.'   '.$nowTime.''."\n";
+        $content .= '<FS>'.str_repeat('-',36)."</FS>\n";
         $content .= '<FS><table>';
         $content .= '<tr><td>商品</td><td>数量</td></tr>';
 
         $allPrice = 0;
         for ($i = 0; $i <count($dishInfo); $i ++){
             $price = $dishInfo[$i]['quantity'] * $dishInfo[$i]['price'];
+
             if (!$dishInfo[$i]['dis_type']){
                 $content .= '<tr><td>'.$dishInfo[$i]['dis_name'].'</td><td>'.$dishInfo[$i]['quantity'].'</td></tr>';
             }
@@ -165,8 +205,7 @@ class YlyPrint extends Controller
         }
 
         $content .= '</table></FS>';
-        $content .= str_repeat('-',48)."\n";
-        $content .= '打印时间 '.date("Y-m-d H:i:s");
+        $content .= '<FS>'.str_repeat('-',36)."</FS>\n";
 
         $machineCode = Env::get("YLY_MACHINE_CODE_1");  //授权的终端号
         $originId    = '1234567890';     //商户自定义id
@@ -176,7 +215,7 @@ class YlyPrint extends Controller
 
         $res = json_decode($res,true);
 
-        return $res;
+        return $res;*/
     }
 
     /**
@@ -191,43 +230,85 @@ class YlyPrint extends Controller
 
         $tableName = $params['table_name'];
 
-        $dishInfo = $params['dis_info'];
+        $dishInfo  = $params['dis_info'];
 
-        $content  = "";                          //打印内容
-        $content .= '<MS>0,0</MS>';
-        $content .= '<FS2><center>退 单</center></FS2>';
-        $content .= '<FS><center>'.$tableName.'</center></FS>';
-        $content .= str_repeat('-',48);
-        $content .= '<FS><table>';
-        $content .= '<tr><td>商品</td><td>数量</td></tr>';
-        $content .= str_repeat('-',48);
+        $pid       = $params['pid'];
 
-        for ($i = 0; $i <count($dishInfo); $i ++){
-            $content .= '<tr><td>'.$dishInfo[$i]['dis_name'].'</td><td> x '.$dishInfo[$i]['quantity'].'</td></tr>';
-            if ($dishInfo[$i]['dis_type']){
-                $children = $dishInfo[$i]['children'];
-                for ($m = 0; $m < count($children); $m ++){
-                    $num = $m+1;
-                    $content .= '<tr><td> --- '.$num.')'.$children[$m]['dis_name'].'</td><td> x '.$children[$m]['quantity'].'</td></tr>';
+        $nowTime   = date("Y-m-d H:i");
+
+        foreach ($dishInfo as $key => $val){
+            $quantity = $val['quantity'];
+            if ($val['dis_type']){
+                //如果是套餐
+                $children = $val['children'];
+                foreach ($children as $k => $v){
+                    $print_num_children = $v['print_num'];
+                    $printer_sn         = $v['printer_sn'];
+                    $att_name_children  = $v['att_name'];
+                    $dis_name_children  = $v['dis_name'];
+                    $quantity_children  = $v['quantity'];
+                    $total_quantity     = $quantity_children * $quantity;
+
+                    $content  = "";                          //打印内容
+                    $content .= '<MS>0,0</MS>';
+                    $content .= '<FS2>退单</FS2><FS><center>'.$att_name_children.'退单</center></FS>';
+                    $content .= '<FS2> 桌号: '.$tableName.'</FS2>'."\n";
+                    $content .= '单号:'.$pid.'   '.$nowTime.''."\n";
+                    $content .= '<FS>'.str_repeat('-',36)."</FS>\n";
+                    $content .= '<FS><table>';
+                    $content .= '<tr><td>商品</td><td>数量</td></tr>';
+                    $content .= '<tr><td>(退)'.$dis_name_children.'</td><td>'.$total_quantity.'</td></tr>';
+                    $content .= '</table></FS>';
+                    $content .= '<FS>'.str_repeat('-',36)."</FS>\n";
+                    $machineCode = $printer_sn;  //授权的终端号
+                    $originId    = '1234567890';     //商户自定义id
+                    $timesTamp   = time();          //当前服务器时间戳(10位)
+
+
+                    for ($i = 0; $i < $print_num_children; $i ++){
+                        $res = $api->printIndex($machineCode,$accessToken,$content,$originId,$timesTamp);
+
+                        $res_error = isset($res['error']) ? $res['error']:0;
+                        if ($res_error != "0"){
+                            //落单失败
+                            return $this->com_return(false,$res['error_description'],$pid);
+                        }
+                    }
+                }
+
+            }else{
+                //如果是单品
+                $att_name = $val['att_name'];
+                $dis_name = $val['dis_name'];
+                $print_num = $val['print_num'];
+                $printer_sn = $val['printer_sn'];
+
+                $content2  = "";                          //打印内容
+                $content2 .= '<MS>0,0</MS>';
+                $content2 .= '<FS2>退单</FS2><FS><center>'.$att_name.'退单</center></FS>';
+                $content2 .= '<FS2> 桌号: '.$tableName.'</FS2>'."\n";
+                $content2 .= '单号:'.$pid.'   '.$nowTime.''."\n";
+                $content2 .= '<FS>'.str_repeat('-',36)."</FS>\n";
+                $content2 .= '<FS><table>';
+                $content2 .= '<tr><td>商品</td><td>数量</td></tr>';
+                $content2 .= '<tr><td>(退)'.$dis_name.'</td><td>'.$quantity.'</td></tr>';
+                $content2 .= '</table></FS>';
+                $content2 .= '<FS>'.str_repeat('-',36)."</FS>\n";
+
+                $machineCode = $printer_sn;  //授权的终端号
+                $originId    = '1234567890';     //商户自定义id
+                $timesTamp   = time();          //当前服务器时间戳(10位)
+
+                for ($i = 0; $i < $print_num; $i ++){
+                    $res = $api->printIndex($machineCode,$accessToken,$content2,$originId,$timesTamp);
+                    $res_error = isset($res['error']) ? $res['error']:0;
+                    if ($res_error != "0"){
+                        //落单失败
+                        return $this->com_return(false,$res['error_description'],$pid);
+                    }
+
                 }
             }
-
         }
-
-        $content .= '</table></FS>';
-        $content .= str_repeat('-',48)."\n";
-        $content .= '打印时间'.date("Y-m-d H:i:s");
-
-        $machineCode = Env::get("YLY_MACHINE_CODE_1");  //授权的终端号
-        $originId = '1234567890';     //商户自定义id
-        $timesTamp = time();          //当前服务器时间戳(10位)
-
-        $res = $api->printIndex($machineCode,$accessToken,$content,$originId,$timesTamp);
-
-        $res = json_decode($res,true);
-
-        return $res;
-
-
     }
 }

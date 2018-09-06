@@ -3,18 +3,14 @@ namespace app\reception\controller;
 
 use app\admin\model\ManageSalesman;
 use app\admin\model\MstTable;
-use app\admin\model\MstTableAreaCard;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
-use app\services\YlyPrint;
 use app\wechat\controller\OpenCard;
-use app\wechat\model\BillSubscription;
-use think\Controller;
+use app\wechat\model\BillPay;
 use think\Db;
 use think\Log;
 use think\Request;
-use think\Response;
 use think\Validate;
 
 class DiningRoom extends CommonAction
@@ -65,6 +61,8 @@ class DiningRoom extends CommonAction
             ->join("user u","u.uid = tr.uid","LEFT")
             ->where('t.is_delete',0)
             ->where('t.is_enable',1)
+            ->where('tl.is_delete',0)
+            ->where('ta.is_delete',0)
             ->where($where)
             ->where($location_where)
             ->where($area_where)
@@ -72,7 +70,7 @@ class DiningRoom extends CommonAction
             ->group("t.table_id")
             ->order('tl.location_id,ta.area_id,t.table_no,tap.appearance_id')
 //            ->field("t.table_id,t.table_no,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
-            ->field("t.table_id,t.table_no,t.people_max,t.table_desc,t.sort,t.is_enable")
+            ->field("t.table_id,t.table_no,t.reserve_type,t.people_max,t.table_desc,t.sort,t.is_enable")
             ->field("ta.area_id,ta.area_title,ta.area_desc,ta.sid")
             ->field("tl.location_title")
             ->field("ts.size_title")
@@ -82,24 +80,19 @@ class DiningRoom extends CommonAction
         $tableInfo = json_decode(json_encode($tableInfo),true);
 
         $tableRevenueModel = new TableRevenue();
-        $tableAreaCardModel = new MstTableAreaCard();
 
         $status_str = "0,1,2";
 
         for ($i = 0; $i <count($tableInfo); $i ++){
 
             /*桌子限制筛选 on*/
-            $area_id_s = $tableInfo[$i]['area_id'];//区域id
-            $is_limit = $tableAreaCardModel
-                ->where("area_id",$area_id_s)
-                ->count();
-            if ($is_limit > 0){
-                $tableInfo[$i]['is_limit'] = 1;
-            }else{
+            if ($tableInfo[$i]['reserve_type'] == config("table.reserve_type")['0']['key']){
+                //无限制
                 $tableInfo[$i]['is_limit'] = 0;
+            }else{
+                $tableInfo[$i]['is_limit'] = 1;
             }
             /*桌子限制筛选 off*/
-
 
             /*桌子状态筛选 on*/
             $table_id = $tableInfo[$i]['table_id'];//桌号id
@@ -108,6 +101,7 @@ class DiningRoom extends CommonAction
                 ->where('status',"IN",$status_str)
                 ->whereTime("reserve_time","today")
                 ->find();
+
             $tableStatusRes = json_decode(json_encode($tableStatusRes),true);
 
             if (!empty($tableStatusRes)){
@@ -149,7 +143,6 @@ class DiningRoom extends CommonAction
                 $tableInfo[$i]['reserve_time'] = 0;
             }
             /*桌子状态筛选 off*/
-
         }
 
         return $this->com_return(true,config("params.SUCCESS"),$tableInfo);
@@ -178,6 +171,7 @@ class DiningRoom extends CommonAction
             "t.is_enable",
             "t.table_id",
             "t.area_id",
+            "t.reserve_type",
             "t.turnover_limit_l1",
             "t.turnover_limit_l2",
             "t.turnover_limit_l3",
@@ -240,25 +234,26 @@ class DiningRoom extends CommonAction
         $tableInfo = array_remove($tableInfo,"turnover_limit_l1,turnover_limit_l2,turnover_limit_l3,subscription_l1,subscription_l2,subscription_l3");
         /*特殊日期 匹配特殊定金 off*/
 
+        if ($tableInfo['reserve_type'] == config("table.reserve_type")['1']['key']){
 
-        $area_id = $tableInfo['area_id'];
+            $cardInfo = Db::name("mst_table_card")
+                ->alias("tc")
+                ->join("mst_card_vip cv","cv.card_id = tc.card_id")
+                ->where('tc.table_id',$table_id)
+                ->field("cv.card_id,cv.card_name")
+                ->select();
 
-        $cardInfo = Db::name("mst_table_area_card")
-            ->alias("tac")
-            ->join("mst_card_vip cv","cv.card_id = tac.card_id")
-            ->where('tac.area_id',$area_id)
-            ->field("cv.card_name")
-            ->select();
+            $cardInfo = json_decode(json_encode($cardInfo),true);
 
-        $cardInfo = json_decode(json_encode($cardInfo),true);
-
-        $tableInfo['card_vip'] = $cardInfo;
+            $tableInfo['card_vip'] = $cardInfo;
+        }else{
+            $tableInfo['card_vip'] = [];
+        }
 
         $status_str = "0,1,2";
 
         $revenue_column = $tableRevenueModel->revenue_column;
 
-        $emptyStr = "";
         /*主桌基本信息 On*/
         $mainRevenueInfo = $tableRevenueModel
             ->alias("tr")
@@ -282,8 +277,6 @@ class DiningRoom extends CommonAction
             ->field($revenue_column)
             ->find();
 
-//        dump($tableRevenueModel->getLastSql());die;
-
         $mainRevenueInfo = json_decode(json_encode($mainRevenueInfo),true);
 
         $tableInfo['mainRevenueInfo'] = $mainRevenueInfo;
@@ -293,7 +286,6 @@ class DiningRoom extends CommonAction
         $mainTrid = $mainRevenueInfo['trid'];
 
         /*拼桌基本信息 On*/
-
         $spellingRevenueInfo = $tableRevenueModel
             ->alias("tr")
             ->join("user u","u.uid = tr.uid","LEFT")
@@ -887,6 +879,7 @@ class DiningRoom extends CommonAction
         if (!empty($phone)){
             $where["phone"] = ["like","%$phone%"];
         }
+
         $res = $salesModel
             ->alias("ms")
             ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")
@@ -998,5 +991,84 @@ class DiningRoom extends CommonAction
 
         return $data;
 
+    }
+
+    /**
+     * 取消开台
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function cancelOpenTable(Request $request)
+    {
+        $trid = $request->param("trid","");
+
+        if (empty($trid)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+
+        $billPayModel = new BillPay();
+
+        //查询当前台位是否已经点单,如果已点单,则不允许取消开台
+        $isPointList = $billPayModel
+            ->where("trid",$trid)
+            ->count();
+
+        if ($isPointList > 0){
+            //已点单,不可取消开台
+            return $this->com_return(false,config("params.REVENUE")['POINT_LIST_NO_CANCEL']);
+        }
+
+        $tableRevenueModel = new TableRevenue();
+
+        //查询当前预约台位订单信息,是否是已开台
+        $tableRevenueInfo = $tableRevenueModel
+            ->where("trid",$trid)
+            ->where("status",config("order.table_reserve_status")['already_open']['key'])
+            ->find();
+
+        $tableRevenueInfo = json_decode(json_encode($tableRevenueInfo),true);
+
+        if (empty($tableRevenueInfo)){
+            //如果不是开台状态,则不允许取消开台
+            return $this->com_return(false,config("params.REVENUE")['DO_NOT_CANCEL_OPEN']);
+        }
+
+        $params = [
+            "status"        => config("order.table_reserve_status")['cancel_table']['key'],
+            "cancel_user"   => "user",
+            "cancel_time"   => time(),
+            "cancel_reason" => "已开台未点单,前台取消开台",
+            "updated_at"    => time()
+        ];
+
+        $is_ok = $tableRevenueModel
+            ->where("trid",$trid)
+            ->update($params);
+
+        if ($is_ok !== false){
+
+            /*记录取消开台日志 on*/
+
+            $table_id = $tableRevenueInfo['table_id'];
+            $table_no = $tableRevenueInfo['table_no'];
+
+            $type  = config("order.table_action_type")['cancel_table']['key'];
+
+            $desc  = config("order.table_reserve_status")['cancel_table']['name'];
+
+            $token = $request->header("Token");
+
+            $sales_name = $this->tokenGetManageInfo($token)['sales_name'];
+
+            insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
+            /*记录取消开台日志 off*/
+
+            return $this->com_return(true,config("params.SUCCESS"));
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
     }
 }

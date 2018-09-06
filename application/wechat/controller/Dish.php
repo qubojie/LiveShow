@@ -73,7 +73,6 @@ class Dish extends CommonAction
 
         $is_gift  = $request->param("is_gift","");//礼金专区
 
-        $is_give  = $request->param("is_give","");//可否赠送  0否   1是
 
         if ($cat_id == "vip"){
             $is_vip = 1;
@@ -118,14 +117,13 @@ class Dish extends CommonAction
         $is_gift_where = [];
         if ($is_gift == "1"){
             $is_gift_where['d.is_gift'] = ["eq",1];
+
+            $cat_where = [];
+            $is_normal_where = [];
+            $is_vip_where = [];
+            $dis_type_where = [];
         }
 
-        $is_give_where = [];
-        if ($is_give == "1"){
-            $is_give_where['d.is_give'] = ["eq",1];
-        }else{
-            $is_give_where['d.is_give'] = ["eq",0];
-        }
 
         $pagesize = $request->param("pagesize",config('PAGESIZE'));
 
@@ -144,7 +142,6 @@ class Dish extends CommonAction
             ->where($is_vip_where)
             ->where($dis_type_where)
             ->where($is_gift_where)
-            ->where($is_give_where)
             ->where("d.is_enable",1)
             ->where("d.is_delete",0)
 //            ->paginate($pagesize,'',$config);

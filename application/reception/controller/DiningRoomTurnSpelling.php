@@ -8,7 +8,7 @@
 namespace app\reception\controller;
 
 use app\admin\model\MstTable;
-use app\admin\model\MstTableAreaCard;
+use app\admin\model\MstTableCard;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
@@ -314,17 +314,17 @@ class DiningRoomTurnSpelling extends CommonAction
 
         $res = json_decode(json_encode($res),true);
 
-        $tableCardModel = new MstTableAreaCard();
+        $tableCardModel = new MstTableCard();
 
         for ($i = 0; $i < count($res); $i++){
 
-            $area_id = $res[$i]['area_id'];
+            $table_id = $res[$i]['table_id'];
 
             $cardInfo = $tableCardModel
-                ->alias("tac")
-                ->join("mst_card_vip cv","cv.card_id = tac.card_id")
-                ->where("tac.area_id",$area_id)
-                ->field("cv.card_name,cv.card_type")
+                ->alias("tc")
+                ->join("mst_card_vip cv","cv.card_id = tc.card_id")
+                ->where("tc.table_id",$table_id)
+                ->field("cv.card_id,cv.card_name,cv.card_type")
                 ->select();
             $cardInfo = json_decode(json_encode($cardInfo),true);
 

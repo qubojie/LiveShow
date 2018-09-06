@@ -7,6 +7,7 @@
  */
 namespace app\wechat\controller;
 
+use app\admin\model\TableRevenue;
 use app\common\controller\UUIDUntil;
 use app\wechat\model\BillPayDetail;
 use app\wechat\model\BillPay;
@@ -32,7 +33,7 @@ class ManageRefundList extends HomeAction
         $cancel_reason = $request->param("cancel_reason","");//退单原因
         $trid          = $request->param("trid","");//桌台预约id
 
-        $detail_dis_info     = $request->param("detail_dis_info","");//
+        $detail_dis_info = $request->param("detail_dis_info","");//
 
         $rule = [
             "pid|退单id"          => "require",
@@ -95,6 +96,29 @@ class ManageRefundList extends HomeAction
 
         $billPayInfo = json_decode(json_encode($billPayInfo),true);
 
+//        dump($billPayInfo);die;
+
+        /*获取当前预约台位汇总信息 On*/
+        $tableRevenueModel = new TableRevenue();
+        $tableRevenueInfo = $tableRevenueModel
+            ->where("trid",$trid)
+            ->find();
+
+        $tableRevenueInfo = json_decode(json_encode($tableRevenueInfo),true);
+
+        $status = $tableRevenueInfo['status'];
+
+        if ($status != config("order.table_reserve_status")['already_open']['key']){
+            return $this->com_return(false,config("params.ORDER")['REFUND_DISH_ABNORMAL']);
+        }
+
+        $is_refund = $tableRevenueInfo['is_refund'];//是否产生退款
+
+        $refund_num = $tableRevenueInfo['refund_num'];//退款单数
+
+        $refund_amount = $tableRevenueInfo['refund_amount'];//实际退款金额
+
+        /*获取当前预约台位汇总信息 Off*/
 
         if (empty($billPayInfo)){
 
@@ -127,9 +151,11 @@ class ManageRefundList extends HomeAction
                 return $this->com_return(false,config("params.ORDER")['REFUND_ABNORMAL']);
             }
 
+            //获取退单总金额
             $order_amount += $dis_detail['price'] * $quantity_r;
         }
 
+        //计算退单应扣除的积分
         $return_point = intval($order_amount *  0.1);
 
         $uuid = new UUIDUntil();
@@ -252,7 +278,27 @@ class ManageRefundList extends HomeAction
                 }
             }
 
+            /*更改预约汇总单数据 on*/
+            $tableRevenueParams = [
+                "is_refund"     => 1,
+                "refund_num"    => $refund_num + 1,
+                "refund_amount" => $refund_amount + $order_amount,
+                "updated_at"    => time()
+            ];
+
+            $updateTableRevenueReturn = $tableRevenueModel
+                ->where("trid",$trid)
+                ->update($tableRevenueParams);
+
+            if ($updateTableRevenueReturn == false){
+                return $this->com_return(false,config("params.FAIl"));
+            }
+
+            /*更改预约汇总单数据 off*/
+
             //此时数据插入成功,调起打印机 开始落单,提示菜品已退
+            $detail_dis_info = $this->getDishesInfo($detail_dis_info);
+
             $is_print = $this->refundToPrintYly($pid,$detail_dis_info);
 
             $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
@@ -408,5 +454,66 @@ class ManageRefundList extends HomeAction
             return $this->com_return(false,$e->getMessage());
         }
 
+    }
+
+    /**
+     * 获取当前菜品信息
+     * @param $detail_dis_info
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    protected function getDishesInfo($detail_dis_info)
+    {
+        $detail_id_arr = json_decode($detail_dis_info,true);
+
+        $billPayDetailModel = new BillPayDetail();
+
+        $dis_info = [];
+
+        foreach ($detail_id_arr as $detail_ids){
+
+            $detail_id = $detail_ids['detail_id'];//退菜单id
+            $quantity  = $detail_ids['quantity'];//退菜数量
+
+            $detail_info = $billPayDetailModel
+                ->alias("bpd")
+                ->join("dishes d","d.dis_id = bpd.dis_id")
+                ->join("dishes_attribute da","da.att_id = d.att_id","LEFT")
+                ->join("dishes_attribute_printer adp","adp.att_id = da.att_id","LEFT")
+                ->where("bpd.id",$detail_id)
+                ->field("bpd.dis_name,bpd.quantity,bpd.dis_type")
+                ->field("da.att_name,da.att_id")
+                ->field("printer_sn,print_num")
+                ->find();
+
+            $detail_info = json_decode(json_encode($detail_info),true);
+
+            $detail_info['quantity'] = $quantity;
+
+            $dis_type = $detail_info['dis_type'];
+
+            $children = [];
+            if ($dis_type){
+                $children = $billPayDetailModel
+                    ->alias("bpd")
+                    ->join("dishes d","d.dis_id = bpd.dis_id")
+                    ->join("dishes_attribute da","da.att_id = d.att_id","LEFT")
+                    ->join("dishes_attribute_printer adp","adp.att_id = da.att_id","LEFT")
+                    ->where("bpd.parent_id",$detail_id)
+                    ->field("bpd.dis_name,bpd.quantity,bpd.dis_type")
+                    ->field("da.att_name,da.att_id")
+                    ->field("printer_sn,print_num")
+                    ->select();
+                $children = json_decode(json_encode($children),true);
+            }
+
+            $detail_info['children'] = $children;
+
+            $dis_info[] = $detail_info;
+        }
+
+        return $dis_info;
     }
 }

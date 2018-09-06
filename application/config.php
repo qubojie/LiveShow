@@ -272,7 +272,6 @@ return [
         "PURVIEW_SHORT"         => "权限不足",
         "CHECK_SHIP_TYPE"       => "请选择发货类型",
         "INSTEAD_SALES_NAME"    => "请输入代收货人姓名",
-        "EXIST_TALE"            => "该区域下存在吧台,不可删除",
         "AREA_IS_EXIST"         => "当前位置该区域名称已存在",
         "SPENDING_ELT_SUBS"     => "最低消费不能低于定金",
         "PHONE_BIND_OTHER"      => "该手机号码已绑定其他账户",
@@ -313,7 +312,9 @@ return [
             "REFUND_ABNORMAL"   => "退单异常",
             "PAY_SUCCESS"       => "支付成功",
             "ORDER_CANCEL"      => "订单已取消",
-            "WAIT_RESULT"       => "等待支付结果"
+            "WAIT_RESULT"       => "等待支付结果",
+            "TURNOVER_LIMIT_SHORT" => "低消不足,请重新点单",
+            "REFUND_DISH_ABNORMAL" => "退单操作异常"
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -327,7 +328,10 @@ return [
             "TURN_OBJ_NO_SELF"  => "转至对象不能是自身",
             "XD_TABLE_FALL"     => "用户权限不足以预定本桌",
             "CLEAN_BEFORE_USER" => "清台之前,请完善用户信息",
-            "NOT_OPEN_NOT_DISH" => "请先开台"
+            "NOT_OPEN_NOT_DISH" => "请先开台",
+            "DO_NOT_CANCEL_OPEN"=> "当前状态,不可进行取消开台操作",
+            "POINT_LIST_NO_CANCEL" => "已点单,不可取消开台",
+            "PHONE_NOT_IS_SALES"=> "预约用户不可是工作人员"
         ],
         "DISHES"                => [
             "CLASS_EXIST_DISHES"=>  "当前分类下存在菜品,不可直接删除",
@@ -336,6 +340,11 @@ return [
             "COMBO_DIST_EMPTY"  =>  "套餐内的单品不能为空",
             "COMBO_ID_NOT_EMPTY"=>  "换品组内的单品不能为空",
             "LOW_ELIMINATION"   =>  "不满足最低消费,请核对订单"
+        ],
+        "TABLE"                 => [
+            "TABLE_CARD_LIMIT_NOT_EMPTY" => "选择仅会员时,会员卡限定不能为空",
+            "AREA_EXIST"                 => "当前大区下存在小区,不可直接删除",
+            "TALE_EXIST"                 => "该区域下存在吧台,不可直接删除",
         ],
      ],
 
@@ -399,6 +408,21 @@ return [
             2 => ['key' => 'limitless', 'name' => '无限制']
         ],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | 桌台
+    |--------------------------------------------------------------------------
+    */
+    'table' => [
+        'reserve_type' => [
+            0 => ['key' => 'all',    'name' => '无限制'],
+            1 => ['key' => 'vip',    'name' => '仅会员用户'],
+            2 => ['key' => 'normal', 'name' => '仅非会员用户'],
+            3 => ['key' => 'keep',   'name' => '保留'],
+        ],
+    ],
+
 
     /*
     |--------------------------------------------------------------------------
@@ -511,7 +535,7 @@ return [
             0 => ['key' => 'vip',      'name' => '会籍顾问'],
             1 => ['key' => 'sales',    'name' => '销售'],
             2 => ['key' => 'user',     'name' => '会员'],
-            3 => ['key' => 'platform', 'name' => '平台推荐'],
+            3 => ['key' => 'platform', 'name' => '无'],
             4 => ['key' => 'boss',     'name' => '董事长'],
             5 => ['key' => 'service',  'name' => '服务员'],
             6 => ['key' => 'reserve',  'name' => '前台']
@@ -597,6 +621,7 @@ return [
             'reserve_success' => ['key' => '1','name' => '预定成功'],
             'already_open'    => ['key' => '2','name' => '已开台'],
             'clear_table'     => ['key' => '3','name' => '已清台'],
+            'cancel_table'    => ['key' => '4','name' => '取消开台'],
             'cancel'          => ['key' => '9','name' => '取消预约'],
         ],
 
@@ -640,6 +665,7 @@ return [
             'spelling_to'    => ['key' => '31', 'name' => '拼去'],
             'spelling_com'   => ['key' => '32', 'name' => '拼来'],
             'clean_table'    => ['key' => '40', 'name' => '清台'],
+            'cancel_table'   => ['key' => '50', 'name' => '取消开台'],
             'revenue_table'  => ['key' => '80', 'name' => '预约'],
             'cancel_revenue' => ['key' => '90', 'name' => '取消预约'],
         ],

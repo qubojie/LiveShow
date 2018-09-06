@@ -7,6 +7,7 @@
  */
 namespace app\admin\controller;
 
+use app\admin\model\MstTableArea;
 use app\admin\model\MstTableLocation;
 use think\Request;
 use think\Validate;
@@ -57,7 +58,7 @@ class TablePosition extends CommandAction
         $sort           = $request->param("sort","100");
 
         $rule = [
-            "location_title|位置名称"  => "require|max:30|unique:mst_table_location",
+            "location_title|位置名称"  => "require|max:30|unique_delete:mst_table_location",
             "location_desc|位置描述"   => "max:200",
             "sort|排序"               => "number",
         ];
@@ -109,7 +110,7 @@ class TablePosition extends CommandAction
 
         $rule = [
             "location_id|位置id"      => "require",
-            "location_title|位置名称"  => "require|max:30|unique:mst_table_location",
+            "location_title|位置名称"  => "require|max:30|unique_delete:mst_table_location,location_id",
             "location_desc|位置描述"   => "max:200",
             "sort|排序"               => "number",
         ];
@@ -155,16 +156,27 @@ class TablePosition extends CommandAction
      */
     public function delete(Request $request)
     {
-        $tableLocationModel = new MstTableLocation();
-
         $location_id    = $request->param("location_id","");
 
         if(empty($location_id)) return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+
+        $tableAreaModel = new MstTableArea();
+
+        $is_exist = $tableAreaModel
+            ->where("location_id",$location_id)
+            ->where("is_delete",0)
+            ->count();
+
+       if ($is_exist > 0){
+           return $this->com_return(false,config("params.TABLE")['AREA_EXIST']);
+       }
 
         $delete_date = [
             "is_delete" => 1,
             "updated_at" => time()
         ];
+
+        $tableLocationModel = new MstTableLocation();
 
         $is_ok = $tableLocationModel
             ->where('location_id',$location_id)

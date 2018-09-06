@@ -133,6 +133,39 @@ class PointListPublicAction extends Controller
      */
     public function pointListPublicAction($trid,$sid,$order_amount,$dish_group,$pay_type,$type = 0,$uid = NULL)
     {
+        /*首单判断低消是否足够 on*/
+        if ($pay_type != \config("order.pay_method")['offline']['key']){
+            //如果不是线下支付,则需要验证低消
+            $tableRevenueModel = new TableRevenue();
+
+            $tableRevenueInfo = $tableRevenueModel
+                ->where("trid",$trid)
+                ->field("status,turnover_limit,turnover_num")
+                ->find();
+
+            $tableRevenueInfo = json_decode(json_encode($tableRevenueInfo),true);
+
+            if (empty($tableRevenueInfo)){
+                return $this->com_return(false,config("params.ORDER")['NOW_STATUS_NOT_PAY']);
+            }
+
+            $turnover_num   = $tableRevenueInfo['turnover_num'];//订单数量
+
+            $turnover_limit = $tableRevenueInfo['turnover_limit'];//低消,0无
+
+            if ($turnover_num <= 0){
+                //首单需要过低消
+                if ($turnover_limit > 0){
+                    //有低消
+                    if ($order_amount < $turnover_limit){
+                        //低消不足
+                        return $this->com_return(false,config("params.ORDER")['TURNOVER_LIMIT_SHORT']);
+                    }
+                }
+            }
+        }
+        /*首单判断低消是否足够 off*/
+
         $tableRevenueModel = new TableRevenue();
 
         $revenue_column    = $tableRevenueModel->revenue_column;

@@ -50,9 +50,14 @@ class PublicAction extends Controller
 
         $appointment = (int)$appointment;
 
+
         $where_card = [];
         if (!empty($user_card_id)){
-           $where_card['tac.card_id'] = ["eq",$user_card_id];
+            //会员用户,不可看到保留和仅非会员用户的桌子
+            $where_card['t.reserve_type'] = ["neq",\config("table.reserve_type")['2']['key']];
+        }else{
+            //非会员用户,不可看到保留和仅会员用户的桌子
+            $where_card['t.reserve_type'] = ["neq",\config("table.reserve_type")['1']['key']];
         }
 
         $location_where = [];
@@ -66,13 +71,15 @@ class PublicAction extends Controller
             ->join("mst_table_location tl","tl.location_id = ta.location_id")//位置
             ->join("mst_table_size ts","ts.size_id = t.size_id")//人数
             ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")//品项
-            ->join("mst_table_area_card tac","tac.area_id = ta.area_id","LEFT")//卡
+            ->join("mst_table_card tc","tc.table_id = t.table_id","LEFT")//卡
             ->where("t.is_enable",1)
             ->where("t.is_delete",0)
             ->where($location_where)
+            ->where($where_card)
+            ->where("t.reserve_type","neq",\config("table.reserve_type")['3']['key'])
             ->group("t.table_id")
             ->order('t.sort')
-            ->field("t.table_id,t.table_no,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
+            ->field("t.table_id,t.table_no,t.reserve_type,t.turnover_limit_l1,t.turnover_limit_l2,t.turnover_limit_l3,t.subscription_l1,t.subscription_l2,t.subscription_l3,t.people_max,t.table_desc")
             ->field("ta.area_id,ta.area_title,ta.area_desc,ta.sid")
             ->field("tl.location_title")
             ->field("ts.size_title")
@@ -113,12 +120,12 @@ class PublicAction extends Controller
         $res = array_values($res);
 
         for ($q = 0; $q < count($res); $q ++){
-            $area_id = $res[$q]['area_id'];
-            $cardInfo = Db::name("mst_table_area_card")
-                ->alias("tac")
-                ->join("mst_card_vip cv","cv.card_id = tac.card_id")
-                ->where('tac.area_id',$area_id)
-                ->field("cv.card_id")
+            $table_id = $res[$q]['table_id'];
+            $cardInfo = Db::name("mst_table_card")
+                ->alias("tc")
+                ->join("mst_card_vip cv","cv.card_id = tc.card_id")
+                ->where('tc.table_id',$table_id)
+                ->field("cv.card_id,cv.card_name")
                 ->select();
 
             $cardInfo = json_decode(json_encode($cardInfo),true);
@@ -130,13 +137,13 @@ class PublicAction extends Controller
         if (!empty($user_card_id)){
             //查找那些区域绑定了该卡
             //获取限制区域的卡信息
-            $area_card_info = Db::name('mst_table_area_card')
+            $table_card_info = Db::name('mst_table_card')
                 ->where("card_id",$user_card_id)
                 ->select();
 
-            $area_card_info = json_decode(json_encode($area_card_info),true);
+            $table_card_info = json_decode(json_encode($table_card_info),true);
 
-            if (empty($area_card_info)){
+            if (empty($table_card_info)){
                 //未有区域绑定该卡
                 foreach ($res as $key => $val){
 
@@ -723,13 +730,54 @@ class PublicAction extends Controller
 
     /**
      * 筛选条件获取
+     * @param Request $request
      * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function reserveCondition()
+    public function reserveCondition(Request $request)
     {
+        $phone = $request->param("phone","");//manage,client
+
+        $rule = [
+            "phone|电话号码" => "regex:1[3-8]{1}[0-9]{9}",
+        ];
+
+        $request_res = [
+            "phone" => $phone,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError());
+        }
+
+        /*获取用户是否是会员 on*/
+        $is_vip = 0;
+        if (!empty($phone)){
+            $userModel = new User();
+
+            $userInfo = $userModel
+                ->where("phone",$phone)
+                ->field("user_status")
+                ->find();
+
+            $userInfo = json_decode(json_encode($userInfo),true);
+
+            if (!empty($userInfo)){
+                $user_status = $userInfo['user_status'];
+                if ($user_status == \config("user.user_status")['2']['key']){
+                    //如果是已开卡
+                    $is_vip = 1;
+                }
+            }
+        }
+
+
+        /*获取用户是否是会员 off*/
+
         /*获取位置和小区选项 on*/
 
         $tableLocationModel = new MstTableLocation();
@@ -825,13 +873,17 @@ class PublicAction extends Controller
             if ($is_exist){
                 unset($date_select[$key]);
             }
-
         }
 
         $date_select = array_values($date_select);
 
-        //获取可预约时间选项
-        $reserve_time_frame = $openCardObj->getSysSettingInfo("reserve_time_frame");
+        if ($is_vip){
+            //会员获取可预约时间选项
+            $reserve_time_frame = $openCardObj->getSysSettingInfo("reserve_time_frame");
+        }else{
+            //非会员获取可预约时间选项
+            $reserve_time_frame = $openCardObj->getSysSettingInfo("reserve_time_frame_normal");
+        }
 
         $reserve_time_frame_arr = explode("|",$reserve_time_frame);
 
@@ -969,7 +1021,6 @@ class PublicAction extends Controller
             return $this->com_return(false,config("params.FAIL"));
         }
     }
-
 
     /**
      * 获取预约时,温馨提示信息

@@ -305,11 +305,6 @@ class Controller
 
         Log::info("易连云打印结果 -----".var_export($printRes,true));
 
-        if ($printRes['error'] != "0"){
-            //落单失败
-            return $this->com_return(false,$printRes['error_description'],$pid);
-        }
-
         return $this->com_return(true,config("params.SUCCESS"));
         /*调用打印机 处理落单 off*/
     }
@@ -330,11 +325,10 @@ class Controller
 
         $orderInfo = $dishPublicActionObj->pidGetTableInfo($pid);
 
-        $tableName = $orderInfo['location_title']." - ".$orderInfo['area_title']." - ".$orderInfo['table_no']."号桌";
+//        $tableName = $orderInfo['location_title']." - ".$orderInfo['area_title']." - ".$orderInfo['table_no']."号桌";
+        $tableName = $orderInfo['table_no'];
 
-        $detail_id_arr = json_decode($detail_dis_info,true);
-
-        $billPayDetailModel = new BillPayDetail();
+        /*$billPayDetailModel = new BillPayDetail();
 
         $dis_info = [];
 
@@ -366,11 +360,12 @@ class Controller
             $detail_info['children'] = $children;
 
             $dis_info[] = $detail_info;
-        }
+        }*/
 
         $params = [
             "table_name" => $tableName,
-            "dis_info"   => $dis_info
+            "dis_info"   => $detail_dis_info,
+            "pid"        => $pid
         ];
 
         $YlyPrintObj = new YlyPrint();
@@ -391,11 +386,6 @@ class Controller
         $refresh_token = $data['refresh_token'];
 
         $printRes = $YlyPrintObj->refundDish($access_token,$params);
-
-        if ($printRes['error'] != "0"){
-            //落单失败
-            return $this->com_return(false,$printRes['error_description'],$pid);
-        }
 
         return $this->com_return(true,config("params.SUCCESS"));
     }

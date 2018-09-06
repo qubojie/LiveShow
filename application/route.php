@@ -298,6 +298,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
                 //工作人员点单
                 Route::rule('createPointList','ManagePointList/createPointList','post|options');
 
+                //赠品点单
+                Route::rule('giveDishOrder','ManagePointList/giveDishOrder','post|options');
+
                 //检测订单状态
                 Route::rule('checkOrderStatus','ManagePointList/checkOrderStatus','post|options');
 
@@ -1057,6 +1060,9 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
         //开台
         Route::rule('openTable','DiningRoom/openTable','post|options');
 
+        //取消开台
+        Route::rule('cancelOpenTable','DiningRoom/cancelOpenTable','post|options');
+
         //补全已开台用户信息
         Route::rule('supplementInfo','DiningRoom/supplementRevenueInfo','post|options');
 
@@ -1071,6 +1077,7 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
         //转台
         Route::rule('turnTable','DiningRoomTurnSpelling/turnTable','post|options');
+
     });
 
     //预定

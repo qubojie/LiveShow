@@ -8,6 +8,7 @@
 namespace app\admin\controller;
 
 use app\admin\model\MstTable;
+use app\admin\model\MstTableCard;
 use app\admin\model\MstTableImage;
 use app\admin\model\MstTableLocation;
 use app\admin\model\TableRevenue;
@@ -83,19 +84,36 @@ class TableInfo extends CommandAction
             "page" => $nowPage,
         ];
 
+        $column = $tableModel->column;
+
+        foreach ($column as $k => $v){
+
+            $column[$k] = "t.".$v;
+        }
+
         $list = $tableModel
             ->alias("t")
             ->join("mst_table_area ta","ta.area_id = t.area_id")
+            ->join("mst_table_location tl","tl.location_id = ta.location_id")
             ->join("mst_table_appearance tap","tap.appearance_id = t.appearance_id")
             ->join("mst_table_size ts","ts.size_id = t.size_id")
             ->where('t.is_delete',0)
             ->where($location_where)
             ->group('t.area_id,t.table_id')
+//            ->group('t.table_id')
+            ->order("t.sort,tl.location_id,ta.area_id,t.table_no")
+            ->field("tl.location_id,tl.location_title")
+            ->field("ta.area_id,ta.area_title")
+            ->field("tap.appearance_id,tap.appearance_title")
+            ->field("ts.size_id,ts.size_title")
+            ->field($column)
             ->paginate($pagesize,false,$config);
+
         $list = json_decode(json_encode($list),true);
 
-
         $tableImageModel = new MstTableImage();
+
+        $tableCardModel  = new MstTableCard();
 
         $tableRevenueModel = new TableRevenue();
 
@@ -135,6 +153,7 @@ class TableInfo extends CommandAction
                 ->where('table_id',$table_id)
                 ->field('type,sort,image')
                 ->select();
+
             $image_res = json_decode(json_encode($image_res),true);
 
             $image = "";
@@ -147,6 +166,16 @@ class TableInfo extends CommandAction
 
             $list['data'][$i]['image_group'] = $image;
 
+            $card_id_res = $tableCardModel
+                ->alias("tc")
+                ->join("mst_card_vip cv","cv.card_id = tc.card_id")
+                ->where("tc.table_id",$table_id)
+                ->field("tc.card_id,cv.card_name")
+                ->select();
+
+            $card_id_res = json_decode(json_encode($card_id_res),true);
+
+            $list['data'][$i]['card_id'] = $card_id_res;
         }
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
@@ -172,19 +201,21 @@ class TableInfo extends CommandAction
         $subscription_l1   = $request->param('subscription_l1',0);//平日押金
         $subscription_l2   = $request->param('subscription_l2',0);//周末押金
         $subscription_l3   = $request->param('subscription_l3',0);//假日押金
-//        $people_max     = $request->param("people_max",'');//最大预定上线人数
         $table_desc        = $request->param('table_desc','');//台位描述
         $sort              = $request->param('sort','');//台位描述
         $is_enable         = $request->param('is_enable',0);//排序
 
         $image_group       = $request->param('image_group',0);//图片组,以逗号隔开
 
+        $reserve_type      = $request->param('reserve_type','');//台位预定类型   all全部无限制  vip 会员用户  normal  普通用户   keep  保留
+        $card_ids          = $request->param('card_id','');//绑定卡信息
+
         $rule = [
-            "table_no|台号"                  => "require|max:20|unique:mst_table",
+            "table_no|台号"                  => "require|max:20|unique_delete:mst_table",
             "appearance_id|品项"             => "require",
             "size_id|容量"                   => "require",
             "area_id|区域"                   => "require",
-//            "people_max|最大预定上线人数" => "require|number",
+            "reserve_type|台位预定类型"       => "require",
             "image_group|图片"               => "require",
             "turnover_limit_l1|平日最低消费"  => "require|number",
             "turnover_limit_l2|周末最低消费"  => "require|number",
@@ -200,6 +231,7 @@ class TableInfo extends CommandAction
             "appearance_id"      => $appearance_id,
             "size_id"            => $size_id,
             "area_id"            => $area_id,
+            "reserve_type"       => $reserve_type,
             "image_group"        => $image_group,
             "turnover_limit_l1"  => $turnover_limit_l1,
             "turnover_limit_l2"  => $turnover_limit_l2,
@@ -207,7 +239,6 @@ class TableInfo extends CommandAction
             "subscription_l1"    => $subscription_l1,
             "subscription_l2"    => $subscription_l2,
             "subscription_l3"    => $subscription_l3,
-//            "people_max"     => $people_max,
             "table_desc"         => $table_desc,
         ];
 
@@ -224,13 +255,13 @@ class TableInfo extends CommandAction
             'appearance_id'     => $appearance_id,
             'size_id'           => $size_id,
             'area_id'           => $area_id,
+            'reserve_type'      => $reserve_type,
             'turnover_limit_l1' => $turnover_limit_l1,
             'turnover_limit_l2' => $turnover_limit_l2,
             'turnover_limit_l3' => $turnover_limit_l3,
             'subscription_l1'   => $subscription_l1,
             'subscription_l2'   => $subscription_l2,
             'subscription_l3'   => $subscription_l3,
-//            'people_max'      => $people_max,
             'table_desc'        => $table_desc,
             'sort'              => $sort,
             'is_enable'         => $is_enable,
@@ -244,11 +275,11 @@ class TableInfo extends CommandAction
             $table_id = $tableModel
                 ->insertGetId($insert_data);
             if ($table_id){
+
+                /*图片写入 on*/
                 $image_group = explode(",",$image_group);
 
                 $tableImageModel = new MstTableImage();
-
-                $is_ok = false;
 
                 for ($i = 0; $i < count($image_group); $i++){
                     $image_data = [
@@ -256,15 +287,45 @@ class TableInfo extends CommandAction
                         'sort'     => $i,
                         'image'    => $image_group[$i]
                     ];
-                    $is_ok = $tableImageModel
+                    $image_is_ok = $tableImageModel
                         ->insert($image_data);
+                    if (!$image_is_ok){
+                        return $this->com_return(false,config("params.FAIL"));
+                    }
                 }
-                if ($is_ok){
-                    Db::commit();
-                    return $this->com_return(true,config("params.SUCCESS"));
-                }else{
-                    return $this->com_return(false,config("params.FAIL"));
+                /*图片写入 off*/
+
+                /*vip限定写入 on*/
+                if ($reserve_type == config("table.reserve_type")['1']['key']){
+                    //如果是仅vip用户
+                    if (empty($card_ids)){
+                        return $this->com_return(false,config("params.TABLE")['TABLE_CARD_LIMIT_NOT_EMPTY']);
+                    }
+
+                    $tableCardModel = new MstTableCard();
+
+                    $card_id_arr = explode(",",$card_ids);
+
+                    for ($m = 0; $m < count($card_id_arr); $m ++){
+                        $card_id = $card_id_arr[$m];
+
+                        $tableCardParams = [
+                            'table_id' => $table_id,
+                            'card_id'  => $card_id
+                        ];
+
+                        $card_is_ok = $tableCardModel
+                            ->insert($tableCardParams);
+
+                        if (!$card_is_ok){
+                            return $this->com_return(false,config("params.FAIL"));
+                        }
+                    }
                 }
+                /*vip限定写入 off*/
+
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
 
             }else{
                 return $this->com_return(false,config("params.FAIL"));
@@ -285,7 +346,6 @@ class TableInfo extends CommandAction
     {
         $tableModel = new MstTable();
 
-
         $table_id          = $request->param('table_id','');//酒桌id
 
         $table_no          = $request->param('table_no','');//台号
@@ -298,19 +358,23 @@ class TableInfo extends CommandAction
         $subscription_l1   = $request->param('subscription_l1',0);//平日押金
         $subscription_l2   = $request->param('subscription_l2',0);//周末押金
         $subscription_l3   = $request->param('subscription_l3',0);//假日押金
-//        $people_max     = $request->param("people_max",'');//最大预定人数上限
         $table_desc        = $request->param('table_desc','');//台位描述
         $sort              = $request->param('sort','');//台位排序
         $is_enable         = $request->param('is_enable',0);//排序
 
         $image_group       = $request->param('image_group',"");//图片组,以逗号隔开
 
+        $reserve_type      = $request->param('reserve_type','');//台位预定类型   all全部无限制  vip 会员用户  normal  普通用户   keep  保留
+        $card_ids          = $request->param('card_id','');//绑定卡信息
+
+
         $rule = [
             "table_id|酒桌id"               => "require",
-            "table_no|台号"                 => "require|max:20|unique:mst_table",
+            "table_no|台号"                 => "require|max:20|unique_delete:mst_table,table_id",
             "appearance_id|品项"            => "require",
             "size_id|容量"                  => "require",
             "area_id|区域"                  => "require",
+            "reserve_type|台位预定类型"      => "require",
             "image_group|图片"              => "require",
             "turnover_limit_l1|平日最低消费" => "require|number",
             "turnover_limit_l2|周末最低消费" => "require|number",
@@ -318,7 +382,6 @@ class TableInfo extends CommandAction
             "subscription_l1|平日押金"      => "require|number",
             "subscription_l2|周末押金"      => "require|number",
             "subscription_l3|假日押金"      => "require|number",
-//            "people_max|最大预定人数上限" => "require",
             "table_desc|台位描述"           => "max:200",
         ];
 
@@ -328,6 +391,7 @@ class TableInfo extends CommandAction
             "appearance_id"     => $appearance_id,
             "size_id"           => $size_id,
             "area_id"           => $area_id,
+            "reserve_type"      => $reserve_type,
             "image_group"       => $image_group,
             "turnover_limit_l1" => $turnover_limit_l1,
             "turnover_limit_l2" => $turnover_limit_l2,
@@ -335,7 +399,6 @@ class TableInfo extends CommandAction
             "subscription_l1"   => $subscription_l1,
             "subscription_l2"   => $subscription_l2,
             "subscription_l3"   => $subscription_l3,
-//            "people_max" => $people_max,
             "table_desc"        => $table_desc,
         ];
 
@@ -352,13 +415,13 @@ class TableInfo extends CommandAction
             "appearance_id"     => $appearance_id,
             "size_id"           => $size_id,
             'area_id'           => $area_id,
+            "reserve_type"      => $reserve_type,
             'turnover_limit_l1' => $turnover_limit_l1,
             'turnover_limit_l2' => $turnover_limit_l2,
             'turnover_limit_l3' => $turnover_limit_l3,
             'subscription_l1'   => $subscription_l1,
             'subscription_l2'   => $subscription_l2,
             'subscription_l3'   => $subscription_l3,
-//            "people_max"      => $people_max,
             'table_desc'        => $table_desc,
             'sort'              => $sort,
             'is_enable'         => $is_enable,
@@ -371,40 +434,81 @@ class TableInfo extends CommandAction
                 ->where('table_id',$table_id)
                 ->update($update_data);
 
-            if ($is_ok !== false){
-                //首先删除表中此吧台的图片
-                $tableImageModel = new MstTableImage();
-
-                $is_delete = $tableImageModel
-                    ->where('table_id',$table_id)
-                    ->delete();
-                if ($is_delete !== false){
-
-                    $image_group = explode(",",$image_group);
-                    $is_ok = false;
-                    for ($i = 0; $i < count($image_group); $i++){
-                        $image_data = [
-                            'table_id' => $table_id,
-                            'sort' => $i,
-                            'image' => $image_group[$i]
-                        ];
-                        $is_ok = $tableImageModel
-                            ->insert($image_data);
-                    }
-
-                    if ($is_ok){
-                        Db::commit();
-                        return $this->com_return(true,config("params.SUCCESS"));
-                    }else{
-                        return $this->com_return(false,config("params.FAIL"));
-                    }
-
-                }else{
-                    return $this->com_return(false,config("params.FAIL"));
-                }
-            }else{
+            if ($is_ok === false){
                 return $this->com_return(false,config("params.FAIL"));
             }
+
+            /*台位图片操作 on*/
+            //首先删除表中此吧台的图片
+            $tableImageModel = new MstTableImage();
+
+            $is_delete = $tableImageModel
+                ->where('table_id',$table_id)
+                ->delete();
+
+            if ($is_delete === false){
+                return $this->com_return(false,config("params.FAIL"));
+            }
+
+            $image_group = explode(",",$image_group);
+
+            for ($i = 0; $i < count($image_group); $i++){
+                $image_data = [
+                    'table_id' => $table_id,
+                    'sort'     => $i,
+                    'image'    => $image_group[$i]
+                ];
+                $is_ok = $tableImageModel
+                    ->insert($image_data);
+
+                if (!$is_ok){
+                    return $this->com_return(false,config("params.FAIL"));
+                }
+            }
+            /*台位图片操作 off*/
+
+            /*台位绑定卡操作 on*/
+            //首先删除之前绑定大卡信息
+            $tableCardModel = new MstTableCard();
+
+            $delete_card = $tableCardModel
+                ->where("table_id",$table_id)
+                ->delete();
+
+            if ($delete_card === false){
+                return $this->com_return(false,config("params.FAIL"));
+            }
+
+            if ($reserve_type == config("table.reserve_type")['1']['key']){
+
+                //如果是仅vip用户
+                if (empty($card_ids)){
+                    return $this->com_return(false,config("params.TABLE")['TABLE_CARD_LIMIT_NOT_EMPTY']);
+                }
+
+                $card_id_arr = explode(",",$card_ids);
+
+                for ($m = 0; $m < count($card_id_arr); $m ++){
+
+                    $card_id = $card_id_arr[$m];
+
+                    $tableCardParams = [
+                        "table_id" => $table_id,
+                        "card_id"  => $card_id
+                    ];
+
+                    $insert_table_card = $tableCardModel
+                        ->insert($tableCardParams);
+
+                    if (!$insert_table_card){
+                        return $this->com_return(false,config("params.FAIL"));
+                    }
+                }
+            }
+            /*台位绑定卡操作 off*/
+
+            Db::commit();
+            return $this->com_return(true,config("params.SUCCESS"));
 
         }catch (Exception $e){
             Db::rollback();

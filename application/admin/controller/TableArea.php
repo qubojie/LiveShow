@@ -7,13 +7,9 @@
  */
 namespace app\admin\controller;
 
-use app\admin\model\ManageSalesman;
 use app\admin\model\MstCardVip;
 use app\admin\model\MstTable;
 use app\admin\model\MstTableArea;
-use app\admin\model\MstTableAreaCard;
-use think\Db;
-use think\Exception;
 use think\Request;
 use think\Validate;
 
@@ -43,62 +39,27 @@ class TableArea extends CommandAction
 
         $location_where = [];
         if (!empty($location_id)){
-            $location_where['location_id'] = ['eq',$location_id];
+            $location_where['ta.location_id'] = ['eq',$location_id];
+        }
+
+        $column = $tableAreaModel->column;
+
+        foreach ($column as $k => $v){
+            $column[$k] = "ta.".$v;
         }
 
         $list = $tableAreaModel
-            ->where('is_delete',0)
+            ->alias('ta')
+            ->join("mst_table_location tl","tl.location_id = ta.location_id")
+            ->join("manage_salesman ms","ms.sid = ta.sid")
+            ->where('ta.is_delete',0)
             ->where($location_where)
+            ->field("tl.location_id,tl.location_title")
+            ->field($column)
+            ->field("ms.sid,ms.sales_name area_manager")
             ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);
-
-        $tableAreaCardModel = new MstTableAreaCard();
-
-        $cardModel = new MstCardVip();
-        $salesmanModel = new ManageSalesman();
-
-        for ($i = 0; $i < count($list['data']); $i++){
-
-            //区域负责人
-            $sid = $list['data'][$i]['sid'];
-            $area_manager_res = $salesmanModel
-                ->where('sid',$sid)
-                ->field("sales_name")
-                ->find();
-            $area_manager_res = json_decode(json_encode($area_manager_res),true);
-            $area_manager = $area_manager_res['sales_name'];
-            $list['data'][$i]['area_manager'] = $area_manager;
-
-            //获取区域与卡绑定关系
-            $area_id     = $list['data'][$i]['area_id'];
-
-            $card_id_res = $tableAreaCardModel
-                ->where("area_id",$area_id)
-                ->select();
-
-            $card_id_res = json_decode(json_encode($card_id_res),true);
-
-            if (!empty($card_id_res)){
-                for ($m = 0; $m < count($card_id_res); $m++){
-
-                    //获取卡的名字
-                    $card_id = $card_id_res[$m]['card_id'];
-                    $card_name_res = $cardModel
-                        ->where('card_id',$card_id)
-                        ->field("card_name")
-                        ->find();
-
-                    $card_name_res = json_decode(json_encode($card_name_res),true);
-
-                    $card_name     = $card_name_res['card_name'];
-                    $list['data'][$i]['card_id'][$m]['card_id'] = $card_id;
-                    $list['data'][$i]['card_id'][$m]['card_name'] = $card_name;
-                }
-            }else{
-                $list['data'][$i]['card_id'] = [];
-            }
-        }
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
@@ -180,11 +141,8 @@ class TableArea extends CommandAction
         $location_id    = $request->param('location_id','');//位置id
         $area_title     = $request->param('area_title','');
         $area_desc      = $request->param('area_desc','');
-//        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
         $sort           = $request->param('sort','100');//排序
         $is_enable      = $request->param('is_enable',0);//是否启用预定  0否 1是
-        $card_ids       = $request->param("card_id","");//区域绑定卡
-
         $sid            = $request->param("sid","");//服务负责人id
 
         if (empty($sort)) $sort = 100;
@@ -193,7 +151,6 @@ class TableArea extends CommandAction
             "location_id|位置id"     => "require",
             "area_title|区域名称"     => "require|max:30",
             "area_desc|区域描述"      => "max:200",
-//            "turnover_limit|最低消费" => "number",
             "sort|排序"              => "number",
             "sid|服务负责人id"        => "require",
         ];
@@ -201,7 +158,6 @@ class TableArea extends CommandAction
             "location_id"    => $location_id,
             "area_title"     => $area_title,
             "area_desc"      => $area_desc,
-//            "turnover_limit" => $turnover_limit,
             "sort"           => $sort,
             "sid"            => $sid,
         ];
@@ -230,7 +186,6 @@ class TableArea extends CommandAction
             'location_id'     => $location_id,
             'area_title'      => $area_title,
             'area_desc'       => $area_desc,
-//            'turnover_limit'  => $turnover_limit,
             'sort'            => $sort,
             'sid'             => $sid,
             'is_enable'       => $is_enable,
@@ -238,49 +193,14 @@ class TableArea extends CommandAction
             'updated_at'      => $time
         ];
 
-        Db::startTrans();
-        try{
+        $is_ok = $tableAreaModel
+            ->insert($insert_data);
 
-            $area_id = $tableAreaModel
-                ->insertGetId($insert_data);
+        if ($is_ok){
+            return $this->com_return(true,config("params.SUCCESS"));
 
-            if ($area_id){
-                if (!empty($card_ids)){
-                    $card_id_arr = explode(",",$card_ids);
-
-                    $tableAreaCardModel = new MstTableAreaCard();
-
-                    $is_ok = false;
-
-                    for ($i = 0; $i < count($card_id_arr); $i++){
-                        $card_id = $card_id_arr[$i];
-
-                        $insert_table_card_data = [
-                            "area_id" => $area_id,
-                            "card_id" => $card_id
-                        ];
-
-                        $is_ok = $tableAreaCardModel
-                            ->insert($insert_table_card_data);
-
-                    }
-                }else{
-                    $is_ok = true;
-                }
-
-                if ($is_ok){
-                    Db::commit();
-                    return $this->com_return(true,config("params.SUCCESS"));
-
-                }else{
-                    return $this->com_return(false,config("params.FAIL"));
-                }
-            }else{
-                return $this->com_return(false,config("params.FAIL"));
-            }
-        }catch (Exception $e){
-            Db::rollback();
-            return $this->com_return(false,$e->getMessage());
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
         }
     }
 
@@ -298,10 +218,8 @@ class TableArea extends CommandAction
         $location_id    = $request->param('location_id','');//位置id
         $area_title     = $request->param('area_title','');
         $area_desc      = $request->param('area_desc','');
-//        $turnover_limit = $request->param('turnover_limit','');//最低消费 0表示无最低消费
         $sort           = $request->param('sort','100');//排序
         $is_enable      = $request->param('is_enable',0);//是否启用预定  0否 1是
-        $card_ids       = $request->param("card_id","");//区域绑定卡
 
         $sid            = $request->param("sid","");//服务负责人id
 
@@ -312,7 +230,6 @@ class TableArea extends CommandAction
             "location_id|位置id"     => "require",
             "area_title|区域名称"     => "require|max:30",
             "area_desc|区域描述"      => "max:200",
-//            "turnover_limit|最低消费" => "number",
             "sort|排序"              => "number",
             "sid|服务负责人id"        => "require",
         ];
@@ -321,7 +238,6 @@ class TableArea extends CommandAction
             "location_id"    => $location_id,
             "area_title"     => $area_title,
             "area_desc"      => $area_desc,
-//            "turnover_limit" => $turnover_limit,
             "sort"           => $sort,
             "sid"            => $sid,
         ];
@@ -336,72 +252,23 @@ class TableArea extends CommandAction
             "location_id"    => $location_id,
             'area_title'     => $area_title,
             'area_desc'      => $area_desc,
-//            'turnover_limit' => $turnover_limit,
             'sort'           => $sort,
             'sid'            => $sid,
             'is_enable'      => $is_enable,
             'updated_at'     => time()
         ];
 
-        Db::startTrans();
-        try{
+        $is_ok = $tableAreaModel
+            ->where('area_id',$area_id)
+            ->update($update_data);
 
-            $is_ok = $tableAreaModel
-                ->where('area_id',$area_id)
-                ->update($update_data);
+        if ($is_ok !== false){
+            return $this->com_return(true,config("params.SUCCESS"));
 
-            if ($is_ok !== false){
-
-                $tableAreaCardModel = new MstTableAreaCard();
-
-                //首先删除此区域绑定卡信息
-                $delete_ok = $tableAreaCardModel
-                    ->where('area_id',$area_id)
-                    ->delete();
-
-                if ($delete_ok !== false){
-
-                    if (!empty($card_ids)){
-                        $card_id_arr = explode(",",$card_ids);
-
-                        $is_ok = false;
-
-                        for ($i = 0; $i < count($card_id_arr); $i++){
-                            $card_id = $card_id_arr[$i];
-
-                            $insert_table_card_data = [
-                                "area_id" => $area_id,
-                                "card_id" => $card_id
-                            ];
-
-                            $is_ok = $tableAreaCardModel
-                                ->insert($insert_table_card_data);
-                        }
-                    }else{
-                        $is_ok = true;
-                    }
-
-                    if ($is_ok){
-
-                        Db::commit();
-                        return $this->com_return(true,config("params.SUCCESS"));
-
-                    }else{
-                        return $this->com_return(false,config("params.FAIL"));
-                    }
-
-                }else{
-                    return $this->com_return(false,config("params.FAIL"));
-                }
-
-            }else{
-                return $this->com_return(false,config("params.FAIL"));
-            }
-
-        }catch (Exception $e){
-            Db::rollback();
-            return $this->com_return(false,$e->getMessage());
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
         }
+
     }
 
     /**
@@ -419,9 +286,11 @@ class TableArea extends CommandAction
 
         $is_exist = $tableModel
             ->where('area_id',$area_id)
+            ->where("is_delete",0)
             ->count();
+
         if ($is_exist > 0){
-            return $this->com_return(false,config("params.EXIST_TALE"));
+            return $this->com_return(false,config("params.TABLE")['TALE_EXIST']);
         }
 
         $delete_data = [

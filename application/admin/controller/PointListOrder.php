@@ -195,7 +195,6 @@ class PointListOrder extends CommandAction
 
             Db::rollback();
             return $this->com_return(false,$e->getMessage());
-
         }
     }
 }
