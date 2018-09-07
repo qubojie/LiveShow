@@ -57,7 +57,7 @@ class PublicAction extends Controller
     }
 
     //插入新的开台信息
-    public function insertTableRevenue($table_id,$uid,$reserve_time,$ssid = "",$ssname = "")
+    public function insertTableRevenue($table_id,$uid,$reserve_time,$ssid = "",$ssname = "",$turnover_limit = 0)
     {
 
         $UUID = new UUIDUntil();
@@ -73,7 +73,6 @@ class PublicAction extends Controller
         $sid      = $tableInfo['sid'];
         $sname    = $tableInfo['sales_name'];
 
-        $tableRevenueModel = new TableRevenue();
         //当前可开台,直接插入开台预约信息
         $tableRevenueParams = [
             "trid"              => $trid,
@@ -82,6 +81,7 @@ class PublicAction extends Controller
             "table_no"          => $table_no,
             "area_id"           => $area_id,
             "status"            => config("order.table_reserve_status")['already_open']['key'],
+            "turnover_limit"    => $turnover_limit,
             "reserve_way"       => config("order.reserve_way")['manage']['key'],
             "reserve_time"      => $reserve_time,
             "ssid"              => $ssid,

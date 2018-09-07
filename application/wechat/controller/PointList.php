@@ -38,12 +38,11 @@ class PointList extends CommonAction
             ->join("user u",'u.uid = tr.uid','LEFT')
             ->where("tr.status",config("order.table_reserve_status")['already_open']['key'])
             ->where("tr.table_id",$table_id)
-            ->field("tr.trid,tr.table_id,tr.table_no,tr.parent_trid,tr.ssid,tr.ssname,ms.phone sphone")
+            ->field("tr.trid,tr.table_id,tr.table_no,tr.parent_trid,tr.turnover_limit,tr.turnover_num,tr.ssid,tr.ssname,ms.phone sphone")
             ->field("u.name,u.phone")
             ->select();
 
         $info = json_decode(json_encode($info),true);
-
 
         if (empty($info)){
             return $this->com_return(false,config("params.REVENUE")['NOT_OPEN_NOT_DISH']);
@@ -102,7 +101,6 @@ class PointList extends CommonAction
         $pointListPublicObj = new PointListPublicAction();
 
         return $pointListPublicObj->pointListPublicAction("$trid","$sid","$order_amount","$dish_group","$pay_type","$type",$uid);
-
     }
 
 

@@ -551,7 +551,6 @@ class WechatPay extends Controller
         Log::info("----------------------------------------------------");
         Log::info("----------------------------------------------------");
 
-
         $pid = $values['out_trade_no'];
 
         //获取订单信息
@@ -718,9 +717,15 @@ class WechatPay extends Controller
 
             if ($return_point > 0){
 
+                $new_account_point = $return_point + $account_point;
+
+                //获取用户新的等级id
+                $level_id = getUserNewLevelId($new_account_point);
+
                 //1.更新用户积分账户
                 $userAccountPointParams = [
-                    "account_point" => $return_point + $account_point,
+                    "account_point" => $new_account_point,
+                    "level_id"      => $level_id,
                     "updated_at"    => time()
                 ];
 
@@ -736,7 +741,7 @@ class WechatPay extends Controller
                 $updateAccountPointParams = [
                     'uid'         => $uid,
                     'point'       => $return_point,
-                    'last_point'  => $account_point + $return_point,
+                    'last_point'  => $new_account_point,
                     'change_type' => 2,
                     'action_user' => 'sys',
                     'action_type' => config("user.point")['consume_reward']['key'],
@@ -1504,25 +1509,30 @@ class WechatPay extends Controller
                 if ($card_point > 0){
                     //如果赠送积分大于0 则更新
 
+                    $new_account_point = $account_point + $card_point;
+                    //获取用户新的等级id
+                    $level_id = getUserNewLevelId($new_account_point);
+
                     //1.更新用户积分余额
                     $updateUserPointParams = [
-                        'account_point' => $account_point + $card_point,
+                        'level_id'      => $level_id,
+                        'account_point' => $new_account_point,
                         'updated_at'    => $time
                     ];
                     $userUserPointReturn = $cardCallbackObj->updateUserInfo($updateUserPointParams,$uid);
 
                     //2.更新用户积分明细
                     $updateAccountPointParams = [
-                        'uid' => $uid,
-                        'point' => $card_point,
-                        'last_point' => $account_point + $card_point,
+                        'uid'         => $uid,
+                        'point'       => $card_point,
+                        'last_point'  => $new_account_point,
                         'change_type' => 2,
                         'action_user' => 'sys',
                         'action_type' => config("user.point")['open_card_reward']['key'],
                         'action_desc' => config("user.point")['open_card_reward']['name'],
-                        'oid' => $vid,
-                        'created_at' => $time,
-                        'updated_at' => $time
+                        'oid'         => $vid,
+                        'created_at'  => $time,
+                        'updated_at'  => $time
                     ];
 
                     $userAccountPointReturn = $cardCallbackObj->updateUserAccountPoint($updateAccountPointParams);

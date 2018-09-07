@@ -17,7 +17,7 @@ class QrCodeAction extends Controller
     /**
      * 二维码使用
      * @param Request $request
-     * @return array|void
+     * @return array|false|mixed|\PDOStatement|string|\think\Model|void
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException

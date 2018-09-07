@@ -367,7 +367,7 @@ class MyInfo extends CommonAction
             ->alias("bp")
             ->join("table_revenue tr","tr.trid = bp.trid")
             ->where("bp.uid",$uid)
-            ->order("bp.created_at")
+            ->order("bp.created_at DESC")
             ->field("tr.table_no")
             ->field($column)
             ->paginate($pagesize,false,$config);

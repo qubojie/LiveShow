@@ -220,3 +220,30 @@ function getUserInfo($uid)
 
     return $user_info;
 }
+
+/**
+ * 获取用户新积分等级
+ * @param $point
+ * @return int
+ * @throws \think\db\exception\DataNotFoundException
+ * @throws \think\db\exception\ModelNotFoundException
+ * @throws \think\exception\DbException
+ */
+function getUserNewLevelId($point)
+{
+    $userLevelModel = new \app\admin\model\MstUserLevel();
+
+    $list = $userLevelModel
+        ->where("point_min <= $point AND point_max >= $point")
+        ->find();
+
+    $list = json_decode(json_encode($list),true);
+
+    if (!empty($list)){
+        $level_id = $list['level_id'];
+    }else{
+        $level_id = 0;
+    }
+
+    return $level_id;
+}

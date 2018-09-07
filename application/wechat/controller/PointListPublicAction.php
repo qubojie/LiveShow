@@ -377,9 +377,9 @@ class PointListPublicAction extends Controller
     //创建消费单缴费单
     public function createBillPay($trid,$uid,$sid,$type,$order_amount,$payable_amount,$pay_type,$pay_offline_type)
     {
-        $UUID         = new UUIDUntil();
+        $UUID  = new UUIDUntil();
 
-        $pid          = $UUID->generateReadableUUID("P");
+        $pid   = $UUID->generateReadableUUID("P");
 
         if ($type == \config("order.bill_pay_type")['give']['key']){
 

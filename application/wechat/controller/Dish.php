@@ -37,14 +37,16 @@ class Dish extends CommonAction
             "cat_img"  => config("dish.xcx_dish_menu")[0]['img'],
         ];
 
-        $is_combo = [
+        /*$is_combo = [
             "cat_id"   => config("dish.xcx_dish_menu")[1]['key'],
             "cat_name" => config("dish.xcx_dish_menu")[1]['name'],
             "cat_img"  => config("dish.xcx_dish_menu")[1]['img'],
-        ];
+        ];*/
+
+        //
 
         //向数组的前段新增元素
-        array_unshift($list['data'],$is_vip,$is_combo);
+        array_unshift($list['data'],$is_vip);
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
@@ -69,7 +71,7 @@ class Dish extends CommonAction
 
         //$is_vip   = $request->param("is_vip","");//会员专享
 
-        $dis_type = $request->param("dis_type","");//套餐
+//        $dis_type = $request->param("dis_type","");//套餐
 
         $is_gift  = $request->param("is_gift","");//礼金专区
 
@@ -80,11 +82,6 @@ class Dish extends CommonAction
 
         }else{
             $is_vip = "";
-        }
-
-        if ($cat_id == "combo"){
-            $dis_type = 1;
-            $cat_id = "";
         }
 
         $cat_where = [];
@@ -102,7 +99,7 @@ class Dish extends CommonAction
         }
 
 
-        $dis_type_where = [];
+        /*$dis_type_where = [];
         if ($dis_type == "1"){
             $dis_type_where['d.dis_type'] = ["eq",1];
         }else{
@@ -112,7 +109,8 @@ class Dish extends CommonAction
             }else{
                 $dis_type_where['d.dis_type'] = ["eq",0];
             }
-        }
+            $dis_type_where['d.dis_type'] = ["IN",'0,1'];
+        }*/
 
         $is_gift_where = [];
         if ($is_gift == "1"){
@@ -121,7 +119,6 @@ class Dish extends CommonAction
             $cat_where = [];
             $is_normal_where = [];
             $is_vip_where = [];
-            $dis_type_where = [];
         }
 
 
@@ -140,7 +137,7 @@ class Dish extends CommonAction
             ->where($cat_where)
             ->where($is_normal_where)
             ->where($is_vip_where)
-            ->where($dis_type_where)
+//            ->where($dis_type_where)
             ->where($is_gift_where)
             ->where("d.is_enable",1)
             ->where("d.is_delete",0)

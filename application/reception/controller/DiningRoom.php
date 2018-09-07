@@ -349,24 +349,27 @@ class DiningRoom extends CommonAction
      */
     public function openTable(Request $request)
     {
-        $table_id    = $request->param("table_id","");//桌id
-        $user_phone  = $request->param("user_phone","");//客户电话
-        $user_name   = $request->param("user_name","");//客户姓名
-        $sales_phone = $request->param("sales_phone","");//营销电话
+        $table_id       = $request->param("table_id","");//桌id
+        $user_phone     = $request->param("user_phone","");//客户电话
+        $user_name      = $request->param("user_name","");//客户姓名
+        $sales_phone    = $request->param("sales_phone","");//营销电话
+        $turnover_limit = $request->param("turnover_limit","");//低消
 
         $time = time();
         $open_time = $time;
 
         $rule = [
             "table_id|桌台"       => "require",
+            "turnover_limit|低消" => "require",
             "user_phone|客户电话"  => "regex:1[3-8]{1}[0-9]{9}",
             "sales_phone|营销电话" => "regex:1[3-8]{1}[0-9]{9}",
         ];
 
         $request_res = [
-            "table_id"    => $table_id,
-            "user_phone"  => $user_phone,
-            "sales_phone" => $sales_phone,
+            "table_id"       => $table_id,
+            "turnover_limit" => $turnover_limit,
+            "user_phone"     => $user_phone,
+            "sales_phone"    => $sales_phone,
         ];
 
         $validate = new Validate($rule);
@@ -374,7 +377,6 @@ class DiningRoom extends CommonAction
         if (!$validate->check($request_res)){
             return $this->com_return(false,$validate->getError());
         }
-
 
         /*登陆管理人员信息 on*/
         $token = $request->header("Token",'');
@@ -394,7 +396,6 @@ class DiningRoom extends CommonAction
 
         $table_no = $tableInfo['table_no'];
         /*获取桌台信息 off*/
-
 
         $referrer_id   = config("salesman.salesman_type")['3']['key'];
         $referrer_type = config("salesman.salesman_type")['3']['key'];
@@ -457,12 +458,12 @@ class DiningRoom extends CommonAction
 
             }else{
                 //不是预约用户开台
-                return $this->notIsUserRevenueOpen("$table_id","$uid","$open_time","$referrer_id","$referrer_name","$user_name","$user_phone","$table_no","$sales_name");
+                return $this->notIsUserRevenueOpen("$table_id","$uid","$open_time","$referrer_id","$referrer_name","$user_name","$user_phone","$table_no","$sales_name","$turnover_limit");
             }
 
         }else{
             //未注册的用户开台
-            return $this->notRegisterUserOpen("$table_id","$open_time","$table_no","$sales_name");
+            return $this->notRegisterUserOpen("$table_id","$open_time","$table_no","$sales_name","$turnover_limit");
         }
     }
 
@@ -594,9 +595,10 @@ class DiningRoom extends CommonAction
      * @param $open_time
      * @param $table_no
      * @param $sales_name
+     * @param $turnover_limit
      * @return array
      */
-    protected function notRegisterUserOpen($table_id,$open_time,$table_no,$sales_name)
+    protected function notRegisterUserOpen($table_id,$open_time,$table_no,$sales_name,$turnover_limit = 0)
     {
         //未注册用户开台
         //查看当前桌,并且是可开台状态
@@ -613,7 +615,7 @@ class DiningRoom extends CommonAction
 
         //此时直接开台
         $publicObj = new PublicAction();
-        $insertRevenueReturn = $publicObj->insertTableRevenue("$table_id","","$open_time","","");
+        $insertRevenueReturn = $publicObj->insertTableRevenue("$table_id","","$open_time","","","$turnover_limit");
 
         if ($insertRevenueReturn){
             /*记录开台日志 on*/
@@ -644,9 +646,10 @@ class DiningRoom extends CommonAction
      * @param $user_phone
      * @param $table_no
      * @param $sales_name
+     * @param $turnover_limit
      * @return array
      */
-    protected function notIsUserRevenueOpen($table_id,$uid,$open_time,$referrer_id,$referrer_name,$user_name,$user_phone,$table_no,$sales_name)
+    protected function notIsUserRevenueOpen($table_id,$uid,$open_time,$referrer_id,$referrer_name,$user_name,$user_phone,$table_no,$sales_name,$turnover_limit)
     {
         //不是当前用户的预约
         //查看当前桌,并且是可开台状态
@@ -665,7 +668,7 @@ class DiningRoom extends CommonAction
 
         $publicObj = new PublicAction();
 
-        $insertTableRevenueReturn = $publicObj->insertTableRevenue("$table_id","$uid","$open_time","$referrer_id","$referrer_name");
+        $insertTableRevenueReturn = $publicObj->insertTableRevenue("$table_id","$uid","$open_time","$referrer_id","$referrer_name","$turnover_limit");
 
         if ($insertTableRevenueReturn){
 

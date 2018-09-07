@@ -353,6 +353,7 @@ class Reservation extends CommonAction
         $rule = [
             "subscription|预约定金"  => "require",
             "turnover_limit|低消"   => "require",
+            "user_phone|用户电话"    => "require|regex:1[3-8]{1}[0-9]{9}",
             "sales_phone|营销电话"   => "regex:1[3-8]{1}[0-9]{9}",
             "date|到店日期"          => "require",
             "table_id|桌id"         => "require",

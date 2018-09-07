@@ -72,9 +72,6 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
     //钱包支付
     Route::rule('walletPay','DishOrderPay/walletPay','post|options');
 
-    //现金支付
-    Route::rule('cashPay','DishOrderPay/cashPay','post|options');
-
     //礼金支付
     Route::rule('cashGiftPay','DishOrderPay/cashGiftPay','post|options');
 
