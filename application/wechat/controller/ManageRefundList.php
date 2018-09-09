@@ -68,8 +68,6 @@ class ManageRefundList extends HomeAction
 
             return $this->oneRefundOrder($pid,$detail_dis_info,$cancel_user,$cancel_reason,$trid);
         }
-
-
     }
 
 
@@ -86,7 +84,7 @@ class ManageRefundList extends HomeAction
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    protected function oneRefundOrder($pid,$detail_dis_info,$cancel_user,$cancel_reason,$trid)
+    public function oneRefundOrder($pid,$detail_dis_info,$cancel_user,$cancel_reason,$trid)
     {
 
         $billPayModel = new BillPay();
@@ -156,8 +154,10 @@ class ManageRefundList extends HomeAction
             $order_amount += $dis_detail['price'] * $quantity_r;
         }
 
+        $card_consume_point_ratio = getSysSetting("card_consume_point_ratio") / 100;
+
         //计算退单应扣除的积分
-        $return_point = intval($order_amount *  0.1);
+        $return_point = intval($order_amount *  $card_consume_point_ratio);
 
         $uuid = new UUIDUntil();
 
@@ -297,7 +297,7 @@ class ManageRefundList extends HomeAction
 
             /*更改预约汇总单数据 off*/
 
-            //此时数据插入成功,调起打印机 开始落单,提示菜品已退
+            /*//此时数据插入成功,调起打印机 开始落单,提示菜品已退
             $detail_dis_info = $this->getDishesInfo($detail_dis_info);
 
             $is_print = $this->refundToPrintYly($pid,$detail_dis_info);
@@ -309,7 +309,7 @@ class ManageRefundList extends HomeAction
             }
 
             //打印结果日志
-            error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
+            error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");*/
 
             Db::commit();
 

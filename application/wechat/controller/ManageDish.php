@@ -27,14 +27,14 @@ class ManageDish extends HomeAction
 
         $list = $pointListPublicObj->dishTypePublic();
 
-        $is_combo = [
+       /* $is_combo = [
             "cat_id"   => config("dish.xcx_dish_menu")[1]['key'],
             "cat_name" => config("dish.xcx_dish_menu")[1]['name'],
             "cat_img"  => config("dish.xcx_dish_menu")[1]['img'],
         ];
 
         //向数组的前段新增元素
-        array_unshift($list['data'],$is_combo);
+        array_unshift($list['data'],$is_combo);*/
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
@@ -53,29 +53,16 @@ class ManageDish extends HomeAction
 
         $is_give  = $request->param("is_give","");//可否赠送  0否   1是
 
-        $dis_type = "";
-
         $cat_where = [];
 
         if (!empty($cat_id)){
-            if ($cat_id == "combo"){
-                $dis_type = 1;
-            }else{
-                $cat_where['d.cat_id'] = ["eq",$cat_id];
-            }
-
-        }
-
-        $dis_type_where = [];
-        if ($dis_type == "1"){
-            $dis_type_where['d.dis_type'] = ["eq",1];
-        }else{
-            $dis_type_where['d.dis_type'] = ["eq",0];
+            $cat_where['d.cat_id'] = ["eq",$cat_id];
         }
 
         $is_give_where = [];
         if ($is_give == "1"){
             $is_give_where['d.is_give'] = ["eq",1];
+            $cat_where = [];
         }else{
             $is_give_where['d.is_normal'] = ["eq",1];
         }
@@ -85,9 +72,7 @@ class ManageDish extends HomeAction
         $list = $dishesModel
             ->alias("d")
             ->where($cat_where)
-            ->where($dis_type_where)
             ->where($is_give_where)
-            ->where("d.is_normal","1")
             ->where("d.is_enable","1")
             ->where("d.is_delete","0")
             ->select();

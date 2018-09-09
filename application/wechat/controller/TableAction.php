@@ -11,6 +11,7 @@ use app\admin\model\TableRevenue;
 use think\Db;
 use think\Log;
 use think\Request;
+use app\common\controller\PublicAction;
 
 class TableAction extends HomeAction
 {
@@ -165,6 +166,34 @@ class TableAction extends HomeAction
         return $this->com_return(true,config("params.SUCCESS"));
     }
 
+    /**
+     * 获取清台列表信息
+     * @param Request $request
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getCleanTableList(Request $request)
+    {
+        $table_id   = $request->param("table_id","");//桌位id
+
+        if (empty($table_id)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $tableInfo = $this->lookUserInfoComplete($table_id);
+
+        $tableInfo = _unsetNull($tableInfo);
+
+        if (empty($tableInfo)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"),$tableInfo);
+    }
+
+
 
     /**
      * 清台
@@ -176,19 +205,23 @@ class TableAction extends HomeAction
      */
     public function cleanTable(Request $request)
     {
-        $trid = $request->param("trid","");//开台单据id
+        $table_id   = $request->param("table_id","");//桌位id
 
-        if (empty($trid)){
+//        $is_confirm = $request->param("is_confirm","");//是否确认清台
+
+        if (empty($table_id)){
             return $this->com_return(false,config("params.ABNORMAL_ACTION"));
         }
 
-        $tableInfo = $this->lookUserInfoComplete($trid);
+//        $tableInfo = $this->lookUserInfoComplete($table_id);
 
-        $uid = $tableInfo["uid"];
-
-        if (empty($uid)){
-            return $this->com_return(false,config("params.REVENUE")['CLEAN_BEFORE_USER']);
-        }
+        /*if (!$is_confirm){
+            foreach ($tableInfo as $value){
+                if (empty($value['uid'])){
+                    return $this->com_return(false,config("params.TABLE")['IMPROVING_USER_INFO']);
+                }
+            }
+        }*/
 
         $tableRevenueModel = new TableRevenue();
 
@@ -198,10 +231,9 @@ class TableAction extends HomeAction
         ];
 
         $is_ok = $tableRevenueModel
-            ->where("trid",$trid)
-            ->whereOr("parent_trid",$trid)
+            ->where("table_id",$table_id)
+            ->where("status",config("order.table_reserve_status")['already_open']['key'])
             ->update($updateParams);
-
 
         if ($is_ok !== false){
 
@@ -217,8 +249,8 @@ class TableAction extends HomeAction
             $desc        = $action_user. " 清台";
             $type        = config("order.table_action_type")['clean_table']['key'];
 
-            $tableInfo = Db::name("table_revenue")
-                ->where("trid",$trid)
+            $tableInfo = Db::name("mst_table")
+                ->where("table_id",$table_id)
                 ->field("table_id,table_no")
                 ->find();
 
@@ -236,16 +268,15 @@ class TableAction extends HomeAction
     }
 
     /**
-     * 查看指定trid的预约订台信息
-     * @param $trid
+     * 查看指定$table_id的预约订台信息
+     * @param $table_id
      * @return array|false|mixed|\PDOStatement|string|\think\Model
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    protected function lookUserInfoComplete($trid)
+    protected function lookUserInfoComplete($table_id)
     {
-
         $tableRevenueModel = new TableRevenue();
 
         $column = $tableRevenueModel->column;
@@ -257,9 +288,13 @@ class TableAction extends HomeAction
         $info = $tableRevenueModel
             ->alias("tr")
             ->join("user u","u.uid = tr.uid","LEFT")
-            ->where("tr.trid",$trid)
+            ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
+            ->where("tr.table_id",$table_id)
+            ->where("tr.status",config("order.table_reserve_status")['already_open']['key'])
+            ->field("u.name,u.phone user_phone")
+            ->field("ms.phone sales_phone")
             ->field($column)
-            ->find();
+            ->select();
 
         $info = json_decode(json_encode($info),true);
 

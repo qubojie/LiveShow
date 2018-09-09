@@ -68,7 +68,7 @@ class DiningRoomTurnSpelling extends CommonAction
                 $query->where('parent_trid',Null);
                 $query->whereOr('parent_trid','');
             })
-            ->field("trid")
+            ->field("trid,turnover_limit")
             ->find();
         $table_is_open = json_decode(json_encode($table_is_open),true);
 
@@ -77,7 +77,8 @@ class DiningRoomTurnSpelling extends CommonAction
             return $this->com_return(false,config("params.REVENUE")['NO_OPEN_SPELLING']);
         }
 
-        $parent_trid = $table_is_open['trid'];
+        $parent_trid    = $table_is_open['trid'];
+        $turnover_limit = $table_is_open['turnover_limit'];//低消
 
         /*营销信息 on*/
         $referrer_id   = config("salesman.salesman_type")['3']['key'];
@@ -152,7 +153,7 @@ class DiningRoomTurnSpelling extends CommonAction
 
         $publicObj = new PublicAction();
 
-        $insertTableRevenueReturn = $publicObj->insertSpellingTable("$parent_trid","$table_id","$uid","$time","$referrer_id","$referrer_name");
+        $insertTableRevenueReturn = $publicObj->insertSpellingTable("$parent_trid","$table_id","$turnover_limit","$uid","$time","$referrer_id","$referrer_name");
 
         if ($insertTableRevenueReturn){
 
@@ -299,13 +300,13 @@ class DiningRoomTurnSpelling extends CommonAction
                 ->join("user u","u.uid = tr.uid","LEFT")
                 ->join("mst_table_area ta","ta.area_id = tr.area_id")
                 ->join("mst_table_location tl","tl.location_id = ta.location_id")
-                ->whereTime("tr.reserve_time","today")
+//                ->whereTime("tr.reserve_time","today")
                 ->where("tr.status",$status)
                 ->where(function ($query){
                     $query->where('tr.parent_trid',Null);
                     $query->whereOr('tr.parent_trid','');
                 })
-                ->field("tr.trid,tr.area_id,tr.is_join,tr.table_no")
+                ->field("tr.trid,tr.area_id,tr.is_join,tr.table_id,tr.table_no")
                 ->field("ta.area_title")
                 ->field("tl.location_title")
                 ->field("u.name parent_name,u.phone parent_phone")

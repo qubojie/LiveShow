@@ -99,7 +99,7 @@ class PublicAction extends Controller
     }
 
     //插入新的开拼信息
-    public function insertSpellingTable($parent_trid,$table_id,$uid,$reserve_time,$ssid = "",$ssname = "")
+    public function insertSpellingTable($parent_trid,$table_id,$turnover_limit,$uid,$reserve_time,$ssid = "",$ssname = "")
     {
         $UUID = new UUIDUntil();
 
@@ -134,6 +134,7 @@ class PublicAction extends Controller
             "table_no"          => $table_no,
             "area_id"           => $area_id,
             "status"            => config("order.table_reserve_status")['already_open']['key'],
+            "turnover_limit"    => $turnover_limit,
             "reserve_way"       => config("order.reserve_way")['manage']['key'],
             "reserve_time"      => $reserve_time,
             "ssid"              => $ssid,
@@ -144,7 +145,6 @@ class PublicAction extends Controller
             "created_at"        => $time,
             "updated_at"        => $time
         ];
-
 
         Db::startTrans();
         try{

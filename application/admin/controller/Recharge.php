@@ -317,6 +317,10 @@ class Recharge extends CommandAction
      */
     public function receipt(Request $request)
     {
+        if ($request->method() == "OPTIONS"){
+            return $this->com_return(true,config("params.SUCCESS"));
+        }
+
         $Authorization = $request->header("Authorization");
 
         $notifyType    = $request->param('notifyType','adminCallback');//后台支付回调类型参数
@@ -409,6 +413,7 @@ class Recharge extends CommandAction
         }
 
         $res = $this->callBackPay("$Authorization","$notifyType","$rfid","$payable_amount","$payable_amount","$review_desc","$pay_no");
+
 
         $res= json_decode(json_encode(simplexml_load_string($res, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
 

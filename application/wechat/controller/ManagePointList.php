@@ -104,7 +104,6 @@ class ManagePointList extends HomeAction
 
         $tableAreaModel     = new MstTableArea();
 
-
         $table_location = $tableLocationModel
             ->alias("tl")
             ->join("mst_table_area ta","ta.location_id = tl.location_id")
@@ -130,6 +129,7 @@ class ManagePointList extends HomeAction
                 ->where("ta.is_delete","0")
                 ->where("tr.status",config("order.table_reserve_status")['already_open']['key'])
                 ->order("ta.sort")
+                ->group("ta.area_id")
                 ->field("ta.area_id,ta.area_title")
                 ->select();
 
@@ -205,16 +205,20 @@ class ManagePointList extends HomeAction
 
         $dish_group   = $request->param("dish_group",'');//菜品集合
 
+        $pay_type     = $request->param("pay_type",'');//支付方式
+
         $rule = [
             "trid|订台id"           => "require",
             "order_amount|订单总额" => "require",
             "dish_group|菜品集合"   => "require",
+            "pay_type|支付方式"     => "require",
         ];
 
         $check_data = [
             "trid"         => $trid,
             "order_amount" => $order_amount,
-            "dish_group"   => $dish_group
+            "dish_group"   => $dish_group,
+            "pay_type"     => $pay_type
         ];
 
         $validate = new Validate($rule);
@@ -230,6 +234,11 @@ class ManagePointList extends HomeAction
 
         $sid  = $manageInfo['sid'];
 
+        $sales_name = $manageInfo['sales_name'];
+        $phone      = $manageInfo['phone'];
+
+        $sales_name = $sales_name.",".$phone;
+
         $type = config("order.bill_pay_type")['consumption']['key'];
 
         $pointListPublicObj = new PointListPublicAction();
@@ -237,7 +246,7 @@ class ManagePointList extends HomeAction
         Db::startTrans();
         try{
 
-            $pointListRes = $pointListPublicObj->pointListPublicAction("$trid","$sid","$order_amount","$dish_group","","$type","");
+            $pointListRes = $pointListPublicObj->pointListPublicAction("$trid","$sid","$sales_name","$order_amount","$dish_group","$pay_type","$type","");
 
             if (isset($pointListRes["result"]) && $pointListRes["result"] == true){
 
@@ -299,13 +308,16 @@ class ManagePointList extends HomeAction
         //获取点单人员信息
         $manageInfo = $this->tokenGetManageInfo($remember_token);
 
-        $sid  = $manageInfo['sid'];
+        $sid         = $manageInfo['sid'];
+        $sales_name  = $manageInfo['sales_name'];
+        $sphone      = $manageInfo['phone'];
+        $sales_name = $sales_name.",".$sphone;
 
         $pointListPublicObj = new PointListPublicAction();
 
         $type = config("order.bill_pay_type")['give']['key'];//赠送单
 
-        $pointListRes = $pointListPublicObj->giveDishPublicAction($trid,$sid,$order_amount,$dish_group,$type);
+        $pointListRes = $pointListPublicObj->giveDishPublicAction($trid,$sid,$sales_name,$order_amount,$dish_group,$type);
 
         if (isset($pointListRes["result"]) && $pointListRes["result"] == true){
 

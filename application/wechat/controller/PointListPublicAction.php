@@ -47,6 +47,7 @@ class PointListPublicAction extends Controller
      * 赠品下单公共部分
      * @param $trid
      * @param $sid
+     * @param $sales_name
      * @param $order_amount
      * @param $dish_group
      * @param $type
@@ -55,7 +56,7 @@ class PointListPublicAction extends Controller
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function giveDishPublicAction($trid,$sid,$order_amount,$dish_group,$type)
+    public function giveDishPublicAction($trid,$sid,$sales_name,$order_amount,$dish_group,$type)
     {
         $tableRevenueModel = new TableRevenue();
 
@@ -94,7 +95,7 @@ class PointListPublicAction extends Controller
 
             $uid = NULL;
 
-            $pid = $pointListPublicObj->createBillPay("$trid",$uid,"$sid","$type","$order_amount","$order_amount","$pay_type","$pay_offline_type");
+            $pid = $pointListPublicObj->createBillPay("$trid",$uid,"$sid","$sales_name","$type","$order_amount","$order_amount","$pay_type","$pay_offline_type");
 
             if ($pid == false){
                 return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD003)");
@@ -121,6 +122,7 @@ class PointListPublicAction extends Controller
      * 点单公共部分
      * @param $trid
      * @param $sid
+     * @param $sales_name
      * @param $order_amount
      * @param $dish_group
      * @param $pay_type
@@ -131,7 +133,7 @@ class PointListPublicAction extends Controller
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
-    public function pointListPublicAction($trid,$sid,$order_amount,$dish_group,$pay_type,$type = 0,$uid = NULL)
+    public function pointListPublicAction($trid,$sid,$sales_name,$order_amount,$dish_group,$pay_type,$type = 0,$uid = NULL)
     {
         /*首单判断低消是否足够 on*/
         if ($pay_type != \config("order.pay_method")['offline']['key']){
@@ -201,7 +203,7 @@ class PointListPublicAction extends Controller
 
             $pointListPublicObj = new  PointListPublicAction();
 
-            $pid = $pointListPublicObj->createBillPay("$trid","$uid","$sid","$type","$order_amount","$order_amount","$pay_type","$pay_offline_type");
+            $pid = $pointListPublicObj->createBillPay("$trid","$uid","$sid","$sales_name","$type","$order_amount","$order_amount","$pay_type","$pay_offline_type");
 
             if ($pid == false){
                 return $this->com_return(false,\config("params.ABNORMAL_ACTION")."(HOME-DD003)");
@@ -375,7 +377,7 @@ class PointListPublicAction extends Controller
 
 
     //创建消费单缴费单
-    public function createBillPay($trid,$uid,$sid,$type,$order_amount,$payable_amount,$pay_type,$pay_offline_type)
+    public function createBillPay($trid,$uid,$sid,$sales_name,$type,$order_amount,$payable_amount,$pay_type,$pay_offline_type)
     {
         $UUID  = new UUIDUntil();
 
@@ -402,13 +404,16 @@ class PointListPublicAction extends Controller
 
         $deal_time    = $nowTime;
 
-        $return_point = intval($order_amount * 0.1);
+        $card_consume_point_ratio = getSysSetting("card_consume_point_ratio") / 100;
+
+        $return_point = intval($order_amount * $card_consume_point_ratio);
 
         $params = [
             "pid"               => $pid,
             "trid"              => $trid,
             "uid"               => $uid,
             "sid"               => $sid,
+            "sname"             => $sales_name,
             "type"              => $type,
             "sale_status"       => $sale_status,
             "deal_time"         => $deal_time,

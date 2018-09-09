@@ -338,4 +338,60 @@ class DishOrderPay extends CommonAction
             return $this->com_return(false,$e->getMessage());
         }
     }
+
+    /**
+     * 我的订单列表支付,更改支付方式
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function changePayType(Request $request)
+    {
+        $pid      = $request->param("pid","");
+        $pay_type = $request->param("pay_type","");
+
+        if (empty($pid)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        if (empty($pay_type)){
+            return $this->com_return(false,config("params.ORDER")['PAY_TYPE_EMPTY']);
+        }
+
+        $billPayModel = new BillPay();
+
+        $is_exist = $billPayModel
+            ->where("pid",$pid)
+            ->where("sale_status",config("order.bill_pay_sale_status")['pending_payment_return']['key'])
+            ->find();
+
+        $is_exist = json_decode(json_encode($is_exist),true);
+
+        if (empty($is_exist)){
+            return $this->com_return(false,config("params.ORDER")['NOW_STATUS_NOT_PAY']);
+        }
+
+        if ($pay_type == config("order.pay_method")['offline']['key']){
+            $params = [
+                "pay_type"    => $pay_type,
+                "sale_status" => config("order.bill_pay_sale_status")['wait_audit']['key'],
+            ];
+        }else{
+            $params = [
+                "pay_type" => $pay_type
+            ];
+        }
+
+        $is_ok = $billPayModel
+            ->where("pid",$pid)
+            ->update($params);
+
+        if ($is_ok !== false){
+            return $this->com_return(true,config("params.SUCCESS"),$is_exist);
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
+        }
+    }
 }

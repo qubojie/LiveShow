@@ -51,6 +51,9 @@ class Reservation extends CommonAction
         $begin_time = strtotime(date("Ymd",$date));
         $end_time   = $begin_time + 60 * 60 * 24;
 
+        $begin_time = date("Ymd",$begin_time);
+        $end_time   = date("Ymd",$end_time);
+
         $re_status = "0,1,2";
 
         $location_where = [];
@@ -189,8 +192,11 @@ class Reservation extends CommonAction
 
         $begin_time = strtotime(date("Ymd",$date));
 
-        $end_time = $begin_time + 60 * 60 * 24;
+        $end_time   = $begin_time + 60 * 60 * 24;
 
+        $begin_time = date("Ymd",$begin_time);
+
+        $end_time   = date("Ymd",$end_time);
 
         $tableModel = new MstTable();
 

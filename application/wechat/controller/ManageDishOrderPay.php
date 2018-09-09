@@ -15,7 +15,7 @@ use think\Request;
 class ManageDishOrderPay extends HomeAction
 {
     /**
-     * 线下支付
+     * 线下支付 暂时弃用
      * @param Request $request
      * @return array
      * @throws \think\db\exception\DataNotFoundException

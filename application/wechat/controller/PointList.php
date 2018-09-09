@@ -98,9 +98,11 @@ class PointList extends CommonAction
 
         $sid = NULL;
 
+        $sales_name = "";
+
         $pointListPublicObj = new PointListPublicAction();
 
-        return $pointListPublicObj->pointListPublicAction("$trid","$sid","$order_amount","$dish_group","$pay_type","$type",$uid);
+        return $pointListPublicObj->pointListPublicAction("$trid","$sid","$sales_name","$order_amount","$dish_group","$pay_type","$type",$uid);
     }
 
 

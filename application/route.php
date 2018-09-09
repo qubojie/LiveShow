@@ -217,6 +217,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //用户点单
             Route::rule('createPointList','PointList/createPointList','post|options');
 
+            //我的订单列表支付,更改支付方式
+            Route::rule('changePayType','DishOrderPay/changePayType','post|options');
+
             //用户手动取消未支付订单
             Route::rule('cancelDishOrder','PointList/cancelDishOrder','post|options');
 
@@ -268,6 +271,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
             //开台
             Route::rule("openTable","TableAction/openTable","post|options");
+
+            //获取清台列表信息
+            Route::rule("getCleanTableList","TableAction/getCleanTableList","post|options");
 
             //清台
             Route::rule("cleanTable","TableAction/cleanTable","post|options");

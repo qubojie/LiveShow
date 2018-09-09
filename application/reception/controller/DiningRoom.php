@@ -99,7 +99,7 @@ class DiningRoom extends CommonAction
             $tableStatusRes = $tableRevenueModel
                 ->where('table_id',$table_id)
                 ->where('status',"IN",$status_str)
-                ->whereTime("reserve_time","today")
+//                ->whereTime("reserve_time","today")
                 ->find();
 
             $tableStatusRes = json_decode(json_encode($tableStatusRes),true);
@@ -264,13 +264,13 @@ class DiningRoom extends CommonAction
 //            ->whereNull("tr.parent_trid")
 //            ->where("tr.parent_trid","")
             ->where('tr.table_id',$table_id)
-            ->whereTime("tr.reserve_time","today")
+//            ->whereTime("tr.reserve_time","today")
             ->where("tr.status","IN",$status_str)
             ->where(function ($query){
                 $query->where('tr.parent_trid',Null);
                 $query->whereOr('tr.parent_trid','');
             })
-            ->field("u.name,u.phone user_phone,u.nickname,u.level_id,u.credit_point")
+            ->field("u.name,u.phone user_phone,u.nickname,u.level_id,u.account_point,u.credit_point")
             ->field("ul.level_name")
             ->field("uc.card_name,uc.card_type")
             ->field("ms.phone sales_phone")
@@ -294,9 +294,9 @@ class DiningRoom extends CommonAction
             ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
             ->where('tr.table_id',$table_id)
             ->where("tr.status","IN",$status_str)
-            ->whereTime("tr.reserve_time","today")
+//            ->whereTime("tr.reserve_time","today")
             ->where("tr.parent_trid",$mainTrid)
-            ->field("u.name,u.phone user_phone,u.nickname,u.level_id,u.credit_point")
+            ->field("u.name,u.phone user_phone,u.nickname,u.level_id,u.account_point,u.credit_point")
             ->field("ul.level_name")
             ->field("uc.card_name,uc.card_type")
             ->field("ms.phone sales_phone")

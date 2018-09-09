@@ -62,7 +62,6 @@ class PointListOrder extends CommandAction
         $pid               = $request->param("pid","");
         $check_reason      = $request->param("check_reason","");//审核原因
         $pay_user          = $request->param("pay_user","");//付款人
-        $discount          = $request->param("discount","");//折扣 实付-其他付款部分
         $deal_amount       = $request->param("deal_amount","");//付款总额
         $pay_offline_type  = $request->param("pay_offline_type","");//现金支付 途径   ‘weixin’微信  ‘alipay’ 支付宝  ‘bank’ 刷卡  ‘cash’现金
         $pay_no            = $request->param("pay_no","");//支付回单号（对方流水单号）
@@ -70,7 +69,7 @@ class PointListOrder extends CommandAction
 
         $token = $request->header("Authorization");
 
-        return $this->receivablesPublicAction($token,"$pid","$pay_offline_type","$discount","$check_reason","$pay_user","$deal_amount","$pay_no","$receipt_account");
+        return $this->receivablesPublicAction($token,"$pid","$pay_offline_type","$check_reason","$pay_user","$deal_amount","$pay_no","$receipt_account");
     }
 
     /**
@@ -78,7 +77,6 @@ class PointListOrder extends CommandAction
      * @param $token
      * @param $pid
      * @param $pay_offline_type
-     * @param $discount
      * @param $check_reason
      * @param $pay_user
      * @param $deal_amount
@@ -87,7 +85,7 @@ class PointListOrder extends CommandAction
      * @return array
      * @throws \think\exception\DbException
      */
-    public function receivablesPublicAction($token,$pid,$pay_offline_type,$discount,$check_reason,$pay_user,$deal_amount,$pay_no,$receipt_account)
+    public function receivablesPublicAction($token,$pid,$pay_offline_type,$check_reason,$pay_user,$deal_amount,$pay_no,$receipt_account)
     {
         $sale_status   = config("order.bill_pay_sale_status")['completed']['key'];
 
@@ -111,11 +109,11 @@ class PointListOrder extends CommandAction
             return $this->com_return(false,config("params.ORDER")['NOW_STATUS_NOT_PAY']);
         }
 
-        if ($discount > 0){
+        $orderInfo = $this->getBillOrderInfo($pid);
 
-            $discount = '-'.$discount;
+        $order_amount = $orderInfo['order_amount'];
 
-        }
+        $discount = $order_amount - $deal_amount;//订单总额 - 实付金额 = 折扣金额
 
         $updateParams = [
             "sale_status"       => $sale_status,
@@ -158,7 +156,7 @@ class PointListOrder extends CommandAction
             /*订单支付回调 off*/
 
 
-            /*回调成功,再进行订单改变 on*/
+            /*回调成功,进行订单改变 on*/
             $billPayModel = new BillPay();
 
             $updateOrderInfo = $billPayModel
@@ -166,9 +164,9 @@ class PointListOrder extends CommandAction
                 ->update($updateParams);
 
             if ($updateOrderInfo == false){
-                return $this->com_return(false,config("params.DAIL"));
+                return $this->com_return(false,config("params.FAIL"));
             }
-            /*回调成功,再进行订单改变 off*/
+            /*回调成功,进行订单改变 off*/
 
 
             /*状态改变后,调起打印机,落单 on*/
@@ -178,7 +176,7 @@ class PointListOrder extends CommandAction
 
             if (!is_dir($dateTimeFile)){
 
-                $res = mkdir($dateTimeFile,0777,true);
+                @mkdir($dateTimeFile,0777,true);
 
             }
 
@@ -196,5 +194,27 @@ class PointListOrder extends CommandAction
             Db::rollback();
             return $this->com_return(false,$e->getMessage());
         }
+    }
+
+    /**
+     * 获取订单信息
+     * @param $pid
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    protected function getBillOrderInfo($pid)
+    {
+        $billPayModel = new BillPay();
+
+        $orderAmount = $billPayModel
+            ->where("pid",$pid)
+            ->field("order_amount")
+            ->find();
+
+        $orderAmount = json_decode(json_encode($orderAmount),true);
+
+        return $orderAmount;
     }
 }

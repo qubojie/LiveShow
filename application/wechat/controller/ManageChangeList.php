@@ -26,7 +26,7 @@ class ManageChangeList extends HomeAction
     {
         $trid               = $request->param("trid","");//桌台预约id
 
-//        $pid                = $request->param("pid","");//pid
+        $pid                = $request->param("pid","");//pid
 
         $refund_dish_group  = $request->param("refund_dish_group","");//要退菜品集合
 
@@ -40,20 +40,20 @@ class ManageChangeList extends HomeAction
 
         $rule = [
             "trid|桌台预约id"                 => "require",
+            "pid|订单id"                     => "require",
             "refund_dish_group|要退菜品集合"  => "require",
             "refund_dish_amount|要退菜品总额" => "require",
             "need_dish_group|新换菜品集合"    => "require",
             "need_dish_amount|新换菜品总额"   => "require",
-            "pay_type|支付方式"               => "require",
         ];
 
         $request_res = [
             "trid"               => $trid,
+            "pid"                => $pid,
             "refund_dish_group"  => $refund_dish_group,
             "refund_dish_amount" => $refund_dish_amount,
             "need_dish_group"    => $need_dish_group,
             "need_dish_amount"   => $need_dish_amount,
-            "pay_type"           => $pay_type,
         ];
 
         $validate = new Validate($rule);
@@ -64,22 +64,27 @@ class ManageChangeList extends HomeAction
 
         Db::startTrans();
         try{
-
-            /*第一步 插入退菜信息 on*/
-            $insertRefundDishReturn = $this->insertRefundDish($trid,$refund_dish_group,$refund_dish_amount);
-
-            dump($insertRefundDishReturn);die;
-
-            /*第一步 插入退菜信息 off*/
-
-
             /*第二步 插入新增菜信息 on*/
 
-            $insertNeedDishReturn = $this->insertNeedDish();
+            $insertNeedDishReturn = $this->insertNeedDish($trid,$need_dish_group,$need_dish_amount);
 
             /*第二步 插入新增菜信息 off*/
 
 
+            $token         = $request->header("Token","");
+
+            $manageInfo    = $this->tokenGetManageInfo("$token");
+
+            $cancel_user   = $manageInfo['sales_name'];
+            $cancel_reason = "换单";
+
+            /*第一步 插入退菜信息 on*/
+            $insertRefundDishReturn = $this->insertRefundDish($trid,$pid,$refund_dish_group,$refund_dish_amount,$cancel_user,$cancel_reason);
+
+            if (!$insertRefundDishReturn){
+                return $this->com_return(false,config("params.ORDER")['REFUND_ABNORMAL']);
+            }
+            /*第一步 插入退菜信息 off*/
 
 
         }catch (Exception $e){
@@ -91,27 +96,48 @@ class ManageChangeList extends HomeAction
     /**
      * 插入退菜信息
      * @param $trid
+     * @param $pid
      * @param $refund_dish_group
      * @param $refund_dish_amount
+     * @param $cancel_user
+     * @param $cancel_reason
+     * @return bool
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
-    public function insertRefundDish($trid,$refund_dish_group,$refund_dish_amount)
+    public function insertRefundDish($trid,$pid,$refund_dish_group,$refund_dish_amount,$cancel_user,$cancel_reason)
     {
-        dump($trid);
-        dump($refund_dish_group);
-        dump($refund_dish_amount);
+        $refundListObj = new ManageRefundList();
 
-        $UUID = new UUIDUntil();
-        $pid  = $UUID->generateReadableUUID("P");
+        $res  = $refundListObj->oneRefundOrder("$pid","$refund_dish_group","$cancel_user","$cancel_reason","$trid");
 
-
+        if (isset($res['result']) && $res['result']){
+            return true;
+        }else{
+            return false;
+        }
 
     }
 
     /**
      * 插入新增菜信息
+     * @param $trid
+     * @param $need_dish_group
+     * @param $need_dish_amount
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
-    public function insertNeedDish()
+    public function insertNeedDish($trid,$need_dish_group,$need_dish_amount)
     {
+        dump("$need_dish_group");
+        dump("$need_dish_amount");
+        die;
+
+        $pointListPublicObj = new PointListPublicAction();
+
+        $res = $pointListPublicObj->pointListPublicAction("$trid","","","","","","");
 
     }
 

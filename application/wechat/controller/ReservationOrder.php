@@ -105,7 +105,9 @@ class ReservationOrder extends CommonAction
 
             $pay_type = "wxpay";
 
-            $pid = $pointListPublicObj->createBillPay("$trid","$uid","$sid","$type","$order_amount","$order_amount","$pay_type","$pay_offline_type");
+            $sales_name = "";
+
+            $pid = $pointListPublicObj->createBillPay("$trid","$uid","$sid","$sales_name","$type","$order_amount","$order_amount","$pay_type","$pay_offline_type");
 
             if ($pid == false){
                 return $this->com_return(false,\config("params.ABNORMAL_ACTION")."002");

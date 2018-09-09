@@ -314,7 +314,8 @@ return [
             "ORDER_CANCEL"      => "订单已取消",
             "WAIT_RESULT"       => "等待支付结果",
             "TURNOVER_LIMIT_SHORT" => "低消不足,请重新点单",
-            "REFUND_DISH_ABNORMAL" => "退单操作异常"
+            "REFUND_DISH_ABNORMAL" => "退单操作异常",
+            "PAY_TYPE_EMPTY"       => "支付方式不能为空"
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -341,10 +342,11 @@ return [
             "COMBO_ID_NOT_EMPTY"=>  "换品组内的单品不能为空",
             "LOW_ELIMINATION"   =>  "不满足最低消费,请核对订单"
         ],
-        "TABLE"                 => [
+        "TABLE"                          => [
             "TABLE_CARD_LIMIT_NOT_EMPTY" => "选择仅会员时,会员卡限定不能为空",
             "AREA_EXIST"                 => "当前大区下存在小区,不可直接删除",
             "TALE_EXIST"                 => "该区域下存在吧台,不可直接删除",
+            "IMPROVING_USER_INFO"        => "有用户信息未完善,是否确认清台?"
         ],
      ],
 
