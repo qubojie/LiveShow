@@ -52,6 +52,7 @@ class ManageReservation extends HomeAction
         /*查询当前号码是否在营销职位 on*/
         $manageSalesModel = new ManageSalesman();
 
+        //TODO 没有限制必须是在职员工,只要是员工表中存在的,就不能预约
         $isManage = $manageSalesModel
             ->alias("ms")
             ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")
@@ -73,8 +74,12 @@ class ManageReservation extends HomeAction
         $userModel = new User();
 
         $userNameRes = $userModel
-            ->where("phone",$phone)
-            ->field("name")
+            ->alias("u")
+            ->join("user_card uc","uc.uid = u.uid","LEFT")
+            ->join("mst_card_vip cv","cv.card_id = uc.card_id","LEFT")
+            ->where("u.phone",$phone)
+            ->field("u.name,u.account_balance,u.account_cash_gift")
+            ->field("cv.card_name,cv.card_type")
             ->find();
 
         $userNameRes = json_decode(json_encode($userNameRes),true);
@@ -83,9 +88,7 @@ class ManageReservation extends HomeAction
             return $this->com_return(true,\config("params.USER_NOT_EXIST"));
         }
 
-        $userName = $userNameRes['name'];
-
-        return $this->com_return(true,\config("params.SUCCESS"),$userName);
+        return $this->com_return(true,\config("params.SUCCESS"),$userNameRes);
     }
 
     /**

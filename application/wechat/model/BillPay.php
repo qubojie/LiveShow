@@ -27,6 +27,7 @@ class BillPay extends Model
         "trid",
         "uid",
         "sid",
+        "sname",
         "type",
         "sale_status",
         "cus_remark",
@@ -59,5 +60,20 @@ class BillPay extends Model
         "settlement_id",
         "created_at",
         "updated_at"
+    ];
+
+    public $list_column = [
+        "pid",
+        "trid",
+        "uid",
+        "sid",
+        "sname",
+        "type",
+        "sale_status",
+        "deal_time",
+        "order_amount",
+        "payable_amount",
+        "is_settlement",
+        "settlement_id",
     ];
 }

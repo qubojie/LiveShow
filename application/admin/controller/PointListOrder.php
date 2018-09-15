@@ -25,17 +25,25 @@ class PointListOrder extends CommandAction
     public function index(Request $request)
     {
         $pagesize    = $request->param("pagesize",config('PAGESIZE'));//显示个数,不传时为10
+
         if (empty($pagesize)) $pagesize = config('PAGESIZE');
 
         $nowPage     = $request->param("nowPage","1");
 
         $keyword     = $request->param("keyword","");
 
+        $type        = $request->param("type","");//类型 退菜 OR 增单
+
         $sale_status = $request->param("sale_status","");
+
+        $where = [];
+        if (!empty($keyword)){
+            $where["bp.pid|bp.sname|tr.table_no|u.name|u.phone"] = ["like","%$keyword%"];
+        }
 
         $sale_status_where = [];
         if ($sale_status != ""){
-            $sale_status_where['sale_status'] = ["eq",$sale_status];
+            $sale_status_where['bp.sale_status'] = ["eq",$sale_status];
         }
 
         $billPayModel = new BillPay();
@@ -44,177 +52,141 @@ class PointListOrder extends CommandAction
             "page" => $nowPage,
         ];
 
+        $retire_dish  = config("order.bill_pay_type")['retire_dish']['key'];//退菜
+        $retire_order = config("order.bill_pay_type")['retire_order']['key'];//退单
+        $give         = config("order.bill_pay_type")['give']['key'];//赠送
+
+        $type_str = "$retire_dish,$retire_order,$give";
+
+        $type_where = [];
+        if (!empty($type)){
+            $type_where["bp.type"] = ["eq",$retire_dish];
+        }else{
+            $type_where["bp.type"] = ["IN",$type_str];
+        }
+
+        $list_column = $billPayModel->list_column;
+
+        foreach ($list_column as $key => $val){
+            $list_column[$key] = "bp.".$val;
+        }
+
         $list = $billPayModel
+            ->alias("bp")
+            ->join("user u","u.uid = bp.uid","LEFT")
+            ->join("table_revenue tr","tr.trid = bp.trid")
+            ->where($where)
+            ->where($type_where)
             ->where($sale_status_where)
+            ->field("u.name,u.phone user_phone")
+            ->field($list_column)
+            ->field("tr.table_id,tr.table_no,tr.open_time,tr.turnover")
+            ->order("bp.created_at DESC")
             ->paginate($pagesize,false,$pageConfig);
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
 
     /**
-     * 线下支付审核操作+赠品审核操作
+     * 审核
      * @param Request $request
      * @return array
      * @throws \think\exception\DbException
      */
-    public function examineReceivables(Request $request)
+    public function examineOrder(Request $request)
     {
-        $pid               = $request->param("pid","");
-        $check_reason      = $request->param("check_reason","");//审核原因
-        $pay_user          = $request->param("pay_user","");//付款人
-        $deal_amount       = $request->param("deal_amount","");//付款总额
-        $pay_offline_type  = $request->param("pay_offline_type","");//现金支付 途径   ‘weixin’微信  ‘alipay’ 支付宝  ‘bank’ 刷卡  ‘cash’现金
-        $pay_no            = $request->param("pay_no","");//支付回单号（对方流水单号）
-        $receipt_account   = $request->param("receipt_account","");//银行收款账号
+        $type            = $request->param("type","");//单据类型 0 消费    1换单   2退菜   3退单   4赠送 5礼金单
+
+        $pid             = $request->param("pid","");//单据id
+
+        $agree_or_reject = $request->param("agree_or_reject","");//同意或者拒绝 1 同意; 空 为 拒绝
+
+        $check_reason    = $request->param("check_reason","");//审核原因
 
         $token = $request->header("Authorization");
 
-        return $this->receivablesPublicAction($token,"$pid","$pay_offline_type","$check_reason","$pay_user","$deal_amount","$pay_no","$receipt_account");
-    }
+        $mangeInfo = $this->getLoginAdminId($token);
 
-    /**
-     * 审核公共部分
-     * @param $token
-     * @param $pid
-     * @param $pay_offline_type
-     * @param $check_reason
-     * @param $pay_user
-     * @param $deal_amount
-     * @param $pay_no
-     * @param $receipt_account
-     * @return array
-     * @throws \think\exception\DbException
-     */
-    public function receivablesPublicAction($token,$pid,$pay_offline_type,$check_reason,$pay_user,$deal_amount,$pay_no,$receipt_account)
-    {
-        $sale_status   = config("order.bill_pay_sale_status")['completed']['key'];
+        if ($type == config("order.bill_pay_type")['give']['key']){
+            //赠送单据审核
+            return $this->giveExamine($pid,$agree_or_reject,$check_reason,$mangeInfo);
 
-        $adminUserInfo = $this->getLoginAdminId($token);
+        }elseif ($type == config("order.bill_pay_type")['']['key']){
+            //退菜单据审核
+            //TODO 退菜审核待完善
 
-        $check_user    = $adminUserInfo['user_name'];
-
-        if ($pay_offline_type == config("order.pay_method")['wxpay']['key']){
-            //线下微信收款
-
-        }elseif ($pay_offline_type == config("order.pay_method")['alipay']['key']){
-            //线下阿里收款
-
-        }elseif ($pay_offline_type == config("order.pay_method")['bank']['key']){
-            //线下银行收款
-
-        }elseif ($pay_offline_type == config("order.pay_method")['cash']['key']){
-            //线下现金收款
+        }elseif ($type == config("order.bill_pay_type")['']['key']){
+            //退单单据审核
 
         }else{
-            return $this->com_return(false,config("params.ORDER")['NOW_STATUS_NOT_PAY']);
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+    }
+
+
+    /**
+     * 赠单审核操作
+     * @param $pid
+     * @param $agree_or_reject
+     * @param $check_reason
+     * @param $mangeInfo
+     * @return array
+     */
+    public function giveExamine($pid,$agree_or_reject,$check_reason,$mangeInfo)
+    {
+        if ($agree_or_reject == 1){
+            //同意
+            $sale_status = config("order.bill_pay_sale_status")['completed']['key'];//审核完成已落单
+
+        }else{
+            //拒绝
+            $sale_status = config("order.bill_pay_sale_status")['audit_failed']['key'];//审核未通过
         }
 
-        $orderInfo = $this->getBillOrderInfo($pid);
-
-        $order_amount = $orderInfo['order_amount'];
-
-        $discount = $order_amount - $deal_amount;//订单总额 - 实付金额 = 折扣金额
-
-        $updateParams = [
-            "sale_status"       => $sale_status,
-            "finish_time"       => time(),
-            "check_user"        => $check_user,
-            "check_time"        => time(),
-            "check_reason"      => $check_reason,
-            "pay_user"          => $pay_user,
-            "discount"          => $discount,
-            "deal_amount"       => $deal_amount,
-            "pay_offline_type"  => $pay_offline_type,
-            "pay_no"            => $pay_no,
-            "receipt_account"   => $receipt_account,
-            "updated_at"        => time()
+        $params = [
+            "sale_status"  => $sale_status,
+            "finish_time"  => time(),
+            "check_user"   => $mangeInfo['user_name'],
+            "check_time"   => time(),
+            "check_reason" => $check_reason,
+            "updated_at"   => time()
         ];
+
+        $billPayModel = new BillPay();
 
         Db::startTrans();
         try{
-            /*订单支付回调 on*/
-            $wechatPayObj = new WechatPay();
 
-            $payCallBackParams = [
-                "out_trade_no"   => $pid,
-                "cash_fee"       => $deal_amount * 100,
-                "total_fee"      => $deal_amount * 100,
-                "transaction_id" => "",
-                "pay_type"       => config("order.pay_method")['offline']['key']
-            ];
-
-            $payCallBackReturn = $wechatPayObj->pointListNotify($payCallBackParams,"");
-
-            $payCallBackReturn = json_decode(json_encode(simplexml_load_string($payCallBackReturn, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
-
-            if ($payCallBackReturn["return_code"] != "SUCCESS" || $payCallBackReturn["return_msg"] != "OK"){
-
-                //回调失败
-                return $this->com_return(false,$payCallBackReturn["return_msg"]);
-
-            }
-            /*订单支付回调 off*/
-
-
-            /*回调成功,进行订单改变 on*/
-            $billPayModel = new BillPay();
-
-            $updateOrderInfo = $billPayModel
+            $updateIsOk = $billPayModel
                 ->where("pid",$pid)
-                ->update($updateParams);
+                ->update($params);
 
-            if ($updateOrderInfo == false){
+            if ($updateIsOk == false){
+                //更新失败
                 return $this->com_return(false,config("params.FAIL"));
             }
-            /*回调成功,进行订单改变 off*/
 
+            //更新成功
+            if ($agree_or_reject == 1){
+                //同意时,调起打印
+                $is_print = $this->openTableToPrintYly($pid);
 
-            /*状态改变后,调起打印机,落单 on*/
-            $is_print = $this->openTableToPrintYly($pid);
+                $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
 
-            $dateTimeFile = APP_PATH."index/PrintOrderYly/".date("Ym")."/";
+                if (!is_dir($dateTimeFile)){
+                    $res = mkdir($dateTimeFile,0777,true);
+                }
 
-            if (!is_dir($dateTimeFile)){
-
-                @mkdir($dateTimeFile,0777,true);
-
+                //打印结果日志
+                error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
             }
 
-            //打印结果日志
-            error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
-
-            /*状态改变后,调起打印机,落单 off*/
-
             Db::commit();
-
             return $this->com_return(true,config("params.SUCCESS"));
 
         }catch (Exception $e){
-
             Db::rollback();
             return $this->com_return(false,$e->getMessage());
         }
-    }
-
-    /**
-     * 获取订单信息
-     * @param $pid
-     * @return array|false|mixed|\PDOStatement|string|\think\Model
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\ModelNotFoundException
-     * @throws \think\exception\DbException
-     */
-    protected function getBillOrderInfo($pid)
-    {
-        $billPayModel = new BillPay();
-
-        $orderAmount = $billPayModel
-            ->where("pid",$pid)
-            ->field("order_amount")
-            ->find();
-
-        $orderAmount = json_decode(json_encode($orderAmount),true);
-
-        return $orderAmount;
     }
 }

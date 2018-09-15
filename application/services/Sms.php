@@ -10,6 +10,7 @@ namespace app\services;
 use app\admin\controller\Common;
 use think\Cache;
 use think\Controller;
+use think\Log;
 
 class Sms extends Controller
 {

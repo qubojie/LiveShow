@@ -8,6 +8,7 @@
 namespace app\wechat\controller;
 
 use app\admin\controller\Common;
+use app\admin\model\MstMerchant;
 use app\admin\model\MstTableImage;
 use app\admin\model\MstUserLevel;
 use app\admin\model\TableRevenue;
@@ -104,6 +105,7 @@ class MyInfo extends CommonAction
         //获取用户礼券数量
         $gift_voucher_num = $giftVoucherModel
             ->where('uid',$uid)
+            ->where("status",config("voucher.status")['0']['key'])
             ->count();
 
         $user_info['gift_voucher_num'] = $gift_voucher_num;
@@ -116,6 +118,12 @@ class MyInfo extends CommonAction
             ->count();
 
         $user_info['revenue_num'] = $user_revenue_num;
+
+        //获取商户数量
+        $merchantModel = new MstMerchant();
+        $merchant_num = $merchantModel->count();
+        $user_info['merchant_num'] = $merchant_num;
+
 
         return $this->com_return(true,config("SUCCESS"),$user_info);
 
@@ -406,4 +414,5 @@ class MyInfo extends CommonAction
         }
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
+
 }

@@ -18,6 +18,8 @@ use app\admin\model\MstTableSize;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
+use app\services\Sms;
+use app\wechat\model\BillPayAssist;
 use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
 use think\Config;
@@ -398,18 +400,60 @@ class PublicAction extends Controller
 
 
             if ($billSubscriptionReturn && $createRevenueReturn){
+                $userInfo = getUserInfo($uid);
+
+                $action_user = $userInfo["name"];
+                $user_phone  = $userInfo['phone'];
+
+                $tableInfo = $this->tableIdGetInfo($table_id);
+
+                $table_no = $tableInfo['table_no'];
+
+                $desc = $action_user." 预约 $reserve_date 的".$table_no."桌";
+
+                /*插入预约信息至消息表 on*/
+                $content = "客户 $action_user ($user_phone) 预定 $reserve_date $table_no 号桌成功";
+
+                $tableMessageParams = [
+                    "type"       => "revenue",
+                    "content"    => $content,
+                    "ssid"       => $ssid,
+                    "status"     => "0",
+                    "is_read"    => "0",
+                    "created_at" => time(),
+                    "updated_at" => time(),
+                ];
+
+                $tableMessageReturn = Db::name("table_message")
+                    ->insert($tableMessageParams);
+
+                if ($tableMessageReturn == false){
+                    return $this->com_return(false,\config("params.FAIL"));
+                }
+
+                /*插入预约信息至消息表 off*/
+
+                if ($subscription <= 0){
+                    //调起短信推送
+                    //获取用户电话
+                    $authObj  = new Auth();
+                    $userInfo = $authObj->getUserInfo($uid);
+                    $userInfo = json_decode(json_encode($userInfo),true);
+                    $phone    = $userInfo['phone'];
+
+                    $smsObj = new Sms();
+
+                    $type = "revenue";
+
+                    $reserve_time = date("Y-m-d H:i",$reserve_time);
+
+                    $smsObj->sendMsg($phone,$type,$reserve_time,$table_no);
+                }
+
                 Db::commit();
                 /*记录预约日志 on*/
                 if ($reserve_way == \config("order.reserve_way")['client']['key']){
                     //如果是客户预定
-                    $userInfo = getUserInfo($uid);
-                    $action_user = $userInfo["name"];
-
-                    $tableInfo = $this->tableIdGetInfo($table_id);
-
-                    $table_no = $tableInfo['table_no'];
-
-                    $desc = $action_user." 预约 $reserve_date 的".$table_no."桌";
 
                     $type = config("order.table_action_type")['revenue_table']['key'];
                     //记录日志
@@ -904,26 +948,32 @@ class PublicAction extends Controller
      * -----------------------------------
      * @param string $start 开始时间
      * @param string $end 结束时间
-     * @param int $nums 切分数目
+     * @param int $menus 分钟数
 
      * @param boolean 是否格式化
 
      * @return array 时间段数组
 
      */
-    protected function timeToPart($start,$end,$nums = 6, $format=true)
+    protected function timeToPart($start,$end,$menus = 15, $format=true)
     {
         $start = strtotime($start);
         $end   = strtotime($end);
+
+        $nums = $menus * 60;
+
         $parts = ($end - $start)/$nums;
         $last  = ($end - $start)%$nums;
+
         if ( $last > 0) {
             $parts = ($end - $start - $last)/$nums;
         }
-        for ($i=1; $i <= $nums+1; $i++) {
-            $_end  = $start + $parts * $i;
-            $arr[] = array($start + $parts * ($i-1), $_end);
+
+        for ($i=1; $i <= $parts+1; $i++) {
+            $_end  = $start + $nums * $i;
+            $arr[] = array($start + $nums * ($i-1), $_end);
         }
+
         $len = count($arr)-1;
         $arr[$len][1] = $arr[$len][1] + $last;
         if ($format) {
@@ -936,6 +986,8 @@ class PublicAction extends Controller
             }
         }
         return $arr;
+
+
     }
 
 
@@ -1234,5 +1286,181 @@ class PublicAction extends Controller
         }else{
             return false;
         }
+    }
+
+    /**
+     * 获取所有桌台列表
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getTableList()
+    {
+        $tableModel         = new MstTable();
+
+        $tableLocationModel = new MstTableLocation();
+
+        $tableAreaModel     = new MstTableArea();
+
+        $table_location = $tableLocationModel
+            ->alias("tl")
+            ->join("mst_table_area ta","ta.location_id = tl.location_id")
+            ->where("tl.is_delete","0")
+            ->order("tl.sort")
+            ->group("tl.location_id")
+            ->field("tl.location_id,tl.location_title")
+            ->select();
+
+        $info = json_decode(json_encode($table_location),true);
+
+        for ($i = 0; $i < count($info); $i ++){
+
+            $location_id = $info[$i]['location_id'];
+
+            $table_area = $tableAreaModel
+                ->alias("ta")
+                ->where("ta.location_id",$location_id)
+                ->where("ta.is_delete","0")
+                ->order("ta.sort")
+                ->group("ta.area_id")
+                ->field("ta.area_id,ta.area_title")
+                ->select();
+
+            $area_info = json_decode(json_encode($table_area),true);
+
+            $info[$i]['area_info'] = $area_info;
+
+            for ($n = 0; $n < count($area_info); $n ++){
+                $area_id = $area_info[$n]['area_id'];
+                $table_info = $tableModel
+                    ->alias("t")
+                    ->where("t.area_id",$area_id)
+                    ->where("t.is_delete","0")
+                    ->order("t.table_no")
+                    ->select();
+
+                $table_info = json_decode(json_encode($table_info),true);
+
+                $info[$i]['area_info'][$n]['table_info'] = $table_info;
+            }
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"),$info);
+    }
+
+    /**
+     * 使用礼券时判断礼券有效性
+     * @param $gift_vou_code
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function checkVoucherValid($gift_vou_code)
+    {
+        $qrCodeObj    = new QrCodeAction();
+
+        $voucherInfoR = $qrCodeObj->giftVoucherUse($gift_vou_code);
+
+        $voucherInfo  = $voucherInfoR['data'];
+
+        if (empty($voucherInfo)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $gift_vou_type           = $voucherInfo['gift_vou_type'];//赠券类型  ‘once’单次    ‘multiple’多次   ‘limitless’ 无限制
+
+        $gift_vou_validity_start = $voucherInfo['gift_vou_validity_start'];//有效开始日期
+
+        $gift_vou_validity_end   = $voucherInfo['gift_vou_validity_end'];//有效结束日期
+
+        $gift_vou_exchange       = $voucherInfo['gift_vou_exchange'];//兑换规则
+
+        $use_qty                 = $voucherInfo['use_qty'];//赠送总数量   类型为‘once’单次时 数量为1   类型为‘limitless’   数量为0
+
+        $qty_max                 = $voucherInfo['qty_max'];//最大使用数量    无限制卡表示单日最大使用数量
+
+        $status                  = $voucherInfo['status'];//礼券状态  0有效待使用  1 已使用  9已过期
+
+        $updated_at              = $voucherInfo['updated_at'];//最新的更新时间
+
+        if ($status == config("voucher.status")['1']['key']){
+            //已使用
+            return $this->com_return(false,config("voucher.status")['1']['name']);
+
+        }
+
+        if ($status == config("voucher.status")['9']['key']){
+            //已失效
+            return $this->com_return(false,config("voucher.status")['9']['name']);
+        }
+
+        //当前时间
+        $nowTime = time();
+
+        //计算出指定日期的天数
+        $today = strtotime(date("Ymd",$nowTime));
+
+        $weekday = ["7","1","2","3","4","5","6"];
+
+        $week = $weekday[date("w",$today)];//今日周几
+
+        if ($gift_vou_validity_end == 0){
+            if ($nowTime < $gift_vou_validity_start){
+                //请在有效期范围内使用
+                return $this->com_return(false,\config("params.VOUCHER")['VALID_DATE_USE']);
+            }
+        }else{
+            if ($nowTime < $gift_vou_validity_start || $nowTime > $gift_vou_validity_end){
+                //请在有效期范围内使用
+                return $this->com_return(false,\config("params.VOUCHER")['VALID_DATE_USE']);
+            }
+        }
+
+        $gift_vou_exchange = json_decode($gift_vou_exchange,true);
+
+        if ($gift_vou_exchange['limitTimeType']){
+            //限制
+            $weekGroup = $gift_vou_exchange['weekGroup'];//周限制
+            $timeLimit = $gift_vou_exchange['timeLimit'];//时间限制
+
+            if (strpos($weekGroup,$week) !== false){
+                //不包含
+                return $this->com_return(false,\config("params.VOUCHER")['VALID_DATE_USE']);
+            }
+
+            $timeLimitArr = explode(",",$timeLimit);
+
+            $timeStart = $timeLimitArr[0];
+            $timeEnd = $timeLimitArr[1];
+
+            if ($timeStart > 0 || $timeEnd > 0){
+                //有使用时间限制
+
+                //当前时间的小时数
+                $nowH = date("H",$nowTime);
+
+                if ($nowH > $timeEnd){
+                    return $this->com_return(false,\config("params.VOUCHER")['VALID_DATE_USE']);
+                }
+
+            }
+        }
+
+        //查询当前券是否在使用中
+        $billPayAssistModel = new BillPayAssist();
+
+        $is_use_ing = $billPayAssistModel
+            ->where("type",\config("bill_assist.bill_type")['6']['key'])
+            ->where("gift_vou_code",$gift_vou_code)
+            ->where("sale_status",\config("bill_assist.bill_status")['0']['key'])
+            ->count();
+
+        if ($is_use_ing > 0){
+            return $this->com_return(false,\config("params.VOUCHER")['VOUCHER_USE_ING']);
+        }
+
+
+        return $this->com_return(true,\config("params.SUCCESS"),$voucherInfo);
     }
 }

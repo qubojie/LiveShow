@@ -149,6 +149,29 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
         //检测手机号码是否存在
         Route::rule('checkPhoneExist','PublicAction/checkPhoneExist');
 
+        //通知信息
+        Route::group(['name' => 'tableCallMessage'],function (){
+
+            //获取桌台号列表
+            Route::rule('tableNumber','TableCallMessage/tableNumber','post|options');
+
+            //获取呼叫服务信息
+            Route::rule('getCallMessage','TableCallMessage/getCallMessage','post|options');
+        });
+
+
+        //联盟商家
+        Route::group(['name' => 'merchantAction'],function (){
+
+            //分类列表 ———— 键值对（小程序）
+            Route::rule('cateList','merchantAction/cateList','post|options');
+
+            //联盟商家列表（小程序）
+            Route::rule('merchatList','merchantAction/merchatList','post|options');
+
+        });
+
+
         //充值
         Route::group(['name' => 'Recharge'],function (){
 
@@ -263,6 +286,12 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
             //取消预约
             Route::rule("cancelReservation","ManageReservation/cancelReservation",'post|options');
 
+            //信息列表
+            Route::rule('messageList','MessageList/index','post|options');
+
+            //读取信息
+            Route::rule('messageReadStatus','MessageList/messageReadStatus','post|options');
+
             //我的客户列表
             Route::rule("customerList","ManageInfo/customerList");
 
@@ -321,6 +350,22 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
                 //换单
                 Route::rule('changeList','ManageChangeList/changeList','post|options');
+
+                //点单临时
+                Route::rule('confirmPointList','ManagePointListTemporary/confirmPointList','post|options');
+
+            });
+
+            //礼券
+            Route::group(['name' => 'voucher'],function (){
+
+                //所有的桌位列表
+                Route::rule('getTableList','PublicAction/getTableList','post|options');
+
+                //申请使用礼券
+                Route::rule('applyUseVoucher','ManageUseVoucher/applyUseVoucher','post|options');
+
+
             });
         });
     });
@@ -496,6 +541,15 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
             //礼券启用
             Route::rule('enable','voucher/enable','post/options');
+
+            //指定会员 - 检索用户信息
+            Route::rule('retrievalUserInfo','voucher/retrievalUserInfo','post/options');
+
+            //指定会员卡 - 获取卡列表
+            Route::rule('getCardInfoNum','voucher/getCardInfoNum','post/options');
+
+            //礼券发放
+            Route::rule('grantVoucher','voucher/grantVoucher','post/options');
 
             //生成二维码
             Route::rule('makeQrCode','voucher/makeQrCode','post/options');
@@ -908,13 +962,65 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
             //属性绑定打印机删除
             Route::rule("attrBindPrinterDelete",'dishAttribute/attrBindPrinterDelete','post/options');
 
-
-
-
-
         });
     });
 
+    //联盟商家管理
+    Route::group(['name' => 'merchantUnion'],function (){
+
+        //联盟商家信息设置
+        Route::group(['name' => 'merchant'],function (){
+
+            //联盟商家列表
+            Route::rule("index",'merchant/index','post/options');
+
+            //联盟商家添加
+            Route::rule("add",'merchant/add','post/options');
+
+            //联盟商家编辑提交
+            Route::rule("edit",'merchant/edit','post/options');
+
+            //菜品删除
+            Route::rule("delete",'merchant/delete','post/options');
+
+            //菜品排序
+            Route::rule("sortEdit",'merchant/sortEdit','post/options');
+
+            //菜品是否启用
+            Route::rule("enable",'merchant/enable','post/options');
+
+        });
+
+        //联盟商家分类
+        Route::group(['name' => 'merchantCategory'],function (){
+
+            //联盟商家分类列表无分页
+            Route::rule("merchantType",'merchantCategory/merchantType','post/options');
+
+            //联盟商家分类列表
+            Route::rule("index",'merchantCategory/index','post/options');
+
+            //联盟商家分类添加
+            Route::rule("add",'merchantCategory/add','post/options');
+
+            //联盟商家分类编辑
+            Route::rule("edit",'merchantCategory/edit','post/options');
+
+            //联盟商家分类删除
+            Route::rule("delete",'merchantCategory/delete','post/options');
+
+            //联盟商家分类排序
+            Route::rule("sortEdit",'merchantCategory/sortEdit','post/options');
+
+            //联盟商家分类是否启用
+            Route::rule("enable",'merchantCategory/enable','post/options');
+
+            //分类列表 ———— 键值对
+            Route::rule("cateList",'merchantCategory/cateList','post/options');
+
+        });
+
+    });
     //财务管理
     Route::group(['name' => 'finance'],function (){
 
@@ -952,13 +1058,27 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
         });
 
-        //点单订单管理
+        //订单审核
         Route::group(['name' => 'pointListOrder'],function (){
 
             //单据列表
             Route::rule('index','PointListOrder/index','post|options');
 
-            //订单审核
+            //审核订单
+            Route::rule('examineOrder','PointListOrder/examineOrder','post|options');
+
+        });
+
+        //银台操作
+        Route::group(['name' => 'silverAction'],function (){
+
+            //单据列表
+            Route::rule('index','silverAction/index','post|options');
+
+            //单据详情
+            Route::rule('orderDetails','silverAction/orderDetails','post|options');
+
+            //银台操作 线下支付审核操作
             Route::rule('examineReceivables','PointListOrder/examineReceivables','post|options');
         });
 
@@ -1048,6 +1168,34 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
         Route::rule('login','Auth/login');
     });
 
+    //会员消费
+    Route::group(['name' => 'consumption'],function (){
+
+        //消息列表
+        Route::rule('infoList','BillPayAssistInfo/index','post|options');
+
+        //确认Or取消消费
+        Route::rule('cancelOrConfirm','BillPayAssistInfo/cancelOrConfirm','post|options');
+
+        //确认Or取消礼券
+        Route::rule('cancelOrConfirmVoucher','BillPayAssistInfo/cancelOrConfirmVoucher','post|options');
+
+    });
+
+    //消息
+    Route::group(['name' => 'tableMessage'],function (){
+
+        //消息列表
+        Route::rule('messageList','TableMessage/messageList');
+
+        //消息确认
+        Route::rule('confirm','TableMessage/confirm','post|options');
+
+    });
+
+
+
+
     //堂吃
     Route::group(['name' => 'diningRoom'],function (){
 
@@ -1097,5 +1245,8 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
         //取消预约
         Route::rule('cancelReservation','Reservation/cancelReservation','post|options');
+
+        //到店
+        Route::rule('goToShop','Reservation/goToShop','post|options');
     });
 });

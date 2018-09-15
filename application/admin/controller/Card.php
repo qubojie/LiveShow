@@ -144,9 +144,7 @@ class Card extends CommandAction
         $card_job_commission = $request->param("card_job_commission","");//推荐人返还佣金
         $salesman            = $request->param('salesman',"");//销售人员类型,多个以逗号拼接
 
-
         $sort           = $request->param("sort","100");//排序
-
 
         $is_enable      = $request->param("is_enable","1");//是否启用  0否 1是
 

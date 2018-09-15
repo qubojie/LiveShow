@@ -15,6 +15,7 @@ use think\Controller;
 use think\Db;
 use think\Env;
 use think\Exception;
+use think\Log;
 use think\Request;
 
 class Auth extends Controller

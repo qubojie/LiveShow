@@ -41,8 +41,15 @@ class PublicAction extends Controller
     {
         $tableRevenueModel = new TableRevenue();
 
+        if ($status == config("order.table_reserve_status")['already_open']['key']){
+            $open_time = time();
+        }else{
+            $open_time = NULL;
+        }
+
         $params = [
-            "status" => $status,
+            "status"     => $status,
+            "open_time"  => $open_time,
             "updated_at" => time()
         ];
 
@@ -89,6 +96,7 @@ class PublicAction extends Controller
             "sid"               => $sid,
             "sname"             => $sname,
             "subscription_type" => config("order.subscription_type")['null_subscription']['key'],
+            "open_time"         => $time,
             "created_at"        => $time,
             "updated_at"        => $time
         ];
@@ -142,6 +150,7 @@ class PublicAction extends Controller
             "sid"               => $sid,
             "sname"             => $sname,
             "subscription_type" => config("order.subscription_type")['null_subscription']['key'],
+            "open_time"         => $time,
             "created_at"        => $time,
             "updated_at"        => $time
         ];
@@ -249,7 +258,14 @@ class PublicAction extends Controller
         return $dateList;
     }
 
-    //根据预约桌台trid获取该预约信息
+    /**
+     * 根据预约桌台trid获取该预约信息
+     * @param $trid
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
     public function tridGetInfo($trid)
     {
         $tableRevenue = new TableRevenue();
@@ -264,4 +280,85 @@ class PublicAction extends Controller
 
         return $res;
     }
+
+
+    /**
+     * 根据uid获取用户所办卡 消费,充值,办卡时返还的钱
+     * @param $uid
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function uidGetCardReturnMoney($uid)
+    {
+        $column = [
+            "cv.card_point",            //开卡赠送积分
+            "cv.card_cash_gift",        //开卡赠送礼金
+            "cv.card_job_cash_gif",     //开卡推荐人返礼金
+            "cv.card_job_commission",   //开卡推荐人返佣金
+            "cv.refill_job_cash_gift",  //充值推荐人返礼金
+            "cv.refill_job_commission", //充值推荐人返佣金
+            "cv.consume_cash_gift",     //消费持卡人返礼金
+            "cv.consume_commission",    //消费持卡人返佣金
+            "cv.consume_job_cash_gift", //消费推荐人返礼金
+            "cv.consume_job_commission",//消费推荐人返佣金
+        ];
+
+        $info = Db::name("user")
+            ->alias("u")
+            ->join("user_card uc","uc.uid = u.uid","LEFT")
+            ->join("mst_card_vip cv","cv.card_id = uc.card_id")
+            ->where("u.uid",$uid)
+            ->field($column)
+            ->find();
+
+        $info = json_decode(json_encode($info),true);
+
+        return $info;
+    }
+
+    /**
+     * 消费返佣金礼金数据
+     * @param $uid
+     * @param $referrer_id            '推荐人id'
+     * @param $referrer_type          '推荐人类型'
+     * @param $consume_cash_gift      '消费持卡人返礼金'
+     * @param $consume_commission     '消费持卡人返佣金'
+     * @param $consume_job_cash_gift  '消费推荐人返礼金'
+     * @param $consume_job_commission '消费推荐人返佣金'
+     * @param $consumption_money      '消费总额'
+     * @return array
+     */
+    public function consumptionReturnMoney($uid,$referrer_id,$referrer_type,$consume_cash_gift,$consume_commission,$consume_job_cash_gift,$consume_job_commission,$consumption_money)
+    {
+        if ($consumption_money < 0){
+            //如果余额消费和现金消费金额为0 则不返还
+            return NULL;
+        }
+
+        $cash_gift_return_money  = intval($consumption_money * ($consume_cash_gift/100));//持卡人返还礼金数
+        $commission_return_money = intval($consumption_money * ($consume_commission/100));//持卡人返还佣金数
+
+       if ($referrer_type == config("salesman.salesman_type")['2']['key']){
+           //如果是用户推荐
+           $job_cash_gift_return_money  = intval($consumption_money * ($consume_job_cash_gift/100));//消费推荐人返礼金
+
+           $job_commission_return_money = intval($consumption_money * ($consume_job_commission/100));//消费推荐人返佣金
+       }else{
+           $job_cash_gift_return_money  = 0;
+           $job_commission_return_money = 0;
+       }
+
+       $params = [
+           "cash_gift_return_money"      => $cash_gift_return_money,
+           "commission_return_money"     => $commission_return_money,
+           "job_cash_gift_return_money"  => $job_cash_gift_return_money,
+           "job_commission_return_money" => $job_commission_return_money
+       ];
+
+       return $params;
+
+    }
+
 }

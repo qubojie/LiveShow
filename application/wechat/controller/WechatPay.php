@@ -1059,7 +1059,7 @@ class WechatPay extends Controller
 
                 $reserve_time = date("Y-m-d H:i",$reserve_time);
 
-                if ($reserve_way == config("order.reserve_way")['service']['key'] || $reserve_way == config("order.reserve_way")['manage']['key']){
+                if ($reserve_way == config("order.reserve_way")['service']['key'] ||$reserve_way ==  config("order.reserve_way")['client']['key'] || $reserve_way == config("order.reserve_way")['manage']['key']){
                     //调起短信推送
                     //获取用户电话
                     $authObj = new Auth();
@@ -1682,7 +1682,6 @@ class WechatPay extends Controller
             }
 
             $gift_vou_code = $common->uniqueCode(8); //礼品券兑换码
-            Log::info("礼券兑换码".$gift_vou_code);
 
             $giftVouParams = [
                 'gift_vou_code'           => $gift_vou_code,
@@ -1703,15 +1702,12 @@ class WechatPay extends Controller
                 'updated_at'              => $time,
             ];
 
-            Log::info("添加礼券参数".$i.var_export($giftVouParams,true));
 
 
             $giftVouReturn = $cardCallbackObj->updateUserGiftVoucher($giftVouParams);
 
-            Log::info("添加礼券返回结果".$i." --- ".$giftVouReturn);
         }
 
-        Log::info("添加礼券最终返回结果".$giftVouReturn);
 
         return $giftVouReturn;
     }

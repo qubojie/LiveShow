@@ -120,6 +120,7 @@ class TableAction extends HomeAction
                             "status"        => $status,
                             "is_refund"     => 1,
                             "refund_amount" => $subscription,
+                            "open_time"     => time(),
                             "updated_at"    => time()
                         ];
 
@@ -227,6 +228,7 @@ class TableAction extends HomeAction
 
         $updateParams = [
             "status"     => config("order.table_reserve_status")['clear_table']['key'],
+            "clean_time" => time(),
             "updated_at" => time()
         ];
 

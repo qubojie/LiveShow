@@ -285,7 +285,7 @@ return [
         "TABLE_IS_RESERVE"      => "很遗憾,该吧台已被其他顾客预约,请重新挑选",
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
         "PHONE_NOT_EXIST"       => "未找到相关会员信息",
-        "TODAY_NOT_HAVA_TABLE"  => "今日无预约",
+        "TODAY_NOT_HAVE_TABLE"  => "今日无预约",
         "ATT_AL_PRINT"          => "当前属性已绑定此打印机,不可重复绑定",
         "OPEN_TABLE_STATUS"     => [
             "QrCodeINVALID"     => "二维码无效",
@@ -315,7 +315,8 @@ return [
             "WAIT_RESULT"       => "等待支付结果",
             "TURNOVER_LIMIT_SHORT" => "低消不足,请重新点单",
             "REFUND_DISH_ABNORMAL" => "退单操作异常",
-            "PAY_TYPE_EMPTY"       => "支付方式不能为空"
+            "PAY_TYPE_EMPTY"       => "支付方式不能为空",
+            "ORDER_NOT_EXIST"      => "订单不存在"
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -342,11 +343,25 @@ return [
             "COMBO_ID_NOT_EMPTY"=>  "换品组内的单品不能为空",
             "LOW_ELIMINATION"   =>  "不满足最低消费,请核对订单"
         ],
+        "MERCHANT"                => [
+            "CLASS_EXIST_MERCHANT"=>  "当前分类下存在菜品,不可直接删除",
+        ],
+
         "TABLE"                          => [
             "TABLE_CARD_LIMIT_NOT_EMPTY" => "选择仅会员时,会员卡限定不能为空",
             "AREA_EXIST"                 => "当前大区下存在小区,不可直接删除",
             "TALE_EXIST"                 => "该区域下存在吧台,不可直接删除",
             "IMPROVING_USER_INFO"        => "有用户信息未完善,是否确认清台?"
+        ],
+        "VOUCHER"               => [
+            "CARD_NOT_EXIST"    => "此卡无效",
+            "VOUCHER_NOT_EXIST" => "此券无效",
+            "PHONE_USER_NOT_EX" => "用户不存在",
+            "VALID_DATE_USE"    => "请在有效时间范围内使用",
+            "VOUCHER_USE_ING"   => "此券正在使用中"
+        ],
+        "USER" => [
+            "USER_NOT_EXIST" => "用户不存在"
         ],
      ],
 
@@ -409,6 +424,23 @@ return [
             1 => ['key' => 'multiple',  'name' => '多次'],
             2 => ['key' => 'limitless', 'name' => '无限制']
         ],
+        'status' => [
+            0 => ['key' => '0', 'name' => '有效待使用'],
+            1 => ['key' => '1', 'name' => '已使用'],
+            9 => ['key' => '9', 'name' => '已过期']
+        ]
+    ],
+
+    'bill_assist' => [
+        'bill_type' => [
+            0 => ['key' => '0', 'name' => '消费'],
+            6 => ['key' => '6', 'name' => '礼券']
+        ],
+        'bill_status' => [
+            0 => ['key' => '0', 'name' => '待扣款'],
+            1 => ['key' => '1', 'name' => '扣款完成'],
+            9 => ['key' => '9', 'name' => '交易取消']
+        ],
     ],
 
     /*
@@ -424,7 +456,6 @@ return [
             3 => ['key' => 'keep',   'name' => '保留'],
         ],
     ],
-
 
     /*
     |--------------------------------------------------------------------------
@@ -497,6 +528,7 @@ return [
             'open_card_reward' => ['key' => '101', 'name' => '开卡赠送礼金'],
             'recharge_give'    => ['key' => '102', 'name' => '充值赠送礼金'],
             'consume'          => ['key' => '200', 'name' => '礼金消费'],
+            'consumption_give' => ['key' => '300', 'name' => '消费赠送礼金'],
             'recommend_reward' => ['key' => '800', 'name' => '推荐会员赠送礼金'],
             'other'            => ['key' => '900', 'name' => '其他原因调整'],
         ],
@@ -624,6 +656,7 @@ return [
             'already_open'    => ['key' => '2','name' => '已开台'],
             'clear_table'     => ['key' => '3','name' => '已清台'],
             'cancel_table'    => ['key' => '4','name' => '取消开台'],
+            'go_to_table'     => ['key' => '8','name' => '到店完成预约'],
             'cancel'          => ['key' => '9','name' => '取消预约'],
         ],
 

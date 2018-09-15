@@ -71,7 +71,6 @@ class Reservation extends CommonAction
             $appearance_where['tap.appearance_id'] = $appearance_id;
         }
 
-
         $size_where = [];
         if (!empty($size_id)){
             $size_where['t.size_id'] = $size_id;
@@ -100,7 +99,7 @@ class Reservation extends CommonAction
             ->where($size_where)
             ->group("t.table_id")
             ->order('tl.location_id,ta.area_id,t.table_no,tap.appearance_id')
-            ->field("t.table_id,t.table_no,t.people_max,t.table_desc")
+            ->field("t.table_id,t.table_no,t.reserve_type,t.people_max,t.table_desc")
             ->field("ta.area_id,ta.area_title,ta.area_desc")
             ->field("tl.location_title")
             ->field("ts.size_title")
@@ -126,6 +125,12 @@ class Reservation extends CommonAction
 
                 $reserve_time = $tableStatusRes['reserve_time'];
 
+                if ($reserve_time < time()){
+                    $tableInfo[$i]['is_overtime'] = 1;
+                }else{
+                    $tableInfo[$i]['is_overtime'] = 0;
+                }
+
                 $tableInfo[$i]['reserve_time'] = date("H:i",$reserve_time);
 
                 if ($table_status == 1){
@@ -138,7 +143,18 @@ class Reservation extends CommonAction
             }else{
                 $tableInfo[$i]['table_status'] = 0;
                 $tableInfo[$i]['reserve_time'] = 0;
+                $tableInfo[$i]['is_overtime'] = 0;
             }
+
+            /*桌子限制筛选 on*/
+            if ($tableInfo[$i]['reserve_type'] == config("table.reserve_type")['0']['key']){
+                //无限制
+                $tableInfo[$i]['is_limit'] = 0;
+            }else{
+                $tableInfo[$i]['is_limit'] = 1;
+            }
+            /*桌子限制筛选 off*/
+
         }
 
         if ($status == 1){
@@ -812,7 +828,96 @@ class Reservation extends CommonAction
             Db::startTrans();
             $this->com_return(false,$e->getMessage());
         }
+    }
 
+    /**
+     * 到店
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function goToShop(Request $request)
+    {
+        $trid = $request->param("trid","");
+
+        $trInfo = Db::name("table_revenue")
+            ->where("trid",$trid)
+            ->find();
+
+        $trInfo = json_decode(json_encode($trInfo),true);
+
+        if (empty($trInfo)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $subscription_type = $trInfo['subscription_type'];
+        $subscription      = $trInfo['subscription'];
+
+        $status_now = config("order.table_reserve_status")['go_to_table']['key'];
+
+        $publicObj  = new PublicAction();
+
+        Db::startTrans();
+        try{
+
+            $changeTableStatus = $publicObj->changeRevenueTableStatus($trid,$status_now);
+
+            if (!$changeTableStatus){
+                return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+            }
+
+            if ($subscription_type == config("order.subscription_type")['subscription']['key']){
+                //如果预约定金类型为定金 1
+                if ($subscription > 0){
+                    //此时执行开台成功,定金退还操作
+                    $suid_info = Db::name("bill_subscription")
+                        ->where("trid",$trid)
+                        ->field("suid")
+                        ->find();
+                    $suid_info = json_decode(json_encode($suid_info),true);
+
+                    $suid = $suid_info["suid"];
+
+                    $diningRoomObj = new DiningRoom();
+
+                    $refund_return = $diningRoomObj->refundDeposit($suid,$subscription);
+
+                    $res = json_decode($refund_return,true);
+
+                    if (isset($res["result"])){
+                        if ($res["result"]){
+                            //退款成功则变更定金状态
+                            $status = config("order.reservation_subscription_status")['open_table_refund']['key'];
+                            $params = [
+                                "status"        => $status,
+                                "is_refund"     => 1,
+                                "refund_amount" => $subscription,
+                                "updated_at"    => time()
+                            ];
+
+                            Db::name("bill_subscription")
+                                ->where("suid",$suid)
+                                ->update($params);
+
+                        }else{
+                            return $res;
+                        }
+                    }else{
+                        return $res;
+                    }
+                    Log::info("到店退押金 ---- ".var_export($refund_return,true));
+                }
+            }
+
+            Db::commit();
+            return $this->com_return(true,config("params.SUCCESS"));
+
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage());
+        }
     }
 
     /**

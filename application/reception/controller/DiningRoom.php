@@ -120,7 +120,6 @@ class DiningRoom extends CommonAction
                     $tableInfo[$i]['is_overtime'] = 0;
                 }
 
-
                 $reserve_time = date("H:i",$reserve_time);
 
                 $table_status =  $tableStatusRes['status'];
@@ -503,6 +502,7 @@ class DiningRoom extends CommonAction
         if ($openTable){
             /*如果开台成功,查看当前用户是否为定金预约用户,如果是则执行退款*/
             Log::info("开台成功 ---- ");
+            Log::info("预约类型 ------ ".$subscription_type);
             if ($subscription_type == config("order.subscription_type")['subscription']['key']){
                 //如果预约定金类型为定金 1
                 if ($subscription > 0){
@@ -542,7 +542,7 @@ class DiningRoom extends CommonAction
                     }
                     Log::info("开台退押金 ---- ".var_export($refund_return,true));
                 }
-            }else{
+            }elseif ($subscription_type == config("order.subscription_type")['order']['key']){
                 //如果预约方式为订单,则调起打印机,打印订单
 
                 //获取当前预约订台 已支付的点单信息
@@ -555,6 +555,8 @@ class DiningRoom extends CommonAction
                 $pid_res = json_decode(json_encode($pid_res),true);
 
                 $pid = $pid_res['pid'];
+
+                //TODO 这里调用打印机有点问题,[ error ] [10501]SQLSTATE[42000]: Syntax error or access violation: 1055 Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'elegant.bpd.pid' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by[/home/wwwroot/ls.wxapp.api.yshvip.cn/thinkphp/library/think/db/Connection.php:383]
 
                 $is_print = $this->openTableToPrintYly($pid);
 
@@ -571,6 +573,7 @@ class DiningRoom extends CommonAction
                 //打印结果日志
                 error_log(date('Y-m-d H:i:s').var_export($is_print,true),3,$dateTimeFile.date("d").".log");
             }
+
             /*记录开台日志 on*/
 
             $type = config("order.table_action_type")['open_table']['key'];
@@ -948,7 +951,7 @@ class DiningRoom extends CommonAction
      * @param $subscription
      * @return bool|mixed
      */
-    protected function refundDeposit($suid,$subscription)
+    public function refundDeposit($suid,$subscription)
     {
 
         $postParams = [

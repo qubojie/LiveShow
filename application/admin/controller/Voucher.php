@@ -8,8 +8,13 @@
 namespace app\admin\controller;
 
 
+use app\admin\model\MstCardVip;
 use app\admin\model\MstGiftVoucher;
+use app\admin\model\User;
+use app\common\controller\AdminPublicAction;
 use app\common\controller\MakeQrCode;
+use app\wechat\model\UserCard;
+use app\wechat\model\UserGiftVoucher;
 use think\Db;
 use think\Exception;
 use think\Request;
@@ -21,6 +26,7 @@ class Voucher extends CommandAction
      * 礼券列表
      * @param Request $request
      * @return array
+     * @throws \think\exception\DbException
      */
     public function index(Request $request)
     {
@@ -498,6 +504,321 @@ class Voucher extends CommandAction
             }
         }else {
             return $common->com_return(false, "缺少参数");
+        }
+    }
+
+    /**
+     * 指定人员 - 检索用户信息
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function retrievalUserInfo(Request $request)
+    {
+        $keyword = $request->param("keyword","");//电话号码或者uid
+
+        if (empty($keyword)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+
+        $userModel = new User();
+
+        $info = $userModel
+            ->alias("u")
+            ->join("user_card uc","uc.uid = u.uid","LEFT")
+            ->join("mst_card_vip cv","cv.card_id = uc.card_id","LEFT")
+            ->where("u.phone",$keyword)
+            ->whereOr("u.uid",$keyword)
+            ->field("u.uid,u.name,u.phone,u.avatar,u.account_balance,u.account_cash_gift,u.account_point")
+            ->field("cv.card_name,cv.card_type")
+            ->find();
+
+        $info = json_decode(json_encode($info),true);
+
+        return $this->com_return(true,config("params.SUCCESS"),$info);
+    }
+
+    /**
+     * 指定会员 - 获取卡列表
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getCardInfoNum(Request $request)
+    {
+        $cardModel = new MstCardVip();
+
+        $cardList = $cardModel
+            ->where("is_delete",0)
+            ->field("card_id,card_name,card_type")
+            ->select();
+
+        $cardList = json_decode(json_encode($cardList),true);
+
+        $userCardModel = new UserCard();
+
+        for ($i = 0; $i < count($cardList); $i ++){
+            $card_id = $cardList[$i]['card_id'];
+
+            $num = $userCardModel
+                ->where("card_id",$card_id)
+                ->count();
+
+            $cardList[$i]['num'] = $num;
+
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"),$cardList);
+
+    }
+
+
+    /**
+     * 礼券发放
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function grantVoucher(Request $request)
+    {
+        $type        = $request->param("type","");//1 指定人员; 2: 指定会员卡
+
+        $gift_vou_id = $request->param("gift_vou_id","");//礼券id
+
+        $user_phone  = $request->param("user_phone","");//用户手机号码
+
+        $card_id     = $request->param("card_id","");//会员卡id
+
+        if ($request->method() == "OPTIONS"){
+            return $this->com_return(true,config("params.SUCCESS"));
+        }
+
+        $token = $request->header("Authorization");
+
+        $adminInfo = $this->getLoginAdminId($token);
+
+        $review_user = $adminInfo['user_name'];
+
+        if ($type == 1){
+            //指定人员
+            $rule = [
+                "user_phone|电话号码" => "require|regex:1[3-8]{1}[0-9]{9}",
+                "gift_vou_id|礼券id" => "require",
+            ];
+
+            $request_res = [
+                "user_phone"  => $user_phone,
+                "gift_vou_id" => $gift_vou_id,
+            ];
+
+            $validate = new Validate($rule);
+
+            if (!$validate->check($request_res)){
+                return $this->com_return(false,$validate->getError(),null);
+            }
+
+            return $this->appointUser($user_phone,$gift_vou_id,$review_user);
+
+        }elseif ($type == 2){
+            //指定会员卡
+            $rule = [
+                "card_id|会员卡id"   => "require",
+                "gift_vou_id|礼券id" => "require",
+            ];
+
+            $request_res = [
+                "card_id"     => $card_id,
+                "gift_vou_id" => $gift_vou_id,
+            ];
+
+            $validate = new Validate($rule);
+
+            if (!$validate->check($request_res)){
+                return $this->com_return(false,$validate->getError(),null);
+            }
+
+            return $this->appointCard($card_id,$gift_vou_id,$review_user);
+
+        }else{
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+    }
+
+    /**
+     * 指定会员卡
+     * @param $card_id
+     * @param $gift_vou_id
+     * @param $review_user
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    protected function appointCard($card_id,$gift_vou_id,$review_user)
+    {
+        $is_valid = AdminPublicAction::checkVoucherValid($gift_vou_id);
+
+        if (!$is_valid){
+            return $this->com_return(false,config("params.VOUCHER")['VOUCHER_NOT_EXIST']);
+        }
+
+        //获取办理这些卡的用户id
+        $userCardModel = new UserCard();
+
+        $uidInfo = $userCardModel
+            ->where("card_id","IN",$card_id)
+            ->field("uid")
+            ->select();
+
+        $uidInfo = json_decode(json_encode($uidInfo),true);
+
+        $voucherInfo = AdminPublicAction::getVoucherInfo($gift_vou_id);//获取礼券信息
+
+        if (empty($voucherInfo)){
+            return $this->com_return(false,config("params.VOUCHER")['VOUCHER_NOT_EXIST']." - 002");
+        }
+
+        $common = new Common();
+
+        $userVoucherModel = new UserGiftVoucher();
+
+        Db::startTrans();
+        try{
+
+            for ($i = 0; $i < count($uidInfo); $i ++){
+                $uid           = $uidInfo[$i]['uid'];
+                $gift_vou_code = $common->uniqueCode(8); //礼品券兑换码
+
+                if ($voucherInfo['gift_vou_type'] == config("voucher.type")['0']['key']){
+                    //单次 once
+                    $use_qty = 1;
+                }else{
+                    //limitless 不限制
+                    $use_qty = 0;
+                }
+
+                $params = [
+                    "gift_vou_code"           => $gift_vou_code,
+                    "uid"                     => $uid,
+                    "gift_vou_id"             => $gift_vou_id,
+                    "gift_vou_type"           => $voucherInfo['gift_vou_type'],
+                    "gift_vou_name"           => $voucherInfo['gift_vou_name'],
+                    "gift_vou_desc"           => $voucherInfo['gift_vou_desc'],
+                    "gift_vou_amount"         => $voucherInfo['gift_vou_amount'],
+                    "gift_vou_validity_start" => $voucherInfo['gift_start_day'],
+                    "gift_vou_validity_end"   => $voucherInfo['gift_end_day'],
+                    "gift_vou_exchange"       => $voucherInfo['gift_vou_exchange'],
+                    "use_qty"                 => $use_qty,
+                    "qty_max"                 => $voucherInfo['qty_max'],
+                    "status"                  => config("voucher.status")['0']['key'],
+                    "use_time"                => 0,
+                    "review_user"             => $review_user,
+                    "created_at"              => time(),
+                    "updated_at"              => time()
+                ];
+
+
+                $is_ok = $userVoucherModel
+                    ->insert($params);
+
+                if (!$is_ok){
+                    return $this->com_return(false,config("params.FAIL")."00".$i);
+                }
+            }
+
+            Db::commit();
+            return $this->com_return(true,config("params.SUCCESS"));
+
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage());
+        }
+
+    }
+
+
+    /**
+     * 指定人员
+     * @param $user_phone
+     * @param $gift_vou_id
+     * @param $review_user
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    protected function appointUser($user_phone,$gift_vou_id,$review_user)
+    {
+        $is_valid = AdminPublicAction::checkVoucherValid($gift_vou_id);
+
+        if (!$is_valid){
+            return $this->com_return(false,config("params.VOUCHER")['VOUCHER_NOT_EXIST']." - 001");
+        }
+
+        $voucherInfo = AdminPublicAction::getVoucherInfo($gift_vou_id);//获取礼券信息
+
+        if (empty($voucherInfo)){
+            return $this->com_return(false,config("params.VOUCHER")['VOUCHER_NOT_EXIST']." - 002");
+        }
+
+
+        $userInfo = AdminPublicAction::phoneGetUserInfo($user_phone);//获取用户信息
+
+        if (empty($userInfo)){
+            return $this->com_return(false,config("params.VOUCHER")['PHONE_USER_NOT_EX']);
+        }
+
+        $uid = $userInfo['uid'];
+
+        $common = new Common();
+
+        $gift_vou_code = $common->uniqueCode(8); //礼品券兑换码
+
+        if ($voucherInfo['gift_vou_type'] == config("voucher.type")['0']['key']){
+            //单次 once
+            $use_qty = 1;
+        }else{
+            //limitless 不限制
+            $use_qty = 0;
+        }
+
+        $gift_validity_type = $voucherInfo['gift_validity_type'];
+
+        $params = [
+            "gift_vou_code"           => $gift_vou_code,
+            "uid"                     => $uid,
+            "gift_vou_id"             => $gift_vou_id,
+            "gift_vou_type"           => $voucherInfo['gift_vou_type'],
+            "gift_vou_name"           => $voucherInfo['gift_vou_name'],
+            "gift_vou_desc"           => $voucherInfo['gift_vou_desc'],
+            "gift_vou_amount"         => $voucherInfo['gift_vou_amount'],
+            "gift_vou_validity_start" => $voucherInfo['gift_start_day'],
+            "gift_vou_validity_end"   => $voucherInfo['gift_end_day'],
+            "gift_vou_exchange"       => $voucherInfo['gift_vou_exchange'],
+            "use_qty"                 => $use_qty,
+            "qty_max"                 => $voucherInfo['qty_max'],
+            "status"                  => config("voucher.status")['0']['key'],
+            "use_time"                => 0,
+            "review_user"             => $review_user,
+            "created_at"              => time(),
+            "updated_at"              => time()
+        ];
+
+        $userVoucherModel = new UserGiftVoucher();
+
+        $is_ok = $userVoucherModel
+            ->insert($params);
+
+        if ($is_ok){
+            return $this->com_return(true,config("params.SUCCESS"));
+        }else{
+            return $this->com_return(false,config("params.FAIL"));
         }
     }
 

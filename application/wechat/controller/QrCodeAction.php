@@ -9,6 +9,7 @@ namespace app\wechat\controller;
 
 use app\admin\model\TableRevenue;
 use app\wechat\model\BillPay;
+use app\wechat\model\UserGiftVoucher;
 use think\Controller;
 use think\Request;
 
@@ -17,7 +18,7 @@ class QrCodeAction extends Controller
     /**
      * 二维码使用
      * @param Request $request
-     * @return array|false|mixed|\PDOStatement|string|\think\Model|void
+     * @return array
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
@@ -27,9 +28,7 @@ class QrCodeAction extends Controller
         $qrCodeParam = $request->param("qrCodeParam", "");
 
         if (empty($qrCodeParam)) {
-
             return $this->com_return(false, config("params.PARAM_NOT_EMPTY"));
-
         }
 
         $prefix_arr   = config("qrcode.prefix");//前缀配置数组
@@ -44,17 +43,20 @@ class QrCodeAction extends Controller
 
             $res  = $this->checkTableStatus($trid);
 
-        } else if ($qrCodeParams[0] == $prefix_arr[3]['key']){
+        } elseif ($qrCodeParams[0] == $prefix_arr[3]['key']){
 
             //扫码余额支付订单,获取点单信息
             $pid = $qrCodeParams[1];
 
             $res = $this->getBillPayInfo($pid);
 
-        } else{
+        } elseif($qrCodeParams[0] = $prefix_arr[1]['key']){
             //使用礼券
-            $res = $this->giftVoucherUse();
+            $gift_vou_code = $qrCodeParams[1];
+            $res = $this->giftVoucherUse($gift_vou_code);
 
+        }else{
+            $res = NULL;
         }
 
         return $res;
@@ -179,9 +181,27 @@ class QrCodeAction extends Controller
     }
 
 
-    //礼券使用
-    protected function giftVoucherUse()
+    /**
+     * 礼券使用获取礼券信息
+     * @param $gift_vou_code
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function giftVoucherUse($gift_vou_code)
     {
+        $voucherModel = new UserGiftVoucher();
+        $voucherInfo = $voucherModel
+            ->where("gift_vou_code",$gift_vou_code)
+            ->find();
 
+        $voucherInfo = json_decode(json_encode($voucherInfo),true);
+
+        if (empty($voucherInfo)){
+            return $this->com_return(false,config("params.VOUCHER")['VOUCHER_NOT_EXIST']);
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"),$voucherInfo);
     }
 }
