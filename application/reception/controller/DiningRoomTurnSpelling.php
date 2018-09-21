@@ -160,7 +160,7 @@ class DiningRoomTurnSpelling extends CommonAction
             /*登陆管理人员信息 on*/
             $token = $request->header("Token",'');
 
-            $manageInfo = $this->tokenGetManageInfo($token);
+            $manageInfo = $this->receptionTokenGetManageInfo($token);
 
             $stype_name = $manageInfo["stype_name"];
             $sales_name = $manageInfo["sales_name"];
@@ -344,6 +344,9 @@ class DiningRoomTurnSpelling extends CommonAction
      * 转拼
      * @param Request $request
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function turnSpelling(Request $request)
     {
@@ -422,8 +425,6 @@ class DiningRoomTurnSpelling extends CommonAction
             ->where("parent_trid",$to_trid)
             ->count();
         $new_table_no = $table_no." - ".($spelling_num + 1);
-
-        //dump($new_table_no);die;
 
         //变更当前台位信息至转台信息
         $now_params = [
@@ -515,7 +516,7 @@ class DiningRoomTurnSpelling extends CommonAction
                 /*登陆管理人员信息 on*/
                 $token = $request->header("Token",'');
 
-                $manageInfo = $this->tokenGetManageInfo($token);
+                $manageInfo = $this->receptionTokenGetManageInfo($token);
 
                 $stype_name = $manageInfo["stype_name"];
                 $sales_name = $manageInfo["sales_name"];
@@ -693,7 +694,7 @@ class DiningRoomTurnSpelling extends CommonAction
             /*登陆管理人员信息 on*/
             $token = $request->header("Token",'');
 
-            $manageInfo = $this->tokenGetManageInfo($token);
+            $manageInfo = $this->receptionTokenGetManageInfo($token);
 
             $stype_name = $manageInfo["stype_name"];
             $sales_name = $manageInfo["sales_name"];

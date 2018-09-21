@@ -51,7 +51,7 @@ class TableArea extends CommandAction
         $list = $tableAreaModel
             ->alias('ta')
             ->join("mst_table_location tl","tl.location_id = ta.location_id")
-            ->join("manage_salesman ms","ms.sid = ta.sid")
+            ->join("manage_salesman ms","ms.sid = ta.sid","LEFT")
             ->where('ta.is_delete',0)
             ->where($location_where)
             ->field("tl.location_id,tl.location_title")

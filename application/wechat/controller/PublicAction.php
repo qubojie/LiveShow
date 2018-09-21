@@ -327,8 +327,8 @@ class PublicAction extends Controller
 
         }else{
             //如果营销电话为空,则隶属平台数据
-            $ssid   = \config("salesman.salesman_type")['3']['key'];
-            $ssname = \config("salesman.salesman_type")['3']['name'];
+            $ssid   = "";
+            $ssname = "";
         }
 
         //判断当前桌子是否可预约
@@ -411,8 +411,13 @@ class PublicAction extends Controller
 
                 $desc = $action_user." 预约 $reserve_date 的".$table_no."桌";
 
+
                 /*插入预约信息至消息表 on*/
                 $content = "客户 $action_user ($user_phone) 预定 $reserve_date $table_no 号桌成功";
+
+                if (!empty($ssid)){
+                    $content .= ",指定营销$ssname($sales_phone)";
+                }
 
                 $tableMessageParams = [
                     "type"       => "revenue",
@@ -447,7 +452,10 @@ class PublicAction extends Controller
 
                     $reserve_time = date("Y-m-d H:i",$reserve_time);
 
-                    $smsObj->sendMsg($phone,$type,$reserve_time,$table_no);
+                    $name = "";
+                    $sales_name = "";
+
+                    $smsObj->sendMsg($name,$phone,$sales_name,$sales_phone,$type,$reserve_time,$table_no,$reserve_way);
                 }
 
                 Db::commit();
@@ -573,10 +581,11 @@ class PublicAction extends Controller
         $pending_payment = config("order.table_reserve_status")['pending_payment']['key'];//待付定金或结算
         $reserve_success = config("order.table_reserve_status")['reserve_success']['key'];//预定成功
         $already_open    = config("order.table_reserve_status")['already_open']['key'];//已开台
+        $go_to_table     = config("order.table_reserve_status")['go_to_table']['key'];//到店
         $clear_table     = config("order.table_reserve_status")['clear_table']['key'];//已清台
         $cancel          = config("order.table_reserve_status")['cancel']['key'];//取消预约
 
-        $can_not_reserve = $pending_payment.",".$reserve_success.",".$already_open;
+        $can_not_reserve = $pending_payment.",".$reserve_success.",".$already_open.",".$go_to_table;
 
         $where_status['status'] = array('IN',"$can_not_reserve");//查询字段的值在此范围之内的做显示
 
@@ -1420,31 +1429,38 @@ class PublicAction extends Controller
         $gift_vou_exchange = json_decode($gift_vou_exchange,true);
 
         if ($gift_vou_exchange['limitTimeType']){
+
             //限制
             $weekGroup = $gift_vou_exchange['weekGroup'];//周限制
             $timeLimit = $gift_vou_exchange['timeLimit'];//时间限制
 
-            if (strpos($weekGroup,$week) !== false){
-                //不包含
-                return $this->com_return(false,\config("params.VOUCHER")['VALID_DATE_USE']);
-            }
-
-            $timeLimitArr = explode(",",$timeLimit);
-
-            $timeStart = $timeLimitArr[0];
-            $timeEnd = $timeLimitArr[1];
-
-            if ($timeStart > 0 || $timeEnd > 0){
-                //有使用时间限制
-
-                //当前时间的小时数
-                $nowH = date("H",$nowTime);
-
-                if ($nowH > $timeEnd){
+            if (!empty($weekGroup)){
+                if (strpos($weekGroup,$week) === false){
+                    //不包含
                     return $this->com_return(false,\config("params.VOUCHER")['VALID_DATE_USE']);
                 }
-
             }
+
+            if (!empty($timeLimit)){
+                $timeLimitArr = explode(",",$timeLimit);
+
+                $timeStart = $timeLimitArr[0];
+                $timeEnd = $timeLimitArr[1];
+
+                if ($timeStart > 0 || $timeEnd > 0){
+                    //有使用时间限制
+
+                    //当前时间的小时数
+                    $nowH = date("H",$nowTime);
+
+                    if ($nowH > $timeEnd){
+                        return $this->com_return(false,\config("params.VOUCHER")['VALID_DATE_USE']);
+                    }
+
+                }
+            }
+
+
         }
 
         //查询当前券是否在使用中

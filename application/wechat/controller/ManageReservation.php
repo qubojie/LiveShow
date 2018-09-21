@@ -22,7 +22,6 @@ use think\Validate;
 
 class ManageReservation extends HomeAction
 {
-
     /**
      * 手机号码获取用户姓名
      * @param Request $request
@@ -199,7 +198,6 @@ class ManageReservation extends HomeAction
 
         $time           = $request->param('time','');//时间
 
-
         $rule = [
             "customerPhone|客户电话"  => "require",
             "table_id|桌位"          => "require",
@@ -284,7 +282,7 @@ class ManageReservation extends HomeAction
     {
         $token = $request->header("Token",'');
 
-        $trid           = $request->param("trid","");//台位id
+        $trid  = $request->param("trid","");//台位id
 
         if (empty($trid)){
             return $this->com_return(false,\config("params.PARAM_NOT_EMPTY"));

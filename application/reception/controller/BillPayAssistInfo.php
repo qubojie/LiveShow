@@ -10,15 +10,18 @@ namespace app\reception\controller;
 use app\admin\model\User;
 use app\wechat\controller\CardCallback;
 use app\wechat\model\BillPayAssist;
+use app\wechat\model\JobAccount;
+use app\wechat\model\JobUser;
 use think\Db;
 use think\Exception;
+use think\Log;
 use think\Request;
 use think\Validate;
 
 class BillPayAssistInfo extends CommonAction
 {
     /**
-     * 消息列表
+     * 消费列表
      * @param Request $request
      * @return array
      * @throws \think\db\exception\DataNotFoundException
@@ -27,7 +30,43 @@ class BillPayAssistInfo extends CommonAction
      */
     public function index(Request $request)
     {
-        $keyword = $request->param("keyword","");
+        $keyword     = $request->param("keyword","");
+
+        $dateTime    = $request->param("dateTime","");//时间
+
+        $sale_status = $request->param("sale_status","");// 0待扣款   1 扣款完成  8 已退款    9交易取消
+
+        $pagesize    = $request->param("pagesize","");
+
+        $nowPage     = $request->param("nowPage","1");
+
+        if (empty($pagesize)){
+            $pagesize = 12;
+        }
+
+        if (empty($nowPage)){
+            $nowPage = 1;
+        }
+
+        $config = [
+            "page" => $nowPage,
+        ];
+
+        $rule = [
+            "dateTime|时间"    => "require",
+            "sale_status|状态" => "require",
+        ];
+
+        $request_res = [
+            "dateTime"    => $dateTime,
+            "sale_status" => $sale_status,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError());
+        }
 
         $billPayAssistModel = new BillPayAssist();
 
@@ -42,17 +81,79 @@ class BillPayAssistInfo extends CommonAction
             $where['bpa.phone|bpa.verification_code'] = ['like',"%$keyword%"];
         }
 
+        $sales_status_where = [];
+        if (strlen($sale_status)){
+            if ($sale_status == 100){
+                $sales_status_where["bpa.sale_status"] = ["neq",config("bill_assist.bill_status")['9']['key']];
+            }else{
+                $sales_status_where["bpa.sale_status"] = ["eq",$sale_status];
+            }
+        }
+
+        $nowDateTime = strtotime(date("Ymd"));
+
+        if ($dateTime == 1){
+            //今天
+            $beginTime = date("YmdHis",$nowDateTime - 1);
+            $endTime   = date("YmdHis",$nowDateTime + 24 * 60 * 60);
+
+        }elseif ($dateTime == 2){
+            //昨天
+            $beginTime = date("YmdHis",$nowDateTime - 24 * 60 * 60);
+            $endTime   = date("YmdHis",$nowDateTime - 1);
+
+        }else{
+            $dateTimeArr = explode(",",$dateTime);
+            $beginTime   = date("YmdHis",$dateTimeArr[0]);;
+            $endTime     = date("YmdHis",$dateTimeArr[1]);;
+        }
+
+        $date_where['bpa.created_at'] = ["between time",["$beginTime","$endTime"]];
+
+//        dump($date_where);die;
+
         $list = $billPayAssistModel
             ->alias("bpa")
             ->join("user u","u.uid = bpa.uid","LEFT")
             ->join("user_gift_voucher ugv","ugv.gift_vou_code = bpa.gift_vou_code","LEFT")
             ->where($where)
-            ->where("bpa.sale_status",config("bill_assist.bill_status")['0']['key'])
+            ->where($sales_status_where)
+            ->where($date_where)
             ->order("bpa.created_at DESC")
             ->field($r_column)
-            ->field("u.name,u.account_balance,u.account_cash_gift")
+            ->field("u.name,u.account_balance as user_account_balance,u.account_cash_gift as user_account_cash_gift")
             ->field("ugv.gift_vou_id,ugv.gift_vou_type,ugv.gift_vou_name,ugv.gift_vou_desc")
-            ->select();
+            ->paginate($pagesize,false,$config);
+
+        $list = json_decode(json_encode($list),true);
+
+        //账户余额统计
+        $account_balance_sum = $billPayAssistModel
+            ->alias("bpa")
+            ->where($where)
+            ->where($sales_status_where)
+            ->where($date_where)
+            ->sum("bpa.account_balance");
+
+        //账户礼金统计
+        $account_cash_gift_sum = $billPayAssistModel
+            ->alias("bpa")
+            ->where($where)
+            ->where($sales_status_where)
+            ->where($date_where)
+            ->sum("bpa.account_cash_gift");
+
+        //账户现金统计
+        $account_cash_sum = $billPayAssistModel
+            ->alias("bpa")
+            ->where($where)
+            ->where($sales_status_where)
+            ->where($date_where)
+            ->sum("bpa.cash");
+
+        $list["account_balance_sum"]   = $account_balance_sum;
+        $list["account_cash_gift_sum"] = $account_cash_gift_sum;
+        $list["account_cash_sum"]      = $account_cash_sum;
 
         return $this->com_return(true,config("params.SUCCESS"),$list);
     }
@@ -68,9 +169,9 @@ class BillPayAssistInfo extends CommonAction
      */
     public function cancelOrConfirmVoucher(Request $request)
     {
-        $action          = $request->param("action","");//1:确认; 2:取消
-        $pid             = $request->param("pid","");//订单id
-        $token           = $request->header("Token");
+        $action = $request->param("action","");//1:确认; 2:取消
+        $pid    = $request->param("pid","");//订单id
+        $token  = $request->header("Token");
 
         if ($action == "1"){
             //确认
@@ -151,7 +252,7 @@ class BillPayAssistInfo extends CommonAction
             return $this->com_return(false,config("params.USER")['USER_NOT_EXIST']);
         }
 
-        $manageInfo = $this->tokenGetManageInfo($token);
+        $manageInfo = $this->receptionTokenGetManageInfo($token);
 
         Db::startTrans();
         try{
@@ -270,7 +371,7 @@ class BillPayAssistInfo extends CommonAction
             return $this->com_return(false,config("params.USER")['USER_NOT_EXIST']);
         }
 
-        $manageInfo        = $this->tokenGetManageInfo($token);
+        $manageInfo        = $this->receptionTokenGetManageInfo($token);
 
         $action_user       = $manageInfo['sales_name'];
 
@@ -299,7 +400,8 @@ class BillPayAssistInfo extends CommonAction
 
             $returnMoney = $publicObj->uidGetCardReturnMoney($uid);
 
-            $consumption_money = $balance_money + $cash_money;
+//            $consumption_money = $balance_money + $cash_money;
+            $consumption_money = $balance_money;
 
             if (!empty($returnMoney)){
 
@@ -473,6 +575,11 @@ class BillPayAssistInfo extends CommonAction
                 if ($userAccountCashGiftReturn == false) {
                     return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 003");
                 }
+
+                $return_own_cash_gift = $cash_gift_return_money;//返还本人礼金数
+            }else{
+                $return_own_cash_gift = 0;//返还本人礼金数
+
             }
 
             if ($commission_return_money > 0){
@@ -500,6 +607,7 @@ class BillPayAssistInfo extends CommonAction
 
                     $last_balance = $commission_return_money;
 
+
                 }else{
 
                     $new_job_balance = $userJobInfo['job_balance'] + $commission_return_money;
@@ -519,7 +627,10 @@ class BillPayAssistInfo extends CommonAction
                     }
 
                     $last_balance = $new_job_balance;
+
                 }
+
+                $return_own_commission = $commission_return_money;//返本人佣金
 
                 /*佣金明细 on*/
 
@@ -544,6 +655,8 @@ class BillPayAssistInfo extends CommonAction
                     return $this->com_return(false,config("params.ABNORMAL_ACTION"). "- 006");
                 }
                 /*佣金明细 off*/
+            }else{
+                $return_own_commission = 0;//返本人佣金
             }
 
             /*余额消费 on*/
@@ -579,7 +692,7 @@ class BillPayAssistInfo extends CommonAction
 
             $returnUserPoint = getSysSetting("card_consume_point_ratio");
 
-            $return_point = intval($consumption_money * ($returnUserPoint/100));//获取返还用户积分数
+            $return_point = intval($balance_money * ($returnUserPoint/100));//获取返还用户积分数
 
             /*用户积分更新 On*/
             if ($return_point > 0){
@@ -606,7 +719,7 @@ class BillPayAssistInfo extends CommonAction
 
                 $userAccountPointReturn = $cardCallBackObj->updateUserAccountPoint($updateAccountPointParams);
 
-                if ($userAccountPointReturn == false){
+                if ($userAccountPointReturn === false){
                     return $this->com_return(false,config("params.ABNORMAL_ACTION"). "- 011");
                 }
                 /*积分明细 Off*/
@@ -625,11 +738,13 @@ class BillPayAssistInfo extends CommonAction
                 "updated_at"        => time()
             ];
 
-            $updateUserInfo = Db::name("user")
+            $userModel = new User();
+
+            $updateUserInfo = $userModel
                 ->where("uid",$uid)
                 ->update($userParams);
 
-            if ($updateUserInfo == false){
+            if ($updateUserInfo === false){
                 return $this->com_return(false,config("params.ABNORMAL_ACTION"). "- 012");
             }
 
@@ -637,25 +752,27 @@ class BillPayAssistInfo extends CommonAction
 
             /*订单状态变更 on*/
             $billPayAssistParams = [
-                "sale_status"       => config("bill_assist.bill_status")['1']['key'],
-                "pay_time"          => time(),
-                "check_user"        => $action_user,
-                "check_time"        => time(),
-                "check_reason"      => "确认消费",
-                "account_balance"   => $balance_money,
-                "account_cash_gift" => $cash_gift_money,
-                "cash"              => $cash_money,
-                "return_point"      => $return_point,//返还用户积分
-                "return_cash_gift"  => $return_cash_gift,//返给推荐人的礼金
-                "return_commission" => $return_commission,//返佣金
-                "updated_at"        => time()
+                "sale_status"           => config("bill_assist.bill_status")['1']['key'],
+                "pay_time"              => time(),
+                "check_user"            => $action_user,
+                "check_time"            => time(),
+                "check_reason"          => "确认消费",
+                "account_balance"       => $balance_money,
+                "account_cash_gift"     => $cash_gift_money,
+                "cash"                  => $cash_money,
+                "return_point"          => $return_point,//返还用户积分
+                "return_own_commission" => $return_own_commission,//返还本人佣金
+                "return_own_cash_gift"  => $return_own_cash_gift,//返本人礼金
+                "return_cash_gift"      => $return_cash_gift,//返给推荐人的礼金
+                "return_commission"     => $return_commission,//返佣金
+                "updated_at"            => time()
             ];
 
             $is_ok = Db::name("bill_pay_assist")
                 ->where("pid",$pid)
                 ->update($billPayAssistParams);
 
-            if ($is_ok == false){
+            if ($is_ok === false){
                 return $this->com_return(false,config("params.ABNORMAL_ACTION"). "- 013");
             }
             /*订单状态变更 off*/
@@ -687,8 +804,8 @@ class BillPayAssistInfo extends CommonAction
             'last_cash_gift' => $new_cash_gift,
             'change_type'    => '1',
             'action_user'    => $action_user,
-            'action_type'    => config('user.gift_cash')['consumption_give']['key'],
-            'action_desc'    => config('user.gift_cash')['consumption_give']['name'],
+            'action_type'    => config('user.gift_cash')['consume']['key'],
+            'action_desc'    => config('user.gift_cash')['consume']['name'],
             'oid'            => $pid,
             'created_at'     => time(),
             'updated_at'     => time()
@@ -799,7 +916,7 @@ class BillPayAssistInfo extends CommonAction
             return $pidInfo;
         }
 
-        $manageInfo = $this->tokenGetManageInfo($token);
+        $manageInfo = $this->receptionTokenGetManageInfo($token);
 
         $cancel_user = $manageInfo['sales_name'];
 
@@ -862,5 +979,432 @@ class BillPayAssistInfo extends CommonAction
         }
 
         return $this->com_return(true,config("params.SUCCESS"),$info);
+    }
+
+    /**
+     * 全额退款
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function fullRefund(Request $request)
+    {
+        $pid          = $request->param("pid","");
+        $check_reason = $request->param("check_reason","");
+
+        if (empty($check_reason)){
+            $check_reason = "全额退款,手动操作";
+        }
+
+        if (empty($pid)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+
+        $billPayAssistModel = new BillPayAssist();
+
+        $r_column = $billPayAssistModel->r_column;
+        foreach ($r_column as $key => $val){
+            $r_column[$key] = "bpa.".$val;
+        }
+
+        $billInfo = $billPayAssistModel
+            ->alias("bpa")
+            ->join("user u","u.uid = bpa.uid","LEFT")
+            ->join("job_user ju","ju.uid = u.uid","LEFT")
+            ->where("bpa.pid",$pid)
+            ->field($r_column)
+            ->field("ju.job_balance")
+            ->field("u.name,u.account_point,u.level_id,u.account_balance as user_account_balance,u.account_cash_gift as user_account_cash_gift")
+            ->find();
+
+        $billInfo = json_decode(json_encode($billInfo),true);
+
+        if (empty($billInfo)){
+            return $this->com_return(false,config("params.ORDER")['ORDER_NOT_EXIST']);
+        }
+
+        $sale_status = $billInfo['sale_status'];//订单状态
+
+        if ($sale_status != config("bill_assist.bill_status")['1']['key']){
+            //如果不是已完成状态,不可进行全额退款操作
+            return $this->com_return(false,config("params.ORDER")['REFUND_DISH_ABNORMAL']);
+        }
+
+        $type = $billInfo['type'];
+
+        if ($type == config("bill_assist.bill_type")['6']['key']){
+            //礼券消费不可取消
+            return $this->com_return(false,config("params.ORDER")['VOUCHER_NOT_REFUND']);
+        }
+
+        $uid                    = $billInfo['uid'];//用户id
+        $level_id               = $billInfo['level_id'];//用户等级id
+        $job_balance            = $billInfo['job_balance'];//用户佣金
+        $account_balance        = $billInfo['account_balance'];//消费储值金额
+        $account_cash_gift      = $billInfo['account_cash_gift'];//消费礼金余额
+        $return_point           = $billInfo['return_point'];//返还积分
+        $return_own_commission  = $billInfo['return_own_commission'];//返还自己佣金
+        $return_own_cash_gift   = $billInfo['return_own_cash_gift'];//返还自己礼金
+        $referrer_id            = $billInfo['referrer_id'];//推荐人id
+        $return_cash_gift       = $billInfo['return_cash_gift'];//推荐人返还礼金
+        $return_commission      = $billInfo['return_commission'];//推荐人返还佣金
+        $user_account_balance   = $billInfo['user_account_balance'];//用户所剩储值金额
+        $user_account_cash_gift = $billInfo['user_account_cash_gift'];//用户所剩礼金金额
+        $user_account_point     = $billInfo['account_point'];//用户积分余额
+
+        $cardCallBackObj = new CardCallback();
+
+        $token = $request->header("Token","");
+
+        $manageInfo = $this->receptionTokenGetManageInfo($token);
+
+        $action_user = $manageInfo['sales_name'];
+
+        Db::startTrans();
+
+        try{
+            /*用户返款操作 on*/
+            if ($account_balance > 0){
+                //有储值消费
+                $new_account_balance = $user_account_balance + $account_balance;
+
+                //插入储值消费明细
+                //余额明细参数
+                $insertUserAccountParams = [
+                    "uid"          => $uid,
+                    "balance"      => $account_balance,
+                    "last_balance" => $new_account_balance,
+                    "change_type"  => 1,
+                    "action_user"  => $action_user,
+                    "action_type"  => config('user.account')['hand_refund']['key'],
+                    "oid"          => $pid,
+                    "deal_amount"  => $account_balance,
+                    "action_desc"  => config("user.account")['hand_refund']['name'],
+                    "created_at"   => time(),
+                    "updated_at"   => time()
+                ];
+
+                //插入用户充值明细
+                $insertUserAccountReturn = $cardCallBackObj->updateUserAccount($insertUserAccountParams);
+
+                if (!$insertUserAccountReturn){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"). " - 002");
+                }
+
+            }else{
+                $new_account_balance = $user_account_balance;
+            }
+
+            if ($account_cash_gift > 0){
+                //有礼金消费
+                $new_account_cash_gift = $user_account_cash_gift + $account_cash_gift;
+
+                $userAccountCashGiftParams = [
+                    'uid'            => $uid,
+                    'cash_gift'      => $account_cash_gift,
+                    'last_cash_gift' => $new_account_cash_gift,
+                    'change_type'    => 1,
+                    'action_user'    => $action_user,
+                    'action_type'    => config('user.gift_cash')['hand_refund']['key'],
+                    'action_desc'    => config('user.gift_cash')['hand_refund']['name'],
+                    'oid'            => $pid,
+                    'created_at'     => time(),
+                    'updated_at'     => time()
+                ];
+
+                //给用户添加礼金明细
+                $userAccountCashGiftReturn = $cardCallBackObj->updateUserAccountCashGift($userAccountCashGiftParams);
+
+                if (!$userAccountCashGiftReturn){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"). " - 003");
+                }
+
+            }else{
+                $new_account_cash_gift = $user_account_cash_gift;
+            }
+
+            if ($return_point > 0){
+                //有积分返还
+                $new_account_point = $user_account_point - $return_point;
+
+                $level_id = getUserNewLevelId($new_account_point);
+
+                //2.更新用户积分明细
+                $updateAccountPointParams = [
+                    'uid'         => $uid,
+                    'point'       => '-'.$return_point,
+                    'last_point'  => $new_account_point,
+                    'change_type' => 1,
+                    'action_user' => $action_user,
+                    'action_type' => config("user.point")['refund_consume']['key'],
+                    'action_desc' => config("user.point")['refund_consume']['name'],
+                    'oid'         => $pid,
+                    'created_at'  => time(),
+                    'updated_at'  => time()
+                ];
+
+                $userAccountPointReturn = $cardCallBackObj->updateUserAccountPoint($updateAccountPointParams);
+
+                if (!$userAccountPointReturn){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"). " - 004");
+                }
+
+            }else{
+                $new_account_point = $user_account_point;
+            }
+
+            if ($return_own_commission > 0){
+                //自己有佣金返还
+                $new_job_balance = $job_balance - $return_own_commission;
+
+                /*佣金明细 on*/
+
+                //添加推荐用户佣金明细表
+                $jobAccountParams = [
+                    "uid"          => $uid,
+                    "balance"      => "-".$return_own_commission,
+                    "last_balance" => $new_job_balance,
+                    "change_type"  => 1,
+                    "action_user"  => $action_user,
+                    "action_type"  => config('user.job_account')['return']['key'],
+                    "oid"          => $pid,
+                    "deal_amount"  => $account_balance,
+                    "action_desc"  => config('user.job_account')['return']['name'],
+                    "created_at"   => time(),
+                    "updated_at"   => time()
+                ];
+
+                $jobAccountReturn = $cardCallBackObj->insertJobAccount($jobAccountParams);
+
+                if ($jobAccountReturn == false){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"). " - 005");
+                }
+
+                $jobUserParams = [
+                    "job_balance" => $new_job_balance,
+                    "updated_at"  => time()
+                ];
+
+                $jobUserModel = new JobUser();
+
+                $jobUserReturn = $jobUserModel
+                    ->where("uid",$uid)
+                    ->update($jobUserParams);
+
+                if ($jobUserReturn == false){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"). " - 006");
+                }
+
+            }
+
+            if ($return_own_cash_gift > 0){
+                //自己有礼金返还
+                $new_account_cash_gift_f = $new_account_cash_gift - $return_own_cash_gift;
+
+                $userAccountCashGiftParams = [
+                    'uid'            => $uid,
+                    'cash_gift'      => $return_own_cash_gift,
+                    'last_cash_gift' => $new_account_cash_gift_f,
+                    'change_type'    => 1,
+                    'action_user'    => $action_user,
+                    'action_type'    => config('user.gift_cash')['hand_refund']['key'],
+                    'action_desc'    => config('user.gift_cash')['hand_refund']['name'],
+                    'oid'            => $pid,
+                    'created_at'     => time(),
+                    'updated_at'     => time()
+                ];
+
+                //给用户添加礼金明细
+                $userAccountCashGiftReturn = $cardCallBackObj->updateUserAccountCashGift($userAccountCashGiftParams);
+
+                if ($userAccountCashGiftReturn == false){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"). " - 007");
+                }
+
+            }else{
+                $new_account_cash_gift_f = $new_account_cash_gift;
+            }
+
+            $userModel = new User();
+
+            $userUpdateParams = [
+                "level_id"          => $level_id,
+                "account_balance"   => $new_account_balance,
+                "account_point"     => $new_account_point,
+                "account_cash_gift" => $new_account_cash_gift_f,
+                "updated_at"        => time()
+            ];
+
+            $updateUserReturn = $userModel
+                ->where("uid",$uid)
+                ->update($userUpdateParams);
+
+            if ($updateUserReturn == false){
+                return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 001");
+            }
+
+            //更新用户信息
+
+            /*用户返款操作 off*/
+
+            /*推荐人操作部分 on*/
+            if ($return_cash_gift > 0){
+
+                //获取推荐人礼金信息
+                $referrerInfo = $userModel
+                    ->alias("u")
+                    ->where("u.uid",$referrer_id)
+                    ->field("u.account_cash_gift")
+                    ->find();
+
+                $referrerInfo = json_decode(json_encode($referrerInfo),true);
+
+                if (!empty($referrerInfo)){
+
+                    $referrer_account_cash_gift = (int)$referrerInfo['account_cash_gift'];//推荐人现有礼金
+
+                    //推荐人有返还礼金
+                    $new_referrer_account_cash_gift = $referrer_account_cash_gift - $return_cash_gift;
+
+                    /*推荐人礼金明细 on*/
+                    $referrerUserDParams = [
+                        'uid'            => $referrer_id,
+                        'cash_gift'      => "-".$return_cash_gift,
+                        'last_cash_gift' => $new_referrer_account_cash_gift,
+                        'change_type'    => 1,
+                        'action_user'    => $action_user,
+                        'action_type'    => config('user.gift_cash')['hand_consume']['key'],
+                        'action_desc'    => config('user.gift_cash')['hand_consume']['name'],
+                        'oid'            => $pid,
+                        'created_at'     => time(),
+                        'updated_at'     => time()
+                    ];
+
+                    //给推荐用户添加礼金明细
+                    $userAccountCashGiftReturn = $cardCallBackObj->updateUserAccountCashGift($referrerUserDParams);
+
+                    if ($userAccountCashGiftReturn == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 008");
+                    }
+
+                    /*更新推荐用户礼金信息 on*/
+                    $referrerUserCashParams = [
+                        "account_cash_gift" => $new_referrer_account_cash_gift,
+                        "updated_at"        => time()
+                    ];
+
+                    $referrerUserCashReturn = $userModel
+                        ->where("uid",$referrer_id)
+                        ->update($referrerUserCashParams);
+
+                    if ($referrerUserCashReturn == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 009");
+                    }
+                    /*更新推荐用户礼金信息 off*/
+                }
+            }
+
+            if ($return_commission > 0){
+                //推荐人有返还佣金
+
+
+                //返给推荐人佣金
+                $referrerUserJobInfo = Db::name("job_user")
+                    ->where("uid",$referrer_id)
+                    ->find();
+
+                $referrerUserJobInfo = json_decode(json_encode($referrerUserJobInfo),true);
+
+                if (empty($referrerUserJobInfo)){
+                    //新增
+                    $newJobParams = [
+                        "uid"         => $referrer_id,
+                        "job_balance" => "-".$return_commission,
+                        "created_at"  => time(),
+                        "updated_at"  => time()
+                    ];
+
+                    $jobUserInsert = Db::name("job_user")
+                        ->insert($newJobParams);
+
+                    if ($jobUserInsert == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 010");
+                    }
+
+                    $referrer_last_balance = "-".$return_commission;
+
+                }else{
+
+                    $referrer_new_job_balance = $referrerUserJobInfo['job_balance'] - $return_commission;
+
+                    //更新
+                    $newJobParams = [
+                        "job_balance" => $referrer_new_job_balance,
+                        "updated_at"  => time()
+                    ];
+
+                    $jobUserUpdate = Db::name("job_user")
+                        ->where("uid",$referrer_id)
+                        ->update($newJobParams);
+
+                    if ($jobUserUpdate == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 011");
+                    }
+
+                    $referrer_last_balance = $referrer_new_job_balance;
+                }
+
+                /*佣金明细 on*/
+                //添加推荐用户佣金明细表
+                $jobAccountParams = [
+                    "uid"          => $referrer_id,
+                    "balance"      => "-".$return_commission,
+                    "last_balance" => $referrer_last_balance,
+                    "change_type"  => 1,
+                    "action_user"  => $action_user,
+                    "action_type"  => config('user.job_account')['return']['key'],
+                    "oid"          => $pid,
+                    "deal_amount"  => $account_balance,
+                    "action_desc"  => config('user.job_account')['return']['name'],
+                    "created_at"   => time(),
+                    "updated_at"   => time()
+                ];
+
+                $jobAccountReturn = $cardCallBackObj->insertJobAccount($jobAccountParams);
+
+                if ($jobAccountReturn == false){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 012");
+                }
+                /*佣金明细 off*/
+            }
+            /*推荐人操作部分 off*/
+
+
+            /*更新订单状态  on*/
+            $billPayAssistParams = [
+                "sale_status" => config("bill_assist.bill_status")['8']['key'],
+                "check_user"  => $action_user,
+                "check_time"  => time(),
+                "check_reason"=> $check_reason,
+                "updated_at"  => time()
+            ];
+
+            $billPayStatusReturn = $billPayAssistModel
+                ->where("pid",$pid)
+                ->update($billPayAssistParams);
+
+            if ($billPayStatusReturn == false){
+                return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 013");
+            }
+            /*更新订单状态  off*/
+
+            Db::commit();
+            return $this->com_return(true,config("params.SUCCESS"));
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage());
+        }
     }
 }

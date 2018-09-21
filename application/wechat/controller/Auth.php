@@ -29,9 +29,11 @@ class Auth extends Controller
     {
         $phone = $request->param("phone");
 
+        $scene = $request->param("scene");//managePointList 发送验证码场景
+
         $sms = new Sms();
 
-        $res = $sms ->sendVerifyCode($phone);
+        $res = $sms ->sendVerifyCode($phone,$scene);
 
         return $res;
 
@@ -129,6 +131,7 @@ class Auth extends Controller
             $insert_data = [
                 'uid'            => $uid,
                 'phone'          => $phone,
+                'name'           => config("default_name"),
                 'password'       => sha1(config("DEFAULT_PASSWORD")),
                 'register_way'   => $register_way,
                 'wxid'           => $openid,

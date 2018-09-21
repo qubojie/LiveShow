@@ -29,7 +29,6 @@ class TableMessage extends CommonAction
 
         $list = $tableMessageModel
             ->where("status",0)
-            ->where("is_read",0)
             ->order("created_at DESC")
             ->select();
 
@@ -64,11 +63,10 @@ class TableMessage extends CommonAction
 
         $token = $request->header("Token");
 
-        $manageInfo = $this->tokenGetManageInfo($token);
+        $manageInfo = $this->receptionTokenGetManageInfo($token);
 
         $params = [
             "status"       => "1",
-            "is_read"      => "1",
             "check_user"   => $manageInfo['sales_name'],
             "check_time"   => time(),
             "check_reason" => "手动确认",

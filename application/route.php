@@ -22,8 +22,8 @@ Route::group(['name' => 'sys'],function (){
     Route::rule('changeOrderStatus','index/ChangeStatus/changeOrderStatus');
 
     Route::rule('autoCancelRevenueListOrder','index/ChangeStatus/autoCancelRevenueListOrder');
-
-
+    //定时删除服务message
+    Route::rule('AutoDeleteCallMessage','index/ChangeStatus/AutoDeleteCallMessage');
 });
 
 
@@ -1180,6 +1180,35 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
         //确认Or取消礼券
         Route::rule('cancelOrConfirmVoucher','BillPayAssistInfo/cancelOrConfirmVoucher','post|options');
 
+        //全额退款
+        Route::rule('fullRefund','BillPayAssistInfo/fullRefund','post|options');
+    });
+
+    //会员卡
+    Route::group(['name' => 'vipCard'],function (){
+
+        //储值
+        Route::group(['name' => 'storageValue'],function (){
+            //储值列表
+            Route::rule('index','storageValue/index','post|options');
+
+            //确认充值
+            Route::rule('rechargeConfirm','storageValue/rechargeConfirm','post|options');
+        });
+
+        //开卡
+        Route::group(['name' => 'openCard'],function (){
+
+            //获取所有的卡列表
+            Route::rule('getCardInfo','OpenCard/getAllCardInfo','post|options');
+
+            //开卡订单列表
+            Route::rule('index','OpenCard/index','post|options');
+
+            //确认开卡
+            Route::rule('confirmOpenCard','OpenCard/confirmOpenCard','post|options');
+
+        });
     });
 
     //消息
@@ -1193,6 +1222,16 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
     });
 
+    //统计
+    Route::group(['name' => 'count'],function (){
+
+        //桌消费统计列表
+        Route::rule('tableConsumer','CountMoney/tableConsumer');
+
+        //结算数据查询
+        Route::rule('settlementCount','CountMoney/settlementCount');
+
+    });
 
 
 

@@ -920,7 +920,7 @@ class WechatPay extends Controller
                 "action_type"  => config('user.account')['recharge']['key'],
                 "oid"          => $rfid,
                 "deal_amount"  => $cash_fee,
-                "action_desc"  => "余额充值",
+                "action_desc"  => config("user.account")['recharge']['name'],
                 "created_at"   => $time,
                 "updated_at"   => $time
             ];
@@ -929,7 +929,7 @@ class WechatPay extends Controller
             $insertUserAccountReturn = $cardCallBackObj->updateUserAccount($insertUserAccountParams);
 
             if ($cash_gift > 0){
-                //如果礼金数额大于0 则插入用户充值明细
+                //如果礼金数额大于0 则插入用户礼金明细
 
                 //变动后的礼金总余额
                 $last_cash_gift = $cash_gift + $account_cash_gift;
@@ -954,6 +954,167 @@ class WechatPay extends Controller
             }
 
             if ($updateRechargeReturn && $updateUserReturn && $insertUserAccountReturn && $userAccountCashGiftReturn){
+
+                /*返金设置 On*/
+
+                $userInfo = getUserInfo($uid);
+
+                $referrer_type = $userInfo['referrer_type'];
+                $referrer_id   = $userInfo['referrer_id'];
+
+                $publicActionObj = new \app\reception\controller\PublicAction();
+
+                $returnMoneyRes = $publicActionObj->uidGetCardReturnMoney("$uid");
+
+                $consumption_money = $cash_fee;
+
+                if (!empty($returnMoneyRes)){
+
+                    $refill_job_cash_gift      = $returnMoneyRes['refill_job_cash_gift'];     //充值推荐人返礼金
+                    $refill_job_commission     = $returnMoneyRes['refill_job_commission'];    //充值推荐人返佣金
+
+                    $consumptionReturnMoney = $publicActionObj->rechargeReturnMoney("$uid","$referrer_type","$consumption_money","$refill_job_cash_gift","$refill_job_commission");
+
+                    $job_cash_gift_return_money  = $consumptionReturnMoney['job_cash_gift_return_money'];//返还推荐人礼金
+                    $job_commission_return_money = $consumptionReturnMoney['job_commission_return_money'];//返给推荐人佣金
+
+                }else{
+
+                    $job_cash_gift_return_money  = 0;
+                    $job_commission_return_money = 0;
+
+                }
+
+
+                if ($job_cash_gift_return_money > 0){
+                    //返还推荐人礼金
+
+                    //获取推荐人礼金账户余额
+                    $referrerUserInfo = Db::name("user")
+                        ->where("uid",$referrer_id)
+                        ->field("account_cash_gift")
+                        ->find();
+                    $referrerUserInfo = json_decode(json_encode($referrerUserInfo),true);
+
+                    $new_account_cash_gift = $referrerUserInfo['account_cash_gift'] + $job_cash_gift_return_money;
+
+
+                    $referrerUserParams = [
+                        "account_cash_gift" => $new_account_cash_gift,
+                        "updated_at"        => time()
+                    ];
+
+                    $referrerUserReturn = Db::name("user")
+                        ->where("uid",$referrer_id)
+                        ->update($referrerUserParams);
+
+                    if ($referrerUserReturn == false){
+                        echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[出错了]]></return_msg> </xml>';
+                        die;
+                    }
+
+                    /*推荐人礼金明细 on*/
+                    $referrerUserDParams = [
+                        'uid'            => $referrer_id,
+                        'cash_gift'      => $job_cash_gift_return_money,
+                        'last_cash_gift' => $new_account_cash_gift,
+                        'change_type'    => '2',
+                        'action_user'    => "sys",
+                        'action_type'    => config('user.gift_cash')['recharge_give']['key'],
+                        'action_desc'    => config('user.gift_cash')['recharge_give']['name'],
+                        'oid'            => $rfid,
+                        'created_at'     => time(),
+                        'updated_at'     => time()
+                    ];
+
+                    //给推荐用户添加礼金明细
+                    $userAccountCashGiftReturn = $cardCallBackObj->updateUserAccountCashGift($referrerUserDParams);
+
+                    if ($userAccountCashGiftReturn == false) {
+                        echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[出错了]]></return_msg> </xml>';
+                        die;
+                    }
+                    /*推荐人礼金明细 off*/
+                }
+
+                if ($job_commission_return_money > 0){
+                    //返给推荐人佣金
+                    $referrerUserJobInfo = Db::name("job_user")
+                        ->where("uid",$referrer_id)
+                        ->find();
+
+                    $referrerUserJobInfo = json_decode(json_encode($referrerUserJobInfo),true);
+
+                    if (empty($referrerUserJobInfo)){
+                        //新增
+                        $newJobParams = [
+                            "uid"         => $referrer_id,
+                            "job_balance" => $job_commission_return_money,
+                            "created_at"  => time(),
+                            "updated_at"  => time()
+                        ];
+
+                        $jobUserInsert = Db::name("job_user")
+                            ->insert($newJobParams);
+
+                        if ($jobUserInsert == false){
+                            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[出错了]]></return_msg> </xml>';
+                            die;
+                        }
+
+                        $referrer_last_balance = $job_commission_return_money;
+
+                    }else{
+
+                        $referrer_new_job_balance = $referrerUserJobInfo['job_balance'] + $job_commission_return_money;
+
+                        //更新
+                        $newJobParams = [
+                            "job_balance" => $referrer_new_job_balance,
+                            "updated_at"  => time()
+                        ];
+
+                        $jobUserUpdate = Db::name("job_user")
+                            ->where("uid",$referrer_id)
+                            ->update($newJobParams);
+
+                        if ($jobUserUpdate == false){
+                            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[出错了]]></return_msg> </xml>';
+                            die;
+                        }
+
+                        $referrer_last_balance = $referrer_new_job_balance;
+                    }
+
+                    /*佣金明细 on*/
+
+                    //添加推荐用户佣金明细表
+                    $jobAccountParams = [
+                        "uid"          => $referrer_id,
+                        "balance"      => $job_commission_return_money,
+                        "last_balance" => $referrer_last_balance,
+                        "change_type"  => 2,
+                        "action_user"  => 'sys',
+                        "action_type"  => config('user.job_account')['recharge']['key'],
+                        "oid"          => $rfid,
+                        "deal_amount"  => $consumption_money,
+                        "action_desc"  => config('user.job_account')['recharge']['name'],
+                        "created_at"   => time(),
+                        "updated_at"   => time()
+                    ];
+
+                    $jobAccountReturn = $cardCallBackObj->insertJobAccount($jobAccountParams);
+
+                    if ($jobAccountReturn == false){
+                        echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[出错了]]></return_msg> </xml>';
+                        die;
+                    }
+                    /*佣金明细 off*/
+                }
+                /*返金设置 Off*/
+
+
+
                 Db::commit();
                 Log::info("充值支付回调成功");
 
@@ -1048,8 +1209,11 @@ class WechatPay extends Controller
 
                 //根据订单,查看是否是服务人员预定
                 $reserve_way_res = Db::name("table_revenue")
-                    ->where("trid",$trid)
-                    ->field("reserve_way,table_no,reserve_time")
+                    ->alias("tr")
+                    ->join("manage_salesman ms","ms.sid = tr.ssid")
+                    ->where("tr.trid",$trid)
+                    ->field("tr.reserve_way,tr.table_no,tr.reserve_time")
+                    ->field("ms.phone sales_phone,ms.sales_name")
                     ->find();
                 $reserve_way_res = json_decode(json_encode($reserve_way_res),true);
 
@@ -1066,12 +1230,16 @@ class WechatPay extends Controller
                     $userInfo = $authObj->getUserInfo($uid);
                     $userInfo = json_decode(json_encode($userInfo),true);
                     $phone = $userInfo['phone'];
+                    $name  = $userInfo['name'];
 
                     $smsObj = new Sms();
 
                     $type = "revenue";
 
-                    $smsObj->sendMsg($phone,$type,$reserve_time,$table_no);
+                    $sales_name = $reserve_way_res['sales_name'];
+                    $sales_phone = $reserve_way_res['sales_phone'];
+
+                    $smsObj->sendMsg("$name","$phone","$sales_name","$sales_phone","$type","$reserve_time","$table_no","$reserve_way");
                 }
 
                 Db::commit();
@@ -1163,17 +1331,16 @@ class WechatPay extends Controller
                     'deal_price'     => $pay_money,
                     'pay_type'       => $pay_type,
                     'pay_no'         => $pay_no,
+                    'review_time'    => $time,
+                    'review_user'    => "系统自动",
+                    "review_desc"    => "微信系统收款",
                     'updated_at'     => $time,
                     'finish_time'    => $finish_time
                 ];
 
-//                dump($billCardFeesParams);die;
-
                 Log::info("更新订单状态参数 ---- ".var_export($billCardFeesParams,true));
 
                 $billCardFeesReturn = $cardCallbackObj->updateOrderStatus($billCardFeesParams,$vid);
-
-                Log::info("更新订单状态返回值 --- ".$billCardFeesReturn);
 
                 //⑦添加开卡信息
 
@@ -1190,8 +1357,6 @@ class WechatPay extends Controller
                 $card_job_cash_gif  = $billCardFeesDetail['card_job_cash_gif'];
                 //获取开卡赠送推荐用户佣金(百分比)
                 $card_job_commission= $billCardFeesDetail['card_job_commission'];
-
-                Log::info("开卡赠送礼金数".$card_cash_gift);
 
                 $cardInfoParams = [
                     "uid"          => $uid,
@@ -1211,11 +1376,7 @@ class WechatPay extends Controller
                     "updated_at"   => $time
                 ];
 
-                Log::info("添加开卡信息参数".var_export($cardInfoParams,true));
-
                 $cardInfoReturn = $cardCallbackObj->updateCardInfo($cardInfoParams);
-
-                Log::info("添加开卡信息返回--- ".$cardInfoReturn);
 
                 $userOldMoneyInfo = Db::name('user')
                     ->where('uid',$uid)
@@ -1449,10 +1610,10 @@ class WechatPay extends Controller
                         "last_balance" => $pay_money + $account_balance,
                         "change_type"  => '2',
                         "action_user"  => 'sys',
-                        "action_type"  => config('user.account')['recharge']['key'],
+                        "action_type"  => config('user.account')['card_recharge']['key'],
                         "oid"          => $vid,
                         "deal_amount"  => $pay_money,
-                        "action_desc"  => "购卡充值",
+                        "action_desc"  => config('user.account')['card_recharge']['name'],
                         "created_at"   => $time,
                         "updated_at"   => $time
                     ];

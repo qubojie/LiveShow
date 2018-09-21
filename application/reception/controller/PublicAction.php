@@ -361,4 +361,31 @@ class PublicAction extends Controller
 
     }
 
+    /**
+     * 充值返还数据
+     */
+    public function rechargeReturnMoney($uid,$referrer_type,$consumption_money,$refill_job_cash_gift,$refill_job_commission)
+    {
+        if ($consumption_money < 0){
+            //如果余额消费和现金消费金额为0 则不返还
+            return NULL;
+        }
+
+        if ($referrer_type == config("salesman.salesman_type")['2']['key']){
+            //如果是用户推荐
+            $job_cash_gift_return_money  = intval($consumption_money * ($refill_job_cash_gift/100));//充值推荐人返礼金
+            $job_commission_return_money = intval($consumption_money * ($refill_job_commission/100));//充值推荐人返佣金
+        }else{
+            $job_cash_gift_return_money  = 0;
+            $job_commission_return_money = 0;
+
+        }
+
+        $params = [
+            "job_cash_gift_return_money" => $job_cash_gift_return_money,
+            "job_commission_return_money"=> $job_commission_return_money
+        ];
+
+        return $params;
+    }
 }

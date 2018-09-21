@@ -13,6 +13,7 @@ use app\admin\model\MstGiftVoucher;
 use app\admin\model\User;
 use app\common\controller\AdminPublicAction;
 use app\common\controller\MakeQrCode;
+use app\services\LuoSiMaoSms;
 use app\wechat\model\UserCard;
 use app\wechat\model\UserGiftVoucher;
 use think\Db;
@@ -672,8 +673,10 @@ class Voucher extends CommandAction
         $userCardModel = new UserCard();
 
         $uidInfo = $userCardModel
-            ->where("card_id","IN",$card_id)
-            ->field("uid")
+            ->alias("uc")
+            ->join("user u","u.uid = uc.uid","LEFT")
+            ->where("uc.card_id","IN",$card_id)
+            ->field("uc.uid,u.phone")
             ->select();
 
         $uidInfo = json_decode(json_encode($uidInfo),true);
@@ -690,7 +693,7 @@ class Voucher extends CommandAction
 
         Db::startTrans();
         try{
-
+            $phone = "";
             for ($i = 0; $i < count($uidInfo); $i ++){
                 $uid           = $uidInfo[$i]['uid'];
                 $gift_vou_code = $common->uniqueCode(8); //礼品券兑换码
@@ -730,7 +733,21 @@ class Voucher extends CommandAction
                 if (!$is_ok){
                     return $this->com_return(false,config("params.FAIL")."00".$i);
                 }
+
+                if (!empty($uidInfo[$i]['phone'])){
+                    $phone .= $uidInfo[$i]['phone'].",";
+                }
             }
+
+            $phone = substr($phone,0,strlen($phone)-1);
+
+            $message = config('sms.voucher_send').config('sms.sign');
+
+            $sms = new LuoSiMaoSms();
+
+            $res = $sms->send_batch($phone,$message);
+
+            \think\Log::info("群发---".var_export($res,true));
 
             Db::commit();
             return $this->com_return(true,config("params.SUCCESS"));
@@ -816,6 +833,14 @@ class Voucher extends CommandAction
             ->insert($params);
 
         if ($is_ok){
+
+            $message = config('sms.voucher_send').config('sms.sign');
+
+            $sms = new LuoSiMaoSms();
+
+            $sms->send($user_phone,$message);
+
+
             return $this->com_return(true,config("params.SUCCESS"));
         }else{
             return $this->com_return(false,config("params.FAIL"));

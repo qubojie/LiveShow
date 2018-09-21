@@ -240,6 +240,7 @@ return [
 
     //默认密码
     "DEFAULT_PASSWORD" => "000000",
+    "default_name"     => "秀会员",
 
     /*
     |--------------------------------------------------------------------------
@@ -276,11 +277,12 @@ return [
         "SPENDING_ELT_SUBS"     => "最低消费不能低于定金",
         "PHONE_BIND_OTHER"      => "该手机号码已绑定其他账户",
         "USER_NOT_EXIST"        => "新用户,可直接注册",
+        "CREATED_NEW_USER_FAIL" => "创建新用户失败",
         "RECHARGE_MONEY_INVALID"=> "储值金额无效",
         "PHONE_EXIST"           => "电话号码已存在",
         "NOT_OPEN_CARD"         => "未开卡,或者卡已失效",
         "SALESMAN_PHONE_ERROR"  => "请输入正确的营销人员号码",
-        "SALESMAN_NOT_EXIST"    => "您输入的营销手机号码不存在,请核对后重试",
+        "SALESMAN_NOT_EXIST"    => "您输入的推荐人手机号码不存在,请核对后重试",
         "TABLE_INVALID"         => "所订吧台无效",
         "TABLE_IS_RESERVE"      => "很遗憾,该吧台已被其他顾客预约,请重新挑选",
         "DATE_IS_EXIST"         => "指定押金预定日期已存在",
@@ -308,15 +310,17 @@ return [
             "ORDER_ABNORMAL"    => "订单异常",
             "STATUS_NO_CANCEL"  => "订单已支付,不可取消",
             "ORDER_NOT_REFUND"  => "订单不可退",
-            "REFUND_WAIT_AUDIT" => "退单成功,等待审核",
-            "REFUND_ABNORMAL"   => "退单异常",
-            "PAY_SUCCESS"       => "支付成功",
-            "ORDER_CANCEL"      => "订单已取消",
-            "WAIT_RESULT"       => "等待支付结果",
-            "TURNOVER_LIMIT_SHORT" => "低消不足,请重新点单",
-            "REFUND_DISH_ABNORMAL" => "退单操作异常",
-            "PAY_TYPE_EMPTY"       => "支付方式不能为空",
-            "ORDER_NOT_EXIST"      => "订单不存在"
+            "REFUND_WAIT_AUDIT"      => "退单成功,等待审核",
+            "REFUND_ABNORMAL"        => "退单异常",
+            "PAY_SUCCESS"            => "支付成功",
+            "ORDER_CANCEL"           => "订单已取消",
+            "WAIT_RESULT"            => "等待支付结果",
+            "TURNOVER_LIMIT_SHORT"   => "低消不足,请重新点单",
+            "REFUND_DISH_ABNORMAL"   => "退单操作异常",
+            "PAY_TYPE_EMPTY"         => "支付方式不能为空",
+            "ORDER_NOT_EXIST"        => "订单不存在",
+            "VOUCHER_NOT_REFUND"     => "礼券消费不可退款",
+            "CREATE_CARD_ORDER_FAIL" => "创建开卡订单失败"
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -361,7 +365,10 @@ return [
             "VOUCHER_USE_ING"   => "此券正在使用中"
         ],
         "USER" => [
-            "USER_NOT_EXIST" => "用户不存在"
+            "USER_NOT_EXIST"   => "用户不存在",
+            "USER_OPENED_CARD" => "用户已开卡,请勿重复开卡",
+            "CARD_VALID_NO"    => "此卡无效",
+            "CARD_TYPE_ERROR"  => "卡片类型错误"
         ],
      ],
 
@@ -380,8 +387,22 @@ return [
         "send_repeat"     => "已发送,请勿重复操作",
         "verify_success"  => "验证成功",
         "verify_fail"     => "验证失败",
-        "revenue_send"    => "尊敬的LiveShow用户 %phone% 您好,您已成功预订 %date_time% 的 %table_info% 号桌,如有定金,提前三十分钟取消预约,定金原路退回.感谢您的信任",
-        "cancel_send"     => "尊敬的LiveShow用户 %phone% 您好,已为您成功取消 %date_time% %table_info% 号桌的预约,感谢您的信任",
+
+        "manage_revenue_send"    => "预约成功!时间%date_time% 桌号%table_info% 联系人%sales_name%%sales_phone%。",
+
+        "client_revenue_send"    => "尊敬的LiveShow用户%phone%您好,您已成功预订 %date_time% 的 %table_info% 号桌,如有定金,提前三十分钟取消预约,定金原路退回.感谢您的信任。",
+
+        "web_revenue_send"       => "预约成功!时间%date_time% 桌号%table_info% 客服电话%service_phone%。",
+        "web_manage_send"        => "预约成功!时间%date_time% 桌号%table_info% 客户%user_name%%service_phone%。",
+
+        "manage_cancel_send"     => "取消预约成功!时间%date_time% 桌号%table_info%。",
+        "client_cancel_send"     => "取消预约成功!时间%date_time% 桌号%table_info%。",
+        "web_cancel_send"        => "取消预约成功!时间%date_time% 桌号%table_info%。",
+
+        "voucher_send"           => "您有会员礼券到账,请前往小程序查看!",
+
+
+        "point_list"      => "消费验证码%code%,请服务人员确认!"
     ],
 
 
@@ -439,6 +460,7 @@ return [
         'bill_status' => [
             0 => ['key' => '0', 'name' => '待扣款'],
             1 => ['key' => '1', 'name' => '扣款完成'],
+            8 => ['key' => '8', 'name' => '已退款'],
             9 => ['key' => '9', 'name' => '交易取消']
         ],
     ],
@@ -494,9 +516,12 @@ return [
 
         //余额(钱包)变更状态
         'account' => [
-            'recharge'            => ['key' => '601', 'name' => '账户余额充值'],
-            'consume'             => ['key' => '600', 'name' => '账户余额消费'],
-            'refund'              => ['key' => '609', 'name' => '账户余额退款'],
+            'recharge'            => ['key' => '601', 'name' => '充值'],
+            'hand_consume'        => ['key' => '602', 'name' => '储值消费'],//账户余额消费（手动)（余额账户-)
+            'card_recharge'       => ['key' => '603', 'name' => '购卡充值'],
+            'consume'             => ['key' => '600', 'name' => '储值消费'],
+            'refund'              => ['key' => '609', 'name' => '储值退款'],
+            'hand_refund'         => ['key' => '610', 'name' => '储值退款'],//账户余额退款  (手动)（余额账户+）
             'brokerage'           => ['key' => '700', 'name' => '平台扣除订单佣金'],
             'withdrawHandlingFee' => ['key' => '705', 'name' => '平台扣除提现手续费'],
             'startWithdraw'       => ['key' => '800', 'name' => '提现'],
@@ -518,6 +543,7 @@ return [
             'open_card_reward'  => ['key' => '100', 'name' => '开卡赠送积分'],
             'consume_reward'    => ['key' => '200', 'name' => '消费赠送积分'],
             'consume'           => ['key' => '201', 'name' => '积分消费'],
+            'refund_consume'    => ['key' => '202', 'name' => '退单减积分'],
             'startWithdraw'     => ['key' => '800', 'name' => '积分提现'],
             'other'             => ['key' => '900', 'name' => '其他原因调整'],
         ],
@@ -527,7 +553,9 @@ return [
             'exchange_plus'    => ['key' => '100', 'name' => '赠券兑换礼金'],
             'open_card_reward' => ['key' => '101', 'name' => '开卡赠送礼金'],
             'recharge_give'    => ['key' => '102', 'name' => '充值赠送礼金'],
+            'hand_refund'      => ['key' => '103', 'name' => '礼金退款'],//礼金退款（手动） +
             'consume'          => ['key' => '200', 'name' => '礼金消费'],
+            'hand_consume'     => ['key' => '201', 'name' => '礼金消费'],//礼金消费（手动 ）-
             'consumption_give' => ['key' => '300', 'name' => '消费赠送礼金'],
             'recommend_reward' => ['key' => '800', 'name' => '推荐会员赠送礼金'],
             'other'            => ['key' => '900', 'name' => '其他原因调整'],
@@ -537,7 +565,8 @@ return [
         'job_account' => [
             'recommend_reward'  => ['key' => '101', 'name' => '推荐办卡佣金'],
             'consume'           => ['key' => '102', 'name' => '推荐会员消费佣金'],
-            'return'            => ['key' => '109', 'name' => '推荐会员退款退还佣金'],
+            'recharge'          => ['key' => '103', 'name' => '推荐会员充值佣金'],
+            'return'            => ['key' => '109', 'name' => '退款退还佣金'],//推荐会员退款退还佣金
             'startWithdraw'     => ['key' => '800', 'name' => '佣金提现'],
             'endWithdraw'       => ['key' => '801', 'name' => '佣金提现完成'],
             'failWithdraw'      => ['key' => '802', 'name' => '佣金提现失败'],
@@ -572,7 +601,8 @@ return [
             3 => ['key' => 'platform', 'name' => '无'],
             4 => ['key' => 'boss',     'name' => '董事长'],
             5 => ['key' => 'service',  'name' => '服务员'],
-            6 => ['key' => 'reserve',  'name' => '前台']
+            6 => ['key' => 'reserve',  'name' => '前台'],
+            7 => ['key' => 'cashier',  'name' => '银台']
         ],
     ],
 
@@ -667,6 +697,8 @@ return [
             'bank'      => ['key' => 'bank',     'name' => '银行转账'],
             'cash'      => ['key' => 'cash',     'name' => '现金'],
             'offline'   => ['key' => 'offline',  'name' => '线下'],
+            'wxpay_c'   => ['key' => 'wxpay_c',  'name' => '线下微信'],
+            'alipay_c'  => ['key' => 'alipay_c',  'name' => '线下支付宝'],
             'balance'   => ['key' => 'balance',  'name' => '余额'],
             'cash_gift' => ['key' => 'cash_gift','name' => '礼金支付'],
         ],
@@ -745,6 +777,7 @@ return [
         'change_admin_pass' => ['key' => 'change_admin_pass',   'name' => '更改管理员密码'],
         'recharge'          => ['key' => 'recharge',            'name' => '充值'],
         'refund'            => ['key' => 'refund',              'name' => '退款'],
+        'open_card'         => ['key' => 'open_card',           'name' => '开卡'],
     ],
 
     /*

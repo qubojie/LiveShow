@@ -32,9 +32,18 @@ class BillPayAssist extends Model
         "sname",
         "type",
         "sale_status",
+        "account_balance",
+        "account_cash_gift",
+        "cash",
         "gift_vou_code",
+        "return_point",
+        "return_own_commission",
+        "return_own_cash_gift",
         "referrer_id",
-        "updated_at"
+        "return_cash_gift",
+        "return_commission",
+        "updated_at",
+        "created_at"
     ];
 
 }

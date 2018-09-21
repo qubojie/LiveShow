@@ -6,6 +6,7 @@ use app\admin\model\SysAdminUser;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use think\Controller;
+use think\Db;
 use think\exception\HttpException;
 use think\Request;
 
@@ -13,7 +14,9 @@ class CommonAction extends Controller
 {
     /**
      * 初始化方法,其余控制器继承此方法，进行判断登录
-     * @
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function _initialize()
     {
@@ -28,19 +31,24 @@ class CommonAction extends Controller
 
                 $manageSalesModel = new ManageSalesman();
 
+                $reserve = config("salesman.salesman_type")[6]['key'];
+                $cashier = config("salesman.salesman_type")[7]['key'];
+
+                $stype_key_str = "$reserve,$cashier";
+
                 $is_exist = $manageSalesModel
                     ->alias("ms")
                     ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")
-                    ->where("ms.remember_token",$Token)
-                    ->where('mst.stype_key',config("salesman.salesman_type")[6]['key'])
-                    ->field('ms.token_lastime')
+                    ->where("ms.reception_token",$Token)
+                    ->where('mst.stype_key','IN',$stype_key_str)
+                    ->field('ms.reception_token_lastime')
                     ->find();
 
                 if ($is_exist){
                     $time = time();//当前时间
-                    $token_lastime = $is_exist['token_lastime'];//上次刷新token时间
+                    $reception_token_lastime = $is_exist['reception_token_lastime'];//上次刷新token时间
 
-                    $over_time = $token_lastime + 24 * 60 * 60;   //过期时间
+                    $over_time = $reception_token_lastime + 24 * 60 * 60;   //过期时间
                     if ($time < $over_time){
 
                     }else{
@@ -163,5 +171,60 @@ class CommonAction extends Controller
         $manageInfo = json_decode(json_encode($manageInfo),true);
 
         return $manageInfo;
+    }
+
+    /**
+     * 根据前台登陆token获取服务人员信息
+     * @param $reception_token
+     * @return array|false|mixed|\PDOStatement|string|\think\Model
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function receptionTokenGetManageInfo($reception_token)
+    {
+        $manageSalesmanModel = new ManageSalesman();
+
+        $manage_column = $manageSalesmanModel->manage_column;
+
+        $manageInfo = $manageSalesmanModel
+            ->alias("ms")
+            ->join("manage_department md","md.department_id = ms.department_id")
+            ->join("mst_salesman_type st","st.stype_id = ms.stype_id")
+            ->where('ms.reception_token',$reception_token)
+            ->field("md.department_title")
+            ->field("st.stype_key,st.stype_name")
+            ->field($manage_column)
+            ->find();
+
+        $manageInfo = json_decode(json_encode($manageInfo),true);
+
+        return $manageInfo;
+    }
+
+    /**
+     * 记录禁止登陆解禁登陆 单据操作等日志
+     * @param string $uid           '被操作用户id'
+     * @param string $gid           '被操作的的商品id'
+     * @param string $oid           '相关单据id'
+     * @param string $action        '操作内容'
+     * @param string $reason        '操作原因描述'
+     * @param string $action_user   '操作管理员id'
+     * @param string $action_time   '操作时间'
+     */
+    public function addSysAdminLog($uid = '',$gid = '',$oid = '',$action = 'empty',$reason = '',$action_user = '',$action_time = '')
+    {
+        $params  = [
+            'uid'         => $uid,
+            'gid'         => $gid,
+            'oid'         => $oid,
+            'action'      => $action,
+            'reason'      => $reason,
+            'action_user' => $action_user,
+            'action_time' => $action_time,
+        ];
+
+        Db::name('sys_adminaction_log')
+            ->insert($params);
     }
 }

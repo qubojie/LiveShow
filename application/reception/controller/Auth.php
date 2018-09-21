@@ -37,12 +37,17 @@ class Auth extends Controller
 
         $manage_column = $manageSalesmanModel->manage_column;
 
+        $reserve = config("salesman.salesman_type")[6]['key'];
+        $cashier = config("salesman.salesman_type")[7]['key'];
+
+        $stype_key_str = "$reserve,$cashier";
+
         $manageInfo = $manageSalesmanModel
             ->alias("ms")
             ->join("mst_salesman_type mst","mst.stype_id = ms.stype_id")
             ->where('ms.phone',$phone)
             ->where('ms.password',$password)
-            ->where('mst.stype_key',config("salesman.salesman_type")[6]['key'])
+            ->where('mst.stype_key','IN',$stype_key_str)
             ->field("mst.stype_key")
             ->field($manage_column)
             ->find();
@@ -55,7 +60,7 @@ class Auth extends Controller
 
         $stype_key = $manageInfo['stype_key'];
 
-        if ($stype_key != config("salesman.salesman_type")['6']['key']){
+        if ($stype_key != $reserve && $stype_key != $cashier){
             return $this->com_return(false,config("params.PERMISSION_NOT_ENOUGH"));
         }
 
@@ -67,14 +72,14 @@ class Auth extends Controller
             return $this->com_return(false,"离职员工,不可登陆");
         }
 
-        $remember_token = $this->jm_token($password.time());
+        $reception_token = $this->jm_token($password.time());
 
         $time = time();
 
         $update_params = [
-            "remember_token" => $remember_token,
-            "token_lastime"  => $time,
-            "updated_at"     => $time
+            "reception_token"           => $reception_token,
+            "reception_token_lastime"   => $time,
+            "updated_at"                => $time
         ];
 
         $is_ok = $manageSalesmanModel

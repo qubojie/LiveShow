@@ -69,6 +69,9 @@ class ManageSalesman extends Model
         'ms.sell_num',
         'ms.sell_amount',
         'ms.remember_token',
+        'ms.token_lastime',
+        'ms.reception_token',
+        'ms.reception_token_lastime',
         'ms.updated_at',
         'ms.created_at',
     ];

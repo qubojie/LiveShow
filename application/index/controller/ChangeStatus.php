@@ -11,8 +11,10 @@ use app\admin\model\TableRevenue;
 use app\wechat\controller\OpenCard;
 use app\wechat\model\BillCardFees;
 use app\wechat\model\BillPay;
+use app\wechat\model\BillPayAssist;
 use app\wechat\model\BillRefill;
 use app\wechat\model\BillSubscription;
+use app\wechat\model\TableMessage;
 use think\Controller;
 use think\Db;
 use think\Exception;
@@ -304,21 +306,53 @@ class ChangeStatus extends Controller
     }
 
 
+    /**
+     * 定时删除服务message
+     */
+    public static function AutoDeleteCallMessage(){
+        $tableMessage = new TableMessage();
+        $time = time() - 24*60*60;
+        $where['type'] = 'call';
+        $where['created_at'] = array('lt',$time);
+        $result = $tableMessage->where($where)->delete();
+        if ($result){
+            return 1;
+        }else{
+            return "什么都没做";
+        }
+    }
 
 
+    /**
+     * 自动取消消费超时订单
+     * @return int|string
+     */
+    public static function autoCancelBillPayAssistOrder()
+    {
+        $billPayAssistModel = new BillPayAssist();
 
+        $now_time    = time();
+        $auto_time_s = $now_time - 24 * 60 * 60;
 
+        $billPayParams = [
+            'sale_status'      => config("bill_assist.bill_status")['9']['key'],
+            'auto_cancel'      => 1,
+            'auto_cancel_time' => $now_time,
+            'cancel_reason'    => '时限内未操作',
+            'updated_at'       => $now_time
+        ];
 
+        $res = $billPayAssistModel
+            ->where('sale_status',config("bill_assist.bill_status")['0']['key'])
+            ->where("created_at","lt",$auto_time_s )
+            ->update($billPayParams);
 
-
-
-
-
-
-
-
-
-
+        if ($res){
+            return 1;
+        }else{
+            return "什么都没做";
+        }
+    }
 
 
 }

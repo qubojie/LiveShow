@@ -380,7 +380,7 @@ class DiningRoom extends CommonAction
         /*登陆管理人员信息 on*/
         $token = $request->header("Token",'');
 
-        $manageInfo = $this->tokenGetManageInfo($token);
+        $manageInfo = $this->receptionTokenGetManageInfo($token);
 
         $stype_name = $manageInfo["stype_name"];
         $sales_name = $manageInfo["sales_name"];
@@ -824,10 +824,17 @@ class DiningRoom extends CommonAction
         if ($type == "user"){
             //用户检索
             $res =  $this->userPhoneRetrieval($phone);
+            if (empty($res)){
+                return $this->com_return(false,config("params.USER")['USER_NOT_EXIST']);
+            }
 
         }elseif($type == "sales"){
             //员工检索
             $res = $this->salesPhoneRetrieval($phone);
+
+            if (empty($res)){
+                return $this->com_return(false,config("params.USER")['USER_NOT_EXIST']);
+            }
 
         }else{
             return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
@@ -859,7 +866,7 @@ class DiningRoom extends CommonAction
             ->join("user_card uc","uc.uid = u.uid","LEFT")
             ->join("mst_user_level ul","ul.level_id = u.level_id")
             ->where($where)
-            ->field("u.uid,u.name,u.nickname,u.phone")
+            ->field("u.uid,u.name,u.nickname,u.phone,u.account_balance,u.account_cash_gift")
             ->field("uc.card_name,uc.card_type")
             ->field("ul.level_name,u.credit_point")
             ->select();
@@ -1067,7 +1074,7 @@ class DiningRoom extends CommonAction
 
             $token = $request->header("Token");
 
-            $sales_name = $this->tokenGetManageInfo($token)['sales_name'];
+            $sales_name = $this->receptionTokenGetManageInfo($token)['sales_name'];
 
             insertTableActionLog(microtime(true) * 10000,"$type","$table_id","$table_no","$sales_name",$desc,"","");
             /*记录取消开台日志 off*/

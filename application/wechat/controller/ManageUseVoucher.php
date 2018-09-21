@@ -92,6 +92,8 @@ class ManageUseVoucher extends HomeAction
             "uid"           => $uid,
             "card_name"     => $card_name,
             "phone"         => $phone,
+            "table_id"      => $table_id,
+            "table_no"      => $table_no,
             "type"          => config("bill_assist.bill_type")['6']['key'],
             "sale_status"   => config("bill_assist.bill_status")['0']['key'],
             "gift_vou_code" => $gift_vou_code,

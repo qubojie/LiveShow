@@ -475,6 +475,11 @@ class OpenCardOrder extends CommandAction
             return $this->com_return(false,config("params.ORDER")['completed']);
         }
 
+        $adminInfo = $this->getLoginAdminId($Authorization);
+
+        $review_user = $adminInfo['user_name'];//收款审核人
+        $review_desc = $reason;//审核备注
+
         //如果是微信支付
         if ($pay_type == config('order.pay_method')['wxpay']['key']){
 
@@ -507,6 +512,9 @@ class OpenCardOrder extends CommandAction
 //                    'delivery_phone'   => $delivery_phone,
 //                    'delivery_area'    => $delivery_area,
 //                    'delivery_address' => $delivery_address,
+                    'review_user'      => $review_user,
+                    'review_time'      => time(),
+                    'review_desc'      => $review_desc,
                     'updated_at'       => time()
                 ];
 
@@ -562,6 +570,9 @@ class OpenCardOrder extends CommandAction
 //                    'delivery_phone'   => $delivery_phone,
 //                    'delivery_area'    => $delivery_area,
 //                    'delivery_address' => $delivery_address,
+                    'review_user'      => $review_user,
+                    'review_time'      => time(),
+                    'review_desc'      => $review_desc,
                     'updated_at'       => time()
                 ];
 
@@ -631,6 +642,9 @@ class OpenCardOrder extends CommandAction
                     'receipt_name'    => $receipt_name,
                     'receipt_bank'    => $receipt_bank,
                     'receipt_account' => $receipt_account,
+                    'review_user'      => $review_user,
+                    'review_time'      => time(),
+                    'review_desc'      => $review_desc,
                     'updated_at'      => time()
                 ];
 
@@ -690,6 +704,9 @@ class OpenCardOrder extends CommandAction
                     'delivery_phone'   => $delivery_phone,
                     'delivery_area'    => $delivery_area,
                     'delivery_address' => $delivery_address,
+                    'review_user'      => $review_user,
+                    'review_time'      => time(),
+                    'review_desc'      => $review_desc,
                     'updated_at'       => time()
                 ];
 

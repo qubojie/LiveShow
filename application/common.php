@@ -69,6 +69,28 @@ function _unsetNull($arr){
     return $arr;
 }
 
+/**
+ * 递归方式把数组或字符串 null转换为空 0
+ * @param $arr
+ * @return array|string
+ */
+function _unsetNull_to_o($arr){
+    if ($arr !== null){
+        if (is_array($arr)){
+            if (!empty($arr)){
+                foreach ($arr as $key => $val){
+                    if ($val === null)  $arr[$key] = 0;
+                    else  $arr[$key] = _unsetNull_to_o($val);//递归,再去执行
+                }
+            }else $arr = 0;
+
+        }else if ($arr === null)  $arr = 0;
+
+    }else $arr = 0;
+
+    return $arr;
+}
+
 
 /**
  * 获取某个时间戳的周几，以及未来几天以后的周几

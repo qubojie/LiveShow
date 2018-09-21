@@ -12,9 +12,12 @@ $crond_list = array(
         'app\index\controller\ChangeStatus::AutoCancelTableRevenue',
         'app\index\controller\ChangeStatus::AutoCancelBillRefill',
         'app\index\controller\ChangeStatus::autoCancelRevenueListOrder',
+        'app\index\controller\ChangeStatus::autoCancelBillPayAssistOrder',
     ],  //每分钟
 
-    '00:00'      => [],  //每周 ------------
+    '00:00'      => [
+        'app\index\controller\ChangeStatus::AutoDeleteCallMessage',
+    ],  //每周 ------------
     '*-01 00:00' => [],  //每月--------
     '*:00'       => [],  //每小时---------
 );

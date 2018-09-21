@@ -232,8 +232,8 @@ class Reservation extends CommonAction
 
         $tableInfo = $tableModel
             ->alias("t")
-            ->join("mst_table_area ta","ta.area_id = t.area_id")
-            ->join("manage_salesman ms","ms.sid = ta.sid")
+            ->join("mst_table_area ta","ta.area_id = t.area_id","LEFT")
+            ->join("manage_salesman ms","ms.sid = ta.sid","LEFT")
             ->where("table_id",$table_id)
             ->field("ms.sales_name as service_name,ms.phone service_phone")
             ->field($table_column)
@@ -241,6 +241,9 @@ class Reservation extends CommonAction
 
         $tableInfo = json_decode(json_encode($tableInfo),true);
 
+        if (empty($tableInfo)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
 
         /*会员限定 on*/
         $reserve_type = $tableInfo['reserve_type'];
@@ -400,7 +403,7 @@ class Reservation extends CommonAction
 
         /*登陆前台人员信息 on*/
         $token = $request->header("Token",'');
-        $manageInfo = $this->tokenGetManageInfo($token);
+        $manageInfo = $this->receptionTokenGetManageInfo($token);
 
         $stype_name = $manageInfo["stype_name"];
         $sales_name = $manageInfo["sales_name"];
@@ -432,8 +435,8 @@ class Reservation extends CommonAction
             $stype_key  = $salesInfo["stype_key"];
 
         }else{
-            $sid        = config("salesman.salesman_type")[3]['key'];
-            $sales_name = config("salesman.salesman_type")[3]['name'];
+            $sid        = "";
+            $sales_name = "";
             $stype_key  = config("salesman.salesman_type")[3]['key'];
         }
 
@@ -582,7 +585,8 @@ class Reservation extends CommonAction
 
                 /*发送短信 On*/
                 $smsObj = new Sms();
-                $smsObj->sendMsg("$user_phone","revenue","$reserve_date","$table_no");
+                $res = $smsObj->sendMsg("$user_name","$user_phone","$sales_name","$sales_phone","revenue","$reserve_date","$table_no","$reserve_way");
+                Log::info("发送短信结果".var_export($res,true));
                 /*发送短信 Off*/
 
                 return $this->com_return(true,config("params.SUCCESS"));
@@ -635,7 +639,7 @@ class Reservation extends CommonAction
         /*登陆管理人员信息 on*/
         $token = $request->header("Token",'');
 
-        $manageInfo = $this->tokenGetManageInfo($token);
+        $manageInfo = $this->receptionTokenGetManageInfo($token);
 
         $stype_name = $manageInfo["stype_name"];
         $sales_name = $manageInfo["sales_name"];
@@ -816,8 +820,10 @@ class Reservation extends CommonAction
                 /*记录日志 off*/
 
                 /*发送短信 On*/
+                $reserve_way     = config("user.register_way")['web']['key'];
+                $sales_phone = "";
                 $smsObj = new Sms();
-                $smsObj->sendMsg("$userPhone","cancel","$reserve_date","$table_no");
+                $smsObj->sendMsg("$userName","$userPhone","$sales_name","$sales_phone","cancel","$reserve_date","$table_no","$reserve_way");
                 /*发送短信 Off*/
 
                 return $this->com_return(true,config("params.SUCCESS"));

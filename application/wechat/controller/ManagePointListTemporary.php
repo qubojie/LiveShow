@@ -11,6 +11,7 @@ use app\common\controller\UUIDUntil;
 use app\services\LuoSiMaoSms;
 use app\wechat\model\BillPayAssist;
 use think\Db;
+use think\Log;
 use think\Request;
 use think\Validate;
 
@@ -32,16 +33,25 @@ class ManagePointListTemporary extends HomeAction
 
         $phone             = $request->param("phone","");
 
+        $verification_code = $request->param("code","");
+
+        if ( $request->method() != "OPTIONS"){
+            $token = $request->header("Token");
+            Log::info(date("Y-m-d H:i:s")."获取用户信息token ---- ".$token);
+        }
+
         $rule = [
             "table_id|桌id" => "require",
             "table_no|桌号" => "require",
             "phone|电话号码" => "require|regex:1[3-8]{1}[0-9]{9}",
+            "code|验证码"    => "require|number",
         ];
 
         $request_res = [
             "table_id" => $table_id,
             "table_no" => $table_no,
             "phone"    => $phone,
+            "code"     => $verification_code,
         ];
 
         $validate = new Validate($rule);
@@ -69,12 +79,16 @@ class ManagePointListTemporary extends HomeAction
         $uid       = $userInfo['uid'];
         $card_name = $userInfo['card_name'];
 
+        if (empty($card_name)){
+            $card_name = "非会员";
+        }
+
         $referrer_id = $userInfo['referrer_id'];
 
         /*发送验证码 on*/
-        $verification_code = getRandCode(4);
+       /* $verification_code = getRandCode(4);
 
-        $message = config('sms.sms_verify_code').config('sms.sign');
+        $message = config('sms.point_list').config('sms.sign');
 
         $sms = new LuoSiMaoSms();
 
@@ -88,7 +102,7 @@ class ManagePointListTemporary extends HomeAction
             }
         }else{
             return $this->com_return(false, config("sms.send_fail"));
-        }
+        }*/
         /*发送验证码 off*/
 
         $UUID = new UUIDUntil();
