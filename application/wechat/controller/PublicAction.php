@@ -1298,7 +1298,54 @@ class PublicAction extends Controller
     }
 
     /**
-     * 获取所有桌台列表
+     * V2客户端小程序筛选桌号
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getTableAllList(Request $request)
+    {
+        $tableModel         = new MstTable();
+
+        $tableLocationModel = new MstTableLocation();
+
+        $table_location = $tableLocationModel
+            ->alias("tl")
+            ->join("mst_table_area ta","ta.location_id = tl.location_id")
+            ->where("tl.is_delete","0")
+            ->order("tl.sort")
+            ->group("tl.location_id")
+            ->field("tl.location_id,tl.location_title")
+            ->select();
+
+        $info = json_decode(json_encode($table_location),true);
+
+        for ($n = 0; $n < count($table_location); $n ++){
+            $location_id = $table_location[$n]['location_id'];
+
+            $table_info = $tableModel
+                ->alias("t")
+                ->join("mst_table_area ta","ta.area_id = t.area_id","LEFT")
+                ->join("mst_table_location tl","tl.location_id = ta.location_id","LEFT")
+                ->where("ta.location_id",$location_id)
+                ->where("t.is_delete","0")
+                ->where("t.is_enable","1")
+                ->order("t.table_no")
+                ->select();
+
+            $table_info = json_decode(json_encode($table_info),true);
+
+            $info[$n]['table_info'] = $table_info;
+        }
+
+        return $this->com_return(true,config("params.SUCCESS"),$info);
+
+    }
+
+    /**
+     * V1获取所有桌台列表
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
@@ -1345,6 +1392,7 @@ class PublicAction extends Controller
                     ->alias("t")
                     ->where("t.area_id",$area_id)
                     ->where("t.is_delete","0")
+                    ->where("t.is_enable","1")
                     ->order("t.table_no")
                     ->select();
 
@@ -1353,6 +1401,27 @@ class PublicAction extends Controller
                 $info[$i]['area_info'][$n]['table_info'] = $table_info;
             }
         }
+
+        foreach ($info as $key => $val){
+            $area_info = $info[$key]['area_info'];
+            foreach ($area_info as $k => $v){
+                $table_info = $area_info[$k]['table_info'];
+                if (empty($table_info)){
+                    unset($info[$key]['area_info'][$k]);
+                }
+            }
+            sort($info[$key]['area_info']);
+
+        }
+
+        sort($info);
+
+        foreach ($info as $z => $s){
+            if (empty($info[$z]['area_info'])){
+                unset($info[$z]);
+            }
+        }
+        sort($info);
 
         return $this->com_return(true,config("params.SUCCESS"),$info);
     }

@@ -7,7 +7,6 @@
  */
 namespace app\reception\controller;
 
-use app\admin\controller\CommandAction;
 use app\admin\model\ManageSalesman;
 use app\admin\model\MstCardVip;
 use app\admin\model\User;
@@ -15,8 +14,10 @@ use app\common\controller\UUIDUntil;
 use app\wechat\controller\CardCallback;
 use app\wechat\controller\WechatPay;
 use app\wechat\model\BillCardFees;
+use app\wechat\model\BillCardFeesDetail;
 use app\wechat\model\UserCard;
 use think\Db;
+use think\Env;
 use think\Exception;
 use think\Request;
 use think\Validate;
@@ -65,14 +66,26 @@ class OpenCard extends CommonAction
      * 开卡订单列表
      * @param Request $request
      * @return array
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\ModelNotFoundException
      * @throws \think\exception\DbException
      */
     public function index(Request $request)
     {
         $dateTime = $request->param("dateTime","");//时间
         $payType  = $request->param("payType","");//付款方式
+        $pagesize = $request->param("pagesize","");
+        $nowPage  = $request->param("nowPage","1");
+
+        if (empty($pagesize)){
+            $pagesize = config("PAGESIZE");
+        }
+
+        if (empty($nowPage)){
+            $nowPage = 1;
+        }
+
+        $config = [
+            "page" => $nowPage,
+        ];
 
         $rule = [
             "dateTime|时间"    => "require",
@@ -88,22 +101,37 @@ class OpenCard extends CommonAction
             return $this->com_return(false,$validate->getError());
         }
 
-        $nowDateTime = strtotime(date("Ymd"));
+        $nowTime = time();
+        $sys_account_day_time = getSysSetting("sys_account_day_time");//获取系统设置自然日
+        $now_h = date("H",$nowTime);
+
+        if ($now_h >= $sys_account_day_time){
+            //大于,新的一天
+            $nowDateTime = strtotime(date("Ymd",$nowTime));
+        }else{
+            //小于,还是昨天
+            $nowDateTime = strtotime(date("Ymd",$nowTime - 24 * 60 * 60));
+        }
+
+        $six_s       = 60 * 60 * $sys_account_day_time;
+        $nowDateTime = $nowDateTime + $six_s;
 
         if ($dateTime == 1){
             //今天
             $beginTime = date("YmdHis",$nowDateTime);
-            $endTime   = date("YmdHis",$nowDateTime + 24 * 60 * 60);
+            $endTime   = date("YmdHis",$nowDateTime + 24 * 60 * 60 - 1);
 
         }elseif ($dateTime == 2){
             //昨天
             $beginTime = date("YmdHis",$nowDateTime - 24 * 60 * 60);
-            $endTime   = date("YmdHis",$nowDateTime);
+            $endTime   = date("YmdHis",$nowDateTime - 1);
 
         }else{
             $dateTimeArr = explode(",",$dateTime);
-            $beginTime   = date("YmdHis",$dateTimeArr[0]);;
-            $endTime     = date("YmdHis",$dateTimeArr[1]);;
+            $beginTime   = $dateTimeArr[0] + $six_s;
+            $beginTime   = date("YmdHis",$beginTime);
+            $endTime     = $dateTimeArr[1] + $six_s;
+            $endTime     = date("YmdHis",$endTime);
         }
 
         $date_where['bcf.created_at'] = ["between time",["$beginTime","$endTime"]];
@@ -129,7 +157,7 @@ class OpenCard extends CommonAction
             ->alias("bcf")
             ->join("bill_card_fees_detail bcfd","bcfd.vid = bcf.vid")
             ->join("mst_card_vip mcv","mcv.card_id = bcfd.card_id")
-            ->join("user u","u.uid = bcf.uid")
+            ->join("user u","u.uid = bcf.uid","LEFT")
             ->where("bcf.sale_status","IN",$sale_status_str)
             ->where($date_where)
             ->where($pay_type_where)
@@ -137,22 +165,35 @@ class OpenCard extends CommonAction
             ->field("u.name,u.phone")
             ->field("mcv.card_name,mcv.card_type")
             ->field("bcf.created_at,bcf.pay_type,bcf.order_amount,bcf.deal_price,bcf.review_user")
-            ->select();
+            ->field("bcfd.card_cash_gift")
+            ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);
 
+        /*开卡金额统计 On*/
         $money_sum = $billCardFeesModel
             ->alias("bcf")
             ->where("bcf.sale_status","IN",$sale_status_str)
             ->where($date_where)
             ->where($pay_type_where)
             ->sum("bcf.deal_price");
+        $list['money_sum'] = $money_sum;
+        /*开卡金额统计 Off*/
 
-        $res['money_sum'] = $money_sum;
+        /*开卡赠送礼金金额 On*/
+        $card_cash_gift_sum = $billCardFeesModel
+            ->alias("bcf")
+            ->join("bill_card_fees_detail bcfd","bcfd.vid = bcf.vid")
+            ->where("bcf.sale_status","IN",$sale_status_str)
+            ->where($date_where)
+            ->where($pay_type_where)
+            ->sum("bcfd.card_cash_gift");
+        /*开卡赠送礼金金额 Off*/
 
-        $res["data"] = $list;
+        $list['card_cash_gift_sum'] = $card_cash_gift_sum;
 
-        return $this->com_return(true,config("params.SUCCESS"),$res);
+
+        return $this->com_return(true,config("params.SUCCESS"),$list);
     }
 
 
@@ -177,15 +218,15 @@ class OpenCard extends CommonAction
         $rule = [
             "user_phone|客户电话"    => "require|regex:1[3-8]{1}[0-9]{9}",
             "user_name|客户姓名"     => "require",
-            "card_id|卡种"           => "require",
-            "pay_type|支付方式"         => "require",
+            "card_id|卡种"          => "require",
+            "pay_type|支付方式"      => "require",
         ];
 
         $request_res = [
             "user_phone" => $user_phone,
             "user_name"  => $user_name,
             "card_id"    => $card_id,
-            "pay_type"    => $pay_type,
+            "pay_type"   => $pay_type,
         ];
 
         $validate = new Validate($rule);
@@ -309,9 +350,14 @@ class OpenCard extends CommonAction
             }
 
             /*开卡 on*/
-            $this->createdOpenCardOrder($card_id,$uid,$referrer_type,$referrer_id,$review_user,$review_desc,$pay_type);
-            Db::commit();
-            return $this->com_return(true,config("params.SUCCESS"));
+            $res = $this->createdOpenCardOrder($card_id,$uid,$referrer_type,$referrer_id,$review_user,$review_desc,$pay_type);
+            if (isset($res['result']) && $res['result']){
+                Db::commit();
+                return $this->com_return(true,config("params.SUCCESS"));
+            }else{
+                return $res;
+            }
+
             /*开卡 off*/
 
         }catch (Exception $e){
@@ -415,10 +461,11 @@ class OpenCard extends CommonAction
 
             'card_amount'         => $cardInfo_amount,//充值金额
             'card_point'          => $card_point,//开卡赠送积分
-            'card_cash_gift'      => $card_cash_gift,//开卡赠送礼金数
-            'card_job_cash_gif'   => $card_job_cash_gif,//推荐人返佣礼金
-            'card_job_commission' => $card_job_commission,//推荐人返佣金
+            'card_cash_gift'      => intval(($card_cash_gift / 100) * $cardInfo_amount),//开卡赠送礼金数
+            'card_job_cash_gif'   => intval(($card_job_cash_gif / 100) * $cardInfo_amount),//推荐人返佣礼金
+            'card_job_commission' => intval(($card_job_commission / 100) * $cardInfo_amount),//推荐人返佣金
         ];
+
 
         $billCardFeesDetailReturn = $cardCallbackObj->billCardFeesDetail($billCardFeesDetailParams);
 
@@ -470,90 +517,127 @@ class OpenCard extends CommonAction
 
         $userInfoObj = new \app\wechat\controller\UserInfo();
 
-        if ($referrer_type == 'user'){
-            //如果推荐人是用户,给推荐人用户更新礼金信息
+        if ($referrer_id != config("salesman.salesman_type")['3']['key']){
+            //如果推荐人不是平台推荐
 
-            //账户可用礼金变动  正加 负减  直接取整,舍弃小数
+            if ($referrer_type != 'user'){
+                //如果是内部人员推荐,给人员用户端账号返还礼金,佣金
+                $manageSalesModel = new ManageSalesman();
 
-            $cash_gift = intval(($card_job_cash_gif / 100) * $cardInfo_amount);
-            if ($cash_gift > 0){
-                //如果赠送礼金大于0
-                //首先获取推荐人的礼金余额
-                $referrer_user_gift_cash_old = $userInfoObj->getUserFieldValue("$referrer_id","account_cash_gift");
+                $salesInfo = $manageSalesModel
+                    ->where("sid",$referrer_id)
+                    ->field("phone")
+                    ->find();
+                $salesInfo = json_decode(json_encode($salesInfo),true);
 
-                //变动后的礼金总余额
-                $last_cash_gift = $cash_gift + $referrer_user_gift_cash_old;
-
-                $userAccountCashGiftParams = [
-                    'uid'            => $referrer_id,
-                    'cash_gift'      => $cash_gift,
-                    'last_cash_gift' => $last_cash_gift,
-                    'change_type'    => '2',
-                    'action_user'    => 'sys',
-                    'action_type'    => config('user.gift_cash')['recommend_reward']['key'],
-                    'action_desc'    => config('user.gift_cash')['recommend_reward']['name'],
-                    'oid'            => $vid,
-                    'created_at'     => time(),
-                    'updated_at'     => time()
-                ];
-
-                //给推荐用户添加礼金明细
-                $userAccountCashGiftReturn = $cardCallbackObj->updateUserAccountCashGift($userAccountCashGiftParams);
-
-                if ($userAccountCashGiftReturn == false){
-                    return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 001");
+                if (empty($salesInfo)){
+                    //推荐人不存在
+                    return $this->com_return(false,config("params.SALESMAN_NOT_EXIST"));
                 }
 
-                //给推荐用户添加礼金余额
-                $updatedAccountCashGiftReturn = $userInfoObj->updatedAccountCashGift("$referrer_id","$cash_gift","inc");
+                $sales_phone = $salesInfo['phone'];
 
-                if ($updatedAccountCashGiftReturn == false){
-                    return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 002");
+                $userModel = new User();
+
+                $salesUserInfo = $userModel
+                    ->where("phone",$sales_phone)
+                    ->field("uid,account_balance,account_point,account_cash_gift")
+                    ->find();
+
+                $salesUserInfo = json_decode(json_encode($salesUserInfo),true);
+
+                if (empty($salesUserInfo)){
+//                    return $this->com_return(false,config("params.USER")['SALES_NOT_REGISTER_USER']);
+                    $referrer_id = "";
+                }else{
+                    $referrer_id = $salesUserInfo['uid'];
                 }
             }
+            //TODO 如果推荐人未注册用户端,则不返还
+            if (!empty($referrer_id)){
+                //如果推荐人是用户,给推荐人用户更新礼金信息
+                //账户可用礼金变动  正加 负减  直接取整,舍弃小数
 
-            /*给推荐用户添加佣金*/
-            if ($card_job_commission > 0){
-                //首先获取推荐人的佣金余额
-                $old_last_balance_res = Db::name("job_user")
-                    ->where('uid',$referrer_id)
-                    ->field('job_balance')
-                    ->find();
-                $old_last_balance_res = json_decode(json_encode($old_last_balance_res),true);
+                $cash_gift = intval(($card_job_cash_gif / 100) * $cardInfo_amount);
+                if ($cash_gift > 0){
+                    //如果赠送礼金大于0
+                    //首先获取推荐人的礼金余额
+                    $referrer_user_gift_cash_old = $userInfoObj->getUserFieldValue("$referrer_id","account_cash_gift");
 
-                if (!empty($old_last_balance_res)){
-                    $job_balance = $old_last_balance_res['job_balance'];
-                }else{
-                    $job_balance = 0;
+                    //变动后的礼金总余额
+                    $last_cash_gift = $cash_gift + $referrer_user_gift_cash_old;
+
+                    $userAccountCashGiftParams = [
+                        'uid'            => $referrer_id,
+                        'cash_gift'      => $cash_gift,
+                        'last_cash_gift' => $last_cash_gift,
+                        'change_type'    => '2',
+                        'action_user'    => 'sys',
+                        'action_type'    => config('user.gift_cash')['recommend_reward']['key'],
+                        'action_desc'    => config('user.gift_cash')['recommend_reward']['name'],
+                        'oid'            => $vid,
+                        'created_at'     => time(),
+                        'updated_at'     => time()
+                    ];
+
+                    //给推荐用户添加礼金明细
+                    $userAccountCashGiftReturn = $cardCallbackObj->updateUserAccountCashGift($userAccountCashGiftParams);
+
+                    if ($userAccountCashGiftReturn == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 001");
+                    }
+
+                    //给推荐用户添加礼金余额
+                    $updatedAccountCashGiftReturn = $userInfoObj->updatedAccountCashGift("$referrer_id","$cash_gift","inc");
+
+                    if ($updatedAccountCashGiftReturn == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 002");
+                    }
                 }
-                $plus_card_job_commission = intval(($card_job_commission / 100) * $cardInfo_amount);
 
-                //添加或更新推荐用户佣金表
-                $jobUserReturn = $cardCallbackObj->updateJobUser($referrer_id,$plus_card_job_commission);
+                /*给推荐用户添加佣金*/
+                if ($card_job_commission > 0){
+                    //首先获取推荐人的佣金余额
+                    $old_last_balance_res = Db::name("job_user")
+                        ->where('uid',$referrer_id)
+                        ->field('job_balance')
+                        ->find();
+                    $old_last_balance_res = json_decode(json_encode($old_last_balance_res),true);
 
-                if ($jobUserReturn == false){
-                    return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 003");
-                }
+                    if (!empty($old_last_balance_res)){
+                        $job_balance = $old_last_balance_res['job_balance'];
+                    }else{
+                        $job_balance = 0;
+                    }
+                    $plus_card_job_commission = intval(($card_job_commission / 100) * $cardInfo_amount);
 
-                //添加推荐用户佣金明细表
-                $jobAccountParams = [
-                    "uid"          => $referrer_id,
-                    "balance"      => $plus_card_job_commission,
-                    "last_balance" => $job_balance + $plus_card_job_commission,
-                    "change_type"  => 2,
-                    "action_user"  => 'sys',
-                    "action_type"  => config('user.job_account')['recommend_reward']['key'],
-                    "oid"          => $vid,
-                    "deal_amount"  => $cardInfo_amount,
-                    "action_desc"  => config('user.job_account')['recommend_reward']['name'],
-                    "created_at"   => time(),
-                    "updated_at"   => time()
-                ];
+                    //添加或更新推荐用户佣金表
+                    $jobUserReturn = $cardCallbackObj->updateJobUser($referrer_id,$plus_card_job_commission);
 
-                $jobAccountReturn = $cardCallbackObj->insertJobAccount($jobAccountParams);
+                    if ($jobUserReturn == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 003");
+                    }
 
-                if ($jobAccountReturn == false){
-                    return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 004");
+                    //添加推荐用户佣金明细表
+                    $jobAccountParams = [
+                        "uid"          => $referrer_id,
+                        "balance"      => $plus_card_job_commission,
+                        "last_balance" => $job_balance + $plus_card_job_commission,
+                        "change_type"  => 2,
+                        "action_user"  => 'sys',
+                        "action_type"  => config('user.job_account')['recommend_reward']['key'],
+                        "oid"          => $vid,
+                        "deal_amount"  => $cardInfo_amount,
+                        "action_desc"  => config('user.job_account')['recommend_reward']['name'],
+                        "created_at"   => time(),
+                        "updated_at"   => time()
+                    ];
+
+                    $jobAccountReturn = $cardCallbackObj->insertJobAccount($jobAccountParams);
+
+                    if ($jobAccountReturn == false){
+                        return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 004");
+                    }
                 }
             }
         }
@@ -743,6 +827,8 @@ class OpenCard extends CommonAction
         $action  = config("useraction.open_card")['key'];
 
         $adminCommonAction->addSysAdminLog("$uid","","$vid","$action","$review_desc","$review_user",time());
+
+        return $this->com_return(true,config("params.SUCCESS"));
     }
 
     /**

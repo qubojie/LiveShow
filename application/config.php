@@ -320,7 +320,13 @@ return [
             "PAY_TYPE_EMPTY"         => "支付方式不能为空",
             "ORDER_NOT_EXIST"        => "订单不存在",
             "VOUCHER_NOT_REFUND"     => "礼券消费不可退款",
-            "CREATE_CARD_ORDER_FAIL" => "创建开卡订单失败"
+            "CREATE_CARD_ORDER_FAIL" => "创建开卡订单失败",
+            "MONEY_NOT_ZERO"         => "金额不能为零",
+            "RE_BALANCE_MONEY_D"     => "储值退款金额不能大于储值消费金额",
+            "RE_CASH_GIFT_MONEY_D"   => "礼金退款金额不能大于礼金消费金额",
+            "RE_CASH_MONEY_D"        => "现金退款金额不能大于现金消费金额",
+            "SETTLEMENTED_NOT_REFUND"=> "已结算,不可退款",
+            "DON_NOT_ETTLEMENT"      => "有订单未处理,请先处理订单"
         ],
         "REVENUE"               => [
             "DO_NOT_OPEN"       => "当前台位已被占用,不可开台",
@@ -355,7 +361,8 @@ return [
             "TABLE_CARD_LIMIT_NOT_EMPTY" => "选择仅会员时,会员卡限定不能为空",
             "AREA_EXIST"                 => "当前大区下存在小区,不可直接删除",
             "TALE_EXIST"                 => "该区域下存在吧台,不可直接删除",
-            "IMPROVING_USER_INFO"        => "有用户信息未完善,是否确认清台?"
+            "IMPROVING_USER_INFO"        => "有用户信息未完善,是否确认清台?",
+            "TABLE_NOT_EXIST"            => "桌号不存在,请核实"
         ],
         "VOUCHER"               => [
             "CARD_NOT_EXIST"    => "此卡无效",
@@ -368,7 +375,12 @@ return [
             "USER_NOT_EXIST"   => "用户不存在",
             "USER_OPENED_CARD" => "用户已开卡,请勿重复开卡",
             "CARD_VALID_NO"    => "此卡无效",
-            "CARD_TYPE_ERROR"  => "卡片类型错误"
+            "CARD_TYPE_ERROR"  => "卡片类型错误",
+            "SALES_NOT_REGISTER_USER" => "当前推荐人未注册用户端账号"
+        ],
+        "TEMP"             => [
+            "SC_DELETE_NO" => "该分类下存在素材，请先删除素材后再删除分类",
+            "MOVE_FAIL"    => "素材移动失败,请稍后重试"
         ],
      ],
 
@@ -460,6 +472,7 @@ return [
         'bill_status' => [
             0 => ['key' => '0', 'name' => '待扣款'],
             1 => ['key' => '1', 'name' => '扣款完成'],
+            7 => ['key' => '7', 'name' => '部分退款'],
             8 => ['key' => '8', 'name' => '已退款'],
             9 => ['key' => '9', 'name' => '交易取消']
         ],

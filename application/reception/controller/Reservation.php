@@ -37,7 +37,7 @@ class Reservation extends CommonAction
         $area_id       = $request->param("area_id","");//小区id
         $appearance_id = $request->param("appearance_id","");//品项id
 
-        $status        = $request->param("status","");//预约状态 1已预约;2可预约;为空或0是全部
+        $status        = $request->param("status","");//预约状态 1已预约;2可预约;8已到店;为空或0是全部
 
         $keyword       = $request->param("keyword","");//关键字
 
@@ -54,7 +54,7 @@ class Reservation extends CommonAction
         $begin_time = date("Ymd",$begin_time);
         $end_time   = date("Ymd",$end_time);
 
-        $re_status = "0,1,2";
+        $re_status = "0,1,2,8";
 
         $location_where = [];
         if (!empty($location_id)){
@@ -137,6 +137,8 @@ class Reservation extends CommonAction
                     $tableInfo[$i]['table_status'] = 1;
                 }elseif ($table_status == 2){
                     $tableInfo[$i]['table_status'] = 1;
+                }elseif ($table_status == 8){
+                    $tableInfo[$i]['table_status'] = 8;
                 }else{
                     $tableInfo[$i]['table_status'] = 0;//空
                 }
@@ -160,7 +162,7 @@ class Reservation extends CommonAction
         if ($status == 1){
             //已预约
             foreach ($tableInfo as $key => $val){
-               if ($val['table_status'] == 0){
+               if ($val['table_status'] == 0 || $val['table_status'] == 8){
                    unset($tableInfo[$key]);
                }
             }
@@ -170,13 +172,22 @@ class Reservation extends CommonAction
         }elseif ($status == 2){
             //可预约
             foreach ($tableInfo as $key => $val){
-                if ($val['table_status'] == 1){
+                if ($val['table_status'] == 1 || $val['table_status'] == 8){
                     unset($tableInfo[$key]);
                 }
             }
 
             $res = array_values($tableInfo);
 
+        }elseif ($status == 8){
+            //已到店
+            foreach ($tableInfo as $key => $val){
+                if ($val['table_status'] != 8){
+                    unset($tableInfo[$key]);
+                }
+            }
+
+            $res = array_values($tableInfo);
         }else{
 
             //全部
@@ -311,7 +322,7 @@ class Reservation extends CommonAction
 
         $tableRevenueModel = new TableRevenue();
 
-        $status_str = "0,1,2";
+        $status_str = "0,1,2,8";
 
         $revenue_column = $tableRevenueModel->revenue_column;
 

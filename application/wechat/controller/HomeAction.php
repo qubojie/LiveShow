@@ -46,14 +46,14 @@ class HomeAction extends Controller
                     if ($time < $over_time){
 
                     }else{
-                        throw new HttpException(403,'登陆失效');
+                        throw new HttpException(403,'登陆失效1');
                     }
                 }else{
-                    throw new HttpException(403,'登陆失效');
+                    throw new HttpException(403,'登陆失效2');
                 }
 
             }else{
-                throw new HttpException(403,'登陆失效');
+                throw new HttpException(403,'登陆失效3');
             }
         }
     }

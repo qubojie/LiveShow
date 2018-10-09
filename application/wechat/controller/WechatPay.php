@@ -6,7 +6,9 @@ header('Content-Type:text/html;charset=utf-8');/*设置php编码为utf-8*/
 header('Access-Control-Allow-Origin:*');
 use app\admin\controller\CommandAction;
 use app\admin\controller\Common;
+use app\admin\model\ManageSalesman;
 use app\admin\model\MstCardVip;
+use app\admin\model\User;
 use app\common\controller\MakeQrCode;
 use app\common\controller\UUIDUntil;
 use app\services\Sms;
@@ -1346,16 +1348,17 @@ class WechatPay extends Controller
 
                 //获取卡的信息
                 $billCardFeesDetail = $cardCallbackObj->getBillCardFeesDetail($vid);
+                Log::info("卡的信息 --- ".var_export($billCardFeesDetail,true));
 
                 $card_id = $billCardFeesDetail['card_id'];
 
-                //获取开卡赠送礼金数(百分比)
+                //获取开卡赠送礼金数
                 $card_cash_gift     = $billCardFeesDetail['card_cash_gift'];
                 //获取开卡赠送积分
                 $card_point         = $billCardFeesDetail['card_point'];
-                //获取开卡赠送推荐用户礼金(百分比)
+                //获取开卡赠送推荐用户礼金
                 $card_job_cash_gif  = $billCardFeesDetail['card_job_cash_gif'];
-                //获取开卡赠送推荐用户佣金(百分比)
+                //获取开卡赠送推荐用户佣金
                 $card_job_commission= $billCardFeesDetail['card_job_commission'];
 
                 $cardInfoParams = [
@@ -1382,7 +1385,6 @@ class WechatPay extends Controller
                     ->where('uid',$uid)
                     ->field('account_balance,account_deposit,account_cash_gift,account_point')
                     ->find();
-//                dump($userOldMoneyInfo);die;
 
                 //用户钱包可用余额
                 $account_balance = $userOldMoneyInfo['account_balance'];
@@ -1421,115 +1423,159 @@ class WechatPay extends Controller
                         $commission_ratio = $openCardObj->getCommissionRatio($referrer_type);
                     }*/
                 }else{
-                    $referrer_id = "";
-                    $referrer_type = "empty";
+                    $referrer_id   = config("salesman.salesman_type")['3']['key'];
+                    $referrer_type = config("salesman.salesman_type")['3']['name'];
                 }
 
-                if ($referrer_type == 'user'){
-                    //如果推荐人是用户,给推荐人用户更新礼金信息
+                if ($referrer_id != config("salesman.salesman_type")['3']['key']){
+                    //如果不是平台推荐
+                    if ($referrer_type != 'user'){
+                        //如果是内部人员推荐,给人员用户端账号返还礼金,佣金
+                        $manageSalesModel = new ManageSalesman();
 
-                    //账户可用礼金变动  正加 负减  直接取整,舍弃小数
-
-                    $cash_gift = intval(($card_job_cash_gif / 100) * $pay_money);
-
-                    Log::info("赠送推荐用户礼金数 --- ". $cash_gift);
-
-                    if ($cash_gift > 0){
-                        //如果奖励推荐用户的礼金数 大于 0  则执行 更新
-
-                        //首先获取推荐人的礼金余额
-                        $referrer_user_gift_cash_old = $userInfoObj->getUserFieldValue("$referrer_id","account_cash_gift");
-                        Log::info("推荐用户的旧的礼金数 --- ".$referrer_user_gift_cash_old);
-
-
-                        //变动后的礼金总余额
-                        $last_cash_gift = $cash_gift + $referrer_user_gift_cash_old;
-                        Log::info("变动后的礼金总数 --- ".$last_cash_gift);
-
-                        $userAccountCashGiftParams = [
-                            'uid'            => $referrer_id,
-                            'cash_gift'      => $cash_gift,
-                            'last_cash_gift' => $last_cash_gift,
-                            'change_type'    => '2',
-                            'action_user'    => 'sys',
-                            'action_type'    => config('user.gift_cash')['recommend_reward']['key'],
-                            'action_desc'    => config('user.gift_cash')['recommend_reward']['name'],
-                            'oid'            => $vid,
-                            'created_at'     => $time,
-                            'updated_at'     => $time
-                        ];
-
-                        Log::info("礼金明细参数 ---- ".var_export($userAccountCashGiftParams,true));
-
-                        //给用户添加礼金明细
-                        $userAccountCashGiftReturn = $cardCallbackObj->updateUserAccountCashGift($userAccountCashGiftParams);
-
-
-                        //给用户添加礼金余额
-                        $updatedAccountCashGiftReturn = $userInfoObj->updatedAccountCashGift("$referrer_id","$cash_gift","inc");
-
-
-
-                    }else{
-                        //如果奖励推荐用户的礼金数 小于 0  则不执行礼金更新操作
-                        $userAccountCashGiftReturn = true;
-                        $updatedAccountCashGiftReturn = true;
-
-                    }
-
-                    /*给推荐用户添加佣金*/
-                    if ($card_job_commission > 0){
-
-                        //首先获取推荐人的佣金余额
-                        $old_last_balance_res = Db::name("job_user")
-                            ->where('uid',$referrer_id)
-                            ->field('job_balance')
+                        $salesInfo = $manageSalesModel
+                            ->where("sid",$referrer_id)
+                            ->field("phone")
                             ->find();
-                        if (!empty($old_last_balance_res)){
-                            $old_last_balance_res = json_decode(json_encode($old_last_balance_res),true);
-                            $job_balance = $old_last_balance_res['job_balance'];
-                        }else{
-                            $job_balance = 0;
+                        $salesInfo = json_decode(json_encode($salesInfo),true);
+
+                        if (empty($salesInfo)){
+                            //推荐人不存在
+                            echo '<xml> <return_code><![CDATA[FAIL]]></return_code> <return_msg><![CDATA[推荐人未注册用户端账号]]></return_msg> </xml>';
+                            die;
                         }
 
-                        $plus_card_job_commission = intval(($card_job_commission / 100) * $pay_money);
+                        $sales_phone = $salesInfo['phone'];
 
+                        $userModel = new User();
 
+                        $salesUserInfo = $userModel
+                            ->where("phone",$sales_phone)
+                            ->field("uid,account_balance,account_point,account_cash_gift")
+                            ->find();
 
-                        //添加或更新推荐用户佣金表
-                        $jobUserReturn = $cardCallbackObj->updateJobUser($referrer_id,$plus_card_job_commission);
+                        $salesUserInfo = json_decode(json_encode($salesUserInfo),true);
 
-                        //添加推荐用户佣金明细表
-                        $jobAccountParams = [
-                            "uid"          => $referrer_id,
-                            "balance"      => $plus_card_job_commission,
-                            "last_balance" => $job_balance + $plus_card_job_commission,
-                            "change_type"  => 2,
-                            "action_user"  => 'sys',
-                            "action_type"  => config('user.job_account')['recommend_reward']['key'],
-                            "oid"          => $vid,
-                            "deal_amount"  => $payable_amount,
-                            "action_desc"  => config('user.job_account')['recommend_reward']['name'],
-                            "created_at"   => $time,
-                            "updated_at"   => $time
-                        ];
+                        if (empty($salesUserInfo)){
+//                            return $this->com_return(false,config("params.USER")['SALES_NOT_REGISTER_USER']);
+                            $referrer_id = "";
+                        }else{
+                            $referrer_id = $salesUserInfo['uid'];
+                        }
 
-                        Log::info("添加推荐用户佣金明细表 -- 参数".var_export($jobAccountParams,true));
-
-//                        dump($jobAccountParams);die;
-
-                        $jobAccountReturn = $cardCallbackObj->insertJobAccount($jobAccountParams);
-
-                    }else{
-
-                        $jobUserReturn    = true;
-                        $jobAccountReturn = true;
                     }
 
-                    Log::info("添加或更新推荐用户佣金表 操作返回 ---- ".$jobUserReturn);
-                    Log::info("添加推荐用户佣金明细表   操作返回 ---- ".$jobAccountReturn);
+                    if (!empty($referrer_id)){
+                        //如果推荐人是用户或者注册用户的内部人员,给推荐人用户更新礼金信息
+
+                        //账户可用礼金变动  正加 负减  直接取整,舍弃小数
+
+//                        $cash_gift = intval(($card_job_cash_gif / 100) * $pay_money);
+                        $cash_gift = $card_job_cash_gif;
+
+                        Log::info("赠送推荐用户礼金数 --- ". $cash_gift);
+
+                        if ($cash_gift > 0){
+                            //如果奖励推荐用户的礼金数 大于 0  则执行 更新
+
+                            //首先获取推荐人的礼金余额
+                            $referrer_user_gift_cash_old = $userInfoObj->getUserFieldValue("$referrer_id","account_cash_gift");
+                            Log::info("推荐用户的旧的礼金数 --- ".$referrer_user_gift_cash_old);
 
 
+                            //变动后的礼金总余额
+                            $last_cash_gift = $cash_gift + $referrer_user_gift_cash_old;
+                            Log::info("变动后的礼金总数 --- ".$last_cash_gift);
+
+                            $userAccountCashGiftParams = [
+                                'uid'            => $referrer_id,
+                                'cash_gift'      => $cash_gift,
+                                'last_cash_gift' => $last_cash_gift,
+                                'change_type'    => '2',
+                                'action_user'    => 'sys',
+                                'action_type'    => config('user.gift_cash')['recommend_reward']['key'],
+                                'action_desc'    => config('user.gift_cash')['recommend_reward']['name'],
+                                'oid'            => $vid,
+                                'created_at'     => $time,
+                                'updated_at'     => $time
+                            ];
+
+                            Log::info("礼金明细参数 ---- ".var_export($userAccountCashGiftParams,true));
+
+                            //给用户添加礼金明细
+                            $userAccountCashGiftReturn = $cardCallbackObj->updateUserAccountCashGift($userAccountCashGiftParams);
+
+
+                            //给用户添加礼金余额
+                            $updatedAccountCashGiftReturn = $userInfoObj->updatedAccountCashGift("$referrer_id","$cash_gift","inc");
+
+
+
+                        }else{
+                            //如果奖励推荐用户的礼金数 小于 0  则不执行礼金更新操作
+                            $userAccountCashGiftReturn = true;
+                            $updatedAccountCashGiftReturn = true;
+
+                        }
+
+                        /*给推荐用户添加佣金*/
+                        if ($card_job_commission > 0){
+
+                            //首先获取推荐人的佣金余额
+                            $old_last_balance_res = Db::name("job_user")
+                                ->where('uid',$referrer_id)
+                                ->field('job_balance')
+                                ->find();
+                            if (!empty($old_last_balance_res)){
+                                $old_last_balance_res = json_decode(json_encode($old_last_balance_res),true);
+                                $job_balance = $old_last_balance_res['job_balance'];
+                            }else{
+                                $job_balance = 0;
+                            }
+
+//                            $plus_card_job_commission = intval(($card_job_commission / 100) * $pay_money);
+                            $plus_card_job_commission = $card_job_commission;
+
+                            //添加或更新推荐用户佣金表
+                            $jobUserReturn = $cardCallbackObj->updateJobUser($referrer_id,$plus_card_job_commission);
+
+                            //添加推荐用户佣金明细表
+                            $jobAccountParams = [
+                                "uid"          => $referrer_id,
+                                "balance"      => $plus_card_job_commission,
+                                "last_balance" => $job_balance + $plus_card_job_commission,
+                                "change_type"  => 2,
+                                "action_user"  => 'sys',
+                                "action_type"  => config('user.job_account')['recommend_reward']['key'],
+                                "oid"          => $vid,
+                                "deal_amount"  => $payable_amount,
+                                "action_desc"  => config('user.job_account')['recommend_reward']['name'],
+                                "created_at"   => $time,
+                                "updated_at"   => $time
+                            ];
+
+                            Log::info("添加推荐用户佣金明细表 -- 参数".var_export($jobAccountParams,true));
+
+                            $jobAccountReturn = $cardCallbackObj->insertJobAccount($jobAccountParams);
+
+                        }else{
+
+                            $jobUserReturn    = true;
+                            $jobAccountReturn = true;
+                        }
+
+                        Log::info("添加或更新推荐用户佣金表 操作返回 ---- ".$jobUserReturn);
+                        Log::info("添加推荐用户佣金明细表   操作返回 ---- ".$jobAccountReturn);
+
+
+                        Log::info("礼金明细返回".$userAccountCashGiftReturn."-----"."$updatedAccountCashGiftReturn");
+                    }else{
+                        //如果推荐人不是用户,则直接返回 true
+                        $userAccountCashGiftReturn    = true;
+                        $updatedAccountCashGiftReturn = true;
+                        $jobUserReturn                = true;
+                        $jobAccountReturn             = true;
+                    }
                 }else{
                     //如果推荐人不是用户,则直接返回 true
                     $userAccountCashGiftReturn    = true;
@@ -1538,8 +1584,6 @@ class WechatPay extends Controller
                     $jobAccountReturn             = true;
                 }
 
-                Log::info("礼金明细返回".$userAccountCashGiftReturn."-----"."$updatedAccountCashGiftReturn");
-
                 //获取当前用户旧的礼金余额
                 $user_gift_cash_old = $userInfoObj->getUserFieldValue("$uid","account_cash_gift");
                 Log::info("旧的礼金余额".$user_gift_cash_old);
@@ -1547,15 +1591,14 @@ class WechatPay extends Controller
 
                 if ($card_cash_gift > 0){
                     //如果开卡赠送礼金数 大于 0,则变更礼金数,并增加 礼金明细
-                    $card_cash_gift_money = intval(($card_cash_gift / 100) * $pay_money);
+//                    $card_cash_gift_money = intval(($card_cash_gift / 100) * $pay_money);
+                    $card_cash_gift_money = $card_cash_gift;
                     $user_gift_cash_new = $user_gift_cash_old + $card_cash_gift_money;
                     Log::info("新的礼金余额".$user_gift_cash_new);
 
                     //⑩更新办卡用户的返还礼金数额
                     $updatedOpenCardCashGiftReturn = $userInfoObj->updatedAccountCashGift("$uid","$card_cash_gift_money","inc");
                     Log::info("更新办卡用户的返还礼金数额".$updatedOpenCardCashGiftReturn);
-
-
 
                     //⑩ - ① 更新用户礼金明细
                     $updatedUserCashGiftParams = [
@@ -1572,8 +1615,6 @@ class WechatPay extends Controller
                     ];
 
                     Log::info("更新用户礼金明细参数".var_export($updatedUserCashGiftParams,true));
-
-
 
                     //增加开卡用户礼金明细
                     $openCardUserAccountCashGiftReturn = $cardCallbackObj->updateUserAccountCashGift($updatedUserCashGiftParams);

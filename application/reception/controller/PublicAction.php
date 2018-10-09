@@ -340,6 +340,10 @@ class PublicAction extends Controller
         $cash_gift_return_money  = intval($consumption_money * ($consume_cash_gift/100));//持卡人返还礼金数
         $commission_return_money = intval($consumption_money * ($consume_commission/100));//持卡人返还佣金数
 
+        /*$referrer_type_vip   = config("salesman.salesman_type")['0']['key'];//会籍
+        $referrer_type_sales = config("salesman.salesman_type")['1']['key'];//销售
+        $referrer_type = config("salesman.salesman_type")['1']['key'];//销售*/
+
        if ($referrer_type == config("salesman.salesman_type")['2']['key']){
            //如果是用户推荐
            $job_cash_gift_return_money  = intval($consumption_money * ($consume_job_cash_gift/100));//消费推荐人返礼金
@@ -366,7 +370,7 @@ class PublicAction extends Controller
      */
     public function rechargeReturnMoney($uid,$referrer_type,$consumption_money,$refill_job_cash_gift,$refill_job_commission)
     {
-        if ($consumption_money < 0){
+        if ($consumption_money <= 0){
             //如果余额消费和现金消费金额为0 则不返还
             return NULL;
         }

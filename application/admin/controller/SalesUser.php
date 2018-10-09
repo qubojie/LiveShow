@@ -29,6 +29,8 @@ class SalesUser extends CommandAction
 
         $res = [];
 
+        unset($statusList['pending']);
+
         foreach ($statusList as $key => $val){
             if ($val["key"] == config("salesman.salesman_status")['pending']['key']){
                 $count = $salesmanModel

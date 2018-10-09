@@ -56,7 +56,7 @@ class BillCardFees extends Model
         'bc.receipt_bank',      //收款银行
         'bc.receipt_account',   //收款账号
         'bc.is_settlement',     //是否结算佣金  0未结算   1已结算   没有邀请人的默认1已结算
-        'bc.settlement_time',   //佣金结算时间
+        'bc.settlement_user',   //佣金结算时间
         'bc.settlement_id',     //结算单号
         'bc.commission_ratio',  //下单时的佣金比例   百分比整数     没有推荐人的自动为0
         'bc.commission',        //支付给 推荐人佣金金额  没推荐人的自动为0

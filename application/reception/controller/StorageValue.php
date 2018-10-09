@@ -30,6 +30,20 @@ class StorageValue extends CommonAction
     {
         $dateTime = $request->param("dateTime","");//时间
         $payType  = $request->param("payType","");//付款方式
+        $pagesize    = $request->param("pagesize","");
+        $nowPage     = $request->param("nowPage","1");
+
+        if (empty($pagesize)){
+            $pagesize = config("PAGESIZE");
+        }
+
+        if (empty($nowPage)){
+            $nowPage = 1;
+        }
+
+        $config = [
+            "page" => $nowPage,
+        ];
 
         $rule = [
             "dateTime|时间"    => "require",
@@ -45,22 +59,37 @@ class StorageValue extends CommonAction
             return $this->com_return(false,$validate->getError());
         }
 
-        $nowDateTime = strtotime(date("Ymd"));
+        $nowTime = time();
+        $sys_account_day_time = getSysSetting("sys_account_day_time");//获取系统设置自然日
+        $now_h = date("H",$nowTime);
+
+        if ($now_h >= $sys_account_day_time){
+            //大于,新的一天
+            $nowDateTime = strtotime(date("Ymd",$nowTime));
+        }else{
+            //小于,还是昨天
+            $nowDateTime = strtotime(date("Ymd",$nowTime - 24 * 60 * 60));
+        }
+
+        $six_s       = 60 * 60 * $sys_account_day_time;
+        $nowDateTime = $nowDateTime + $six_s;
 
         if ($dateTime == 1){
             //今天
             $beginTime = date("YmdHis",$nowDateTime);
-            $endTime   = date("YmdHis",$nowDateTime + 24 * 60 * 60);
+            $endTime   = date("YmdHis",$nowDateTime + 24 * 60 * 60 - 1);
 
         }elseif ($dateTime == 2){
             //昨天
             $beginTime = date("YmdHis",$nowDateTime - 24 * 60 * 60);
-            $endTime   = date("YmdHis",$nowDateTime);
+            $endTime   = date("YmdHis",$nowDateTime - 1);
 
         }else{
             $dateTimeArr = explode(",",$dateTime);
-            $beginTime   = date("YmdHis",$dateTimeArr[0]);;
-            $endTime     = date("YmdHis",$dateTimeArr[1]);;
+            $beginTime   = $dateTimeArr[0] + $six_s;
+            $beginTime   = date("YmdHis",$beginTime);
+            $endTime     = $dateTimeArr[1] + $six_s;
+            $endTime     = date("YmdHis",$endTime);
         }
 
         $date_where['br.created_at'] = ["between time",["$beginTime","$endTime"]];
@@ -91,7 +120,7 @@ class StorageValue extends CommonAction
             ->field("u.name,u.phone")
             ->field($column)
             ->order("br.created_at DESC")
-            ->select();
+            ->paginate($pagesize,false,$config);
 
         $list = json_decode(json_encode($list),true);
 
@@ -103,7 +132,7 @@ class StorageValue extends CommonAction
             ->where($pay_type_where)
             ->sum("br.amount");
 
-        $res['cash_sum'] = $cash_sum;
+        $list['cash_sum'] = $cash_sum;
         /*现金储值统计 off*/
 
         /*礼金储值统计 on*/
@@ -114,13 +143,11 @@ class StorageValue extends CommonAction
             ->where($pay_type_where)
             ->sum("br.cash_gift");
 
-        $res['cash_gift_sum'] = $cash_gift_sum;
+        $list['cash_gift_sum'] = $cash_gift_sum;
 
         /*礼金储值统计 off*/
 
-        $res["data"] = $list;
-
-        return $this->com_return(true,config("params.SUCCESS"),$res);
+        return $this->com_return(true,config("params.SUCCESS"),$list);
     }
 
     /**
@@ -142,7 +169,7 @@ class StorageValue extends CommonAction
 
         $rule = [
             "phone|电话"              => "require|regex:1[3-8]{1}[0-9]{9}",
-            "recharge_amount|储值金额" => "require|number|gt:0",
+            "recharge_amount|储值金额" => "require|number|egt:0",
             "cash_amount|赠送礼金"     => "require|number|egt:0",
             "pay_type|支付方式"        => "require",
         ];
@@ -392,26 +419,28 @@ class StorageValue extends CommonAction
             }
 
             /*更新用户储值账户明细 on*/
-            //余额明细参数
-            $insertUserAccountParams = [
-                "uid"          => $uid,
-                "balance"      => $recharge_amount,
-                "last_balance" => $last_account_balance,
-                "change_type"  => 1,
-                "action_user"  => $review_user,
-                "action_type"  => config('user.account')['recharge']['key'],
-                "oid"          => $rfid,
-                "deal_amount"  => $recharge_amount,
-                "action_desc"  => config("user.account")['recharge']['name'],
-                "created_at"   => time(),
-                "updated_at"   => time()
-            ];
+            if ($recharge_amount > 0){
+                //余额明细参数
+                $insertUserAccountParams = [
+                    "uid"          => $uid,
+                    "balance"      => $recharge_amount,
+                    "last_balance" => $last_account_balance,
+                    "change_type"  => 1,
+                    "action_user"  => $review_user,
+                    "action_type"  => config('user.account')['recharge']['key'],
+                    "oid"          => $rfid,
+                    "deal_amount"  => $recharge_amount,
+                    "action_desc"  => config("user.account")['recharge']['name'],
+                    "created_at"   => time(),
+                    "updated_at"   => time()
+                ];
 
-            //插入用户充值明细
-            $insertUserAccountReturn = $cardCallBackObj->updateUserAccount($insertUserAccountParams);
+                //插入用户充值明细
+                $insertUserAccountReturn = $cardCallBackObj->updateUserAccount($insertUserAccountParams);
 
-            if ($insertUserAccountReturn == false){
-                return $this->com_return(false,config("params.CREATED_NEW_USER_FAIL")." - 009");
+                if ($insertUserAccountReturn == false){
+                    return $this->com_return(false,config("params.CREATED_NEW_USER_FAIL")." - 009");
+                }
             }
             /*更新用户储值账户明细 off*/
 

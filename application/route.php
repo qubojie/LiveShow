@@ -354,6 +354,12 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
                 //点单临时
                 Route::rule('confirmPointList','ManagePointListTemporary/confirmPointList','post|options');
 
+                //根据桌子获取用户信息
+                Route::rule('accordingTableFindUserInfo','ManagePointListTemporary/accordingTableFindUserInfo','post|options');
+
+                //根据桌子获取用户当日消费金额
+                Route::rule('getUserConsumeMoney','ManagePointListTemporary/getUserConsumeMoney','post|options');
+
             });
 
             //礼券
@@ -361,6 +367,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
                 //所有的桌位列表
                 Route::rule('getTableList','PublicAction/getTableList','post|options');
+
+                //获取所有桌位列表不联动小区
+                Route::rule('getTableAllList','PublicAction/getTableAllList','post|options');
 
                 //申请使用礼券
                 Route::rule('applyUseVoucher','ManageUseVoucher/applyUseVoucher','post|options');
@@ -404,6 +413,40 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
     //统计
     Route::rule('count','Count/index','post|options');
+
+    //素材
+    Route::group(['name' => 'material'],function (){
+        //素材分类管理
+        Route::group(['name' => 'sourceMaterialCategory'],function (){
+            //素材分类列表
+            Route::rule('index','SourceMaterialCategory/index','post/options');
+
+            //素材分类添加
+            Route::rule('add','SourceMaterialCategory/add','post/options');
+
+            //素材分类删除
+            Route::rule('delete','SourceMaterialCategory/delete','post/options');
+
+            //素材分类编辑
+            Route::rule('edit','SourceMaterialCategory/edit','post/options');
+        });
+
+        //素材管理
+        Route::group(['name' => 'sourceMaterial'],function (){
+
+            //素材列表
+            Route::rule('index','SourceMaterial/index','post/options');
+
+            //素材上传
+            Route::rule('upload','SourceMaterial/upload','post/options');
+
+            //素材删除
+            Route::rule('delete','SourceMaterial/delete','post/options');
+
+            //移动素材至新的分组
+            Route::rule('moveMaterial','SourceMaterial/moveMaterial','post/options');
+        });
+    });
 
 
     //应用内容管理
@@ -1158,6 +1201,12 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 //前台管理路由群组
 Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
+     //前台人员信息
+    Route::group(['name' => 'manageInfo'],function (){
+        //修改密码
+        Route::rule('changePass','ManageInfo/changePass');
+    });
+
     //后台操作预约定金退款
     Route::rule('adminRefundDeposit','DiningRoom/adminRefundDeposit','post|options');
 
@@ -1171,8 +1220,11 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
     //会员消费
     Route::group(['name' => 'consumption'],function (){
 
-        //消息列表
+        //消费列表
         Route::rule('infoList','BillPayAssistInfo/index','post|options');
+
+        //新增消费待处理单据
+        Route::rule('insertWaitDoOrder','BillPayAssistInfo/insertWaitDoOrder','post|options');
 
         //确认Or取消消费
         Route::rule('cancelOrConfirm','BillPayAssistInfo/cancelOrConfirm','post|options');
@@ -1230,6 +1282,15 @@ Route::group(['name' => 'reception','prefix' => 'reception/'],function (){
 
         //结算数据查询
         Route::rule('settlementCount','CountMoney/settlementCount');
+
+        //结算操作
+        Route::rule('settlementAction','CountMoney/settlementAction');
+
+        //结算历史筛选列表
+        Route::rule('settlementHistory','CountMoney/settlementHistory');
+
+        //结算历史详情
+        Route::rule('settlementHistoryDetails','CountMoney/settlementHistoryDetails');
 
     });
 

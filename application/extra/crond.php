@@ -12,7 +12,7 @@ $crond_list = array(
         'app\index\controller\ChangeStatus::AutoCancelTableRevenue',
         'app\index\controller\ChangeStatus::AutoCancelBillRefill',
         'app\index\controller\ChangeStatus::autoCancelRevenueListOrder',
-        'app\index\controller\ChangeStatus::autoCancelBillPayAssistOrder',
+//        'app\index\controller\ChangeStatus::autoCancelBillPayAssistOrder',
     ],  //每分钟
 
     '00:00'      => [

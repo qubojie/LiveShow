@@ -19,50 +19,12 @@ class Menus extends CommandAction
 {
 
     /**
-     * @api {POST} admin/menus 后台菜单列表获取
-     * @apiGroup Admin
-     * @apiVersion 1.0.0
-     *
-     * @apiSampleRequest http://localhost/admin/menus
-     *
-     * @apiSuccessExample {json} 成功返回:
-     *     {
-     *       "return_code": "SUCCESS" ,
-     *       "return_msg" : "获取成功" ,
-     *       "return_body": {
-     *          "menu": {
-     *              "999": {
-     *                  "id": "999000000",
-     *                  "title": "系统设置",
-     *                  "title_img": "fa fa-cog",
-     *                  "url": "",
-     *                  "is_show_menu": 1,
-     *                  "tip": null,
-     *                  "is_show_role": 1,
-     *                  "level2": {
-     *                      "100": {
-     *                          "id": "999100000",
-     *                          "title": "管理员列表",
-     *                          "title_img": "",
-     *                          "url": "adminAdminIndex",
-     *                          "is_show_menu": 1,
-     *                          "tip": null,
-     *                          "is_show_role": 1
-     *                      },
-     *                      "200": {
-     *                          "id": "999200000",
-     *                          "title": "角色管理",
-     *                          "title_img": "",
-     *                          "url": "adminAdminIndex",
-     *                          "is_show_menu": 1,
-     *                          "tip": null,
-     *                          "is_show_role": 1
-     *                      }
-     *                  }
-     *              }
-     *          }
-     *       }
-     *     }
+     * 后台菜单列表获取
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function index(Request $request)
     {
@@ -234,7 +196,7 @@ class Menus extends CommandAction
 
         $needVerifyCount = $salesmanModel
             ->where("statue",config("salesman.salesman_status")['pending']['key'])
-            ->count();//未付款总记录数
+            ->count();//待审核总记录数
 
         $is_show = $needShipCount + $needPayCount;
 

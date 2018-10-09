@@ -245,9 +245,9 @@ class OpenCard extends Controller
 
                 'card_amount'         => $card_amount,//充值金额
                 'card_point'          => $card_info["card_point"],//开卡赠送积分
-                'card_cash_gift'      => $card_info["card_cash_gift"],//开卡赠送礼金数
-                'card_job_cash_gif'   => $card_info["card_job_cash_gif"],//推荐人返佣礼金
-                'card_job_commission' => $card_info["card_job_commission"],//推荐人返佣金
+                'card_cash_gift'      => intval(($card_info["card_cash_gift"] / 100) * $card_amount),//开卡赠送礼金数
+                'card_job_cash_gif'   => intval(($card_info["card_job_cash_gif"] / 100) * $card_amount),//推荐人返佣礼金
+                'card_job_commission' => intval(($card_info["card_job_commission"] / 100) * $cardInfo_amount),//推荐人返佣金
 
                 'gift_id'       => $gift_id,
                 'gift_img'      => $gift_info["gift_img"],//礼品图片

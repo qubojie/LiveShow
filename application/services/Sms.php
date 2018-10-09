@@ -29,11 +29,11 @@ class Sms extends Controller
             return $common->com_return(false,config("params.PARAM_NOT_EMPTY"));
         }
 
-        $cache_code = Cache::get("sms_verify_code_" . $phone);
+        /*$cache_code = Cache::get("sms_verify_code_" . $phone);
 
         if ($cache_code !== false){
             return $common->com_return(false,config("sms.send_repeat"));
-        }
+        }*/
 
         //获取随机验证码
         $code = getRandCode(4);
@@ -78,6 +78,10 @@ class Sms extends Controller
         }
 
         $cache_code = Cache::get("sms_verify_code_" . $phone);
+
+        if ($cache_code == "old"){
+            return $common->com_return(true, config("sms.verify_success"));
+        }
 
         if ($cache_code == $code) {
 

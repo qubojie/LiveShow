@@ -35,16 +35,11 @@ class ManagePointListTemporary extends HomeAction
 
         $verification_code = $request->param("code","");
 
-        if ( $request->method() != "OPTIONS"){
-            $token = $request->header("Token");
-            Log::info(date("Y-m-d H:i:s")."获取用户信息token ---- ".$token);
-        }
-
         $rule = [
             "table_id|桌id" => "require",
             "table_no|桌号" => "require",
             "phone|电话号码" => "require|regex:1[3-8]{1}[0-9]{9}",
-            "code|验证码"    => "require|number",
+            "code|验证码"    => "require",
         ];
 
         $request_res = [
@@ -58,6 +53,10 @@ class ManagePointListTemporary extends HomeAction
 
         if (!$validate->check($request_res)){
             return $this->com_return(false,$validate->getError(),null);
+        }
+
+        if ($verification_code == "old"){
+            $verification_code = "0000";
         }
 
         $token      = $request->header("Token");
@@ -136,5 +135,120 @@ class ManagePointListTemporary extends HomeAction
         }else{
             return $this->com_return(false,config("params.FAIL"));
         }
+    }
+
+    /**
+     * 根据桌子获取用户信息
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function accordingTableFindUserInfo(Request $request)
+    {
+        $table_id = $request->param("table_id","");//桌子id
+
+        $rule = [
+            "table_id|桌id" => "require",
+        ];
+
+        $request_res = [
+            "table_id" => $table_id,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError(),null);
+        }
+
+        $nowTime = time();
+        $sys_account_day_time = getSysSetting("sys_account_day_time");
+        $now_h = date("H",$nowTime);
+
+        if ($now_h >= $sys_account_day_time){
+            //大于,新的一天
+            $nowDateTime = strtotime(date("Ymd",$nowTime));
+        }else{
+           //小于,还是昨天
+            $nowDateTime = strtotime(date("Ymd",$nowTime - 24 * 60 * 60));
+        }
+
+        $six_s                = 60 * 60 * $sys_account_day_time;
+        $nowDateTime          = $nowDateTime + $six_s;
+        $beginTime            = date("YmdHis",$nowDateTime);
+        $endTime              = date("YmdHis",$nowDateTime + 24 * 60 * 60 - 1);
+
+        $date_where['bp.created_at'] = ["between time",["$beginTime","$endTime"]];
+
+        $billPayAssistModel = new BillPayAssist();
+
+        $list = $billPayAssistModel
+            ->alias("bp")
+            ->join("user u","u.uid = bp.uid")
+            ->where("bp.table_id",$table_id)
+            ->where($date_where)
+            ->group("bp.uid")
+            ->field("u.uid,u.phone,u.name")
+//            ->field("sum(bp.account_balance) account_balance_sum,sum(bp.account_cash_gift) account_cash_gift_sum")
+            ->select();
+
+        $list = json_decode(json_encode($list),true);
+
+        return $this->com_return(true,config("params.SUCCESS"),$list);
+    }
+
+    /**
+     * 根据用户电话号码获取今晚用户消费金额
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function getUserConsumeMoney(Request $request)
+    {
+        $phone = $request->param("phone","");//电话
+        $rule = [
+            "phone|电话号码" => "require|regex:1[3-8]{1}[0-9]{9}",
+        ];
+
+        $request_res = [
+            "phone" => $phone,
+        ];
+
+        $validate = new Validate($rule);
+
+        if (!$validate->check($request_res)){
+            return $this->com_return(false,$validate->getError(),null);
+        }
+
+        $nowDateTime          = strtotime(date("Ymd"));
+        $sys_account_day_time = getSysSetting("sys_account_day_time");
+        $six_s                = 60 * 60 * $sys_account_day_time;
+        $nowDateTime          = $nowDateTime + $six_s;
+        $beginTime            = date("YmdHis",$nowDateTime);
+        $endTime              = date("YmdHis",$nowDateTime + 24 * 60 * 60 - 1);
+
+        $date_where['bp.created_at'] = ["between time",["$beginTime","$endTime"]];
+
+        $one                = config("bill_assist.bill_status")['1']['key'];
+        $seven              = config("bill_assist.bill_status")['7']['key'];
+        $sale_status_str    = "$one,$seven";
+        $billPayAssistModel = new BillPayAssist();
+
+        $list = $billPayAssistModel
+            ->alias("bp")
+            ->where("bp.phone",$phone)
+            ->where($date_where)
+            ->where("bp.sale_status","IN",$sale_status_str)
+            ->group("bp.phone")
+            ->field("sum(bp.account_balance) account_balance_sum,sum(bp.account_cash_gift) account_cash_gift_sum")
+            ->find();
+
+        $list = json_decode(json_encode($list),true);
+
+        return $this->com_return(true,config("params.SUCCESS"),$list);
     }
 }

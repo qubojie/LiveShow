@@ -864,7 +864,7 @@ class DiningRoom extends CommonAction
         $res = $userModel
             ->alias("u")
             ->join("user_card uc","uc.uid = u.uid","LEFT")
-            ->join("mst_user_level ul","ul.level_id = u.level_id")
+            ->join("mst_user_level ul","ul.level_id = u.level_id","LEFT")
             ->where($where)
             ->field("u.uid,u.name,u.nickname,u.phone,u.account_balance,u.account_cash_gift")
             ->field("uc.card_name,uc.card_type")

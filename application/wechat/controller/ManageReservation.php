@@ -11,6 +11,7 @@ use app\admin\model\ManageSalesman;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\common\controller\UUIDUntil;
+use app\wechat\model\BillPayAssist;
 use app\wechat\model\BillSubscription;
 use app\wechat\model\UserCard;
 use think\Config;
@@ -85,6 +86,38 @@ class ManageReservation extends HomeAction
 
         if (empty($userNameRes)){
             return $this->com_return(true,\config("params.USER_NOT_EXIST"));
+        }
+
+        /*获取用户今日消费信息 On*/
+        $nowDateTime          = strtotime(date("Ymd"));
+        $sys_account_day_time = getSysSetting("sys_account_day_time");
+        $six_s                = 60 * 60 * $sys_account_day_time;
+        $nowDateTime          = $nowDateTime + $six_s;
+        $beginTime            = date("YmdHis",$nowDateTime);
+        $endTime              = date("YmdHis",$nowDateTime + 24 * 60 * 60 - 1);
+
+        $date_where['bp.created_at'] = ["between time",["$beginTime","$endTime"]];
+
+        $one                = config("bill_assist.bill_status")['1']['key'];
+        $seven              = config("bill_assist.bill_status")['7']['key'];
+        $sale_status_str    = "$one,$seven";
+        $billPayAssistModel = new BillPayAssist();
+
+        $list = $billPayAssistModel
+            ->alias("bp")
+            ->where("bp.phone",$phone)
+            ->where($date_where)
+            ->where("bp.sale_status","IN",$sale_status_str)
+            ->group("bp.phone")
+            ->field("sum(bp.account_balance) account_balance_sum,sum(bp.account_cash_gift) account_cash_gift_sum")
+            ->find();
+
+        $list = json_decode(json_encode($list),true);
+        /*获取用户今日消费信息 Off*/
+
+        if (!empty($list)){
+            $userNameRes['account_balance_sum'] = $list['account_balance_sum'];
+            $userNameRes['account_cash_gift_sum'] = $list['account_cash_gift_sum'];
         }
 
         return $this->com_return(true,\config("params.SUCCESS"),$userNameRes);
