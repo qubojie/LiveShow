@@ -930,17 +930,32 @@ class PublicAction extends Controller
 
         $date_select = array_values($date_select);
 
+        //会员获取可预约时间选项
+        $reserve_time_frame_vip     = $openCardObj->getSysSettingInfo("reserve_time_frame");
+        $reserve_time_frame_vip_arr = explode("|",$reserve_time_frame_vip);
+        $vip_time_arr               = $this->timeToPart($reserve_time_frame_vip_arr[0],$reserve_time_frame_vip_arr[1]);
+        $reserve_time_frame_nor     = $openCardObj->getSysSettingInfo("reserve_time_frame_normal");
+        $reserve_time_frame_nor_arr = explode("|",$reserve_time_frame_nor);
+        $nor_time_arr               = $this->timeToPart($reserve_time_frame_nor_arr[0],$reserve_time_frame_nor_arr[1]);
+
         if ($is_vip){
-            //会员获取可预约时间选项
-            $reserve_time_frame = $openCardObj->getSysSettingInfo("reserve_time_frame");
+            for ($i = 0; $i < count($vip_time_arr); $i++){
+                $vip_time_arr[$i]['is_show_color'] = 0;
+            }
         }else{
-            //非会员获取可预约时间选项
-            $reserve_time_frame = $openCardObj->getSysSettingInfo("reserve_time_frame_normal");
+            $vip_length = count($vip_time_arr);
+            $nor_length = count($nor_time_arr);
+
+            for ($m = 0; $m < $nor_length; $m ++){
+                $vip_time_arr[$m]['is_show_color'] = 0;
+            }
+
+            for ($n = $nor_length;$n < $vip_length; $n++){
+                $vip_time_arr[$n]['is_show_color'] = 1;
+            }
         }
 
-        $reserve_time_frame_arr = explode("|",$reserve_time_frame);
-
-        $time_arr = $this->timeToPart($reserve_time_frame_arr[0],$reserve_time_frame_arr[1]);
+        $time_arr = $vip_time_arr;
 
         $res['table_location']   = $table_location;
         $res['table_size']       = $table_size;

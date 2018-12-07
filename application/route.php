@@ -11,6 +11,12 @@
 
 use think\Route;
 
+//路由测试
+Route::rule('authCheck/:token',function ($token){
+    return 'Token : '.$token;
+});
+
+
 Route::rule('test','index/test');
 
 //测试资源路由注册
@@ -134,6 +140,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
         //我的信息
         Route::rule('myInfo','myInfo/index','post|options');
 
+        //修改个人信息
+        Route::rule('changeInfo','myInfo/changeInfo','post|options');
+
         //变更手机号码
         Route::rule('changePhone','Auth/changePhone','post|options');
 
@@ -205,6 +214,9 @@ Route::group(['name' => 'wechat','prefix' => 'wechat/'],function (){
 
             //我的订单列表
             Route::rule('dishOrder','MyInfo/dishOrder','post|options');
+
+            //我的积分以及排行
+            Route::rule('myPointDetails','MyInfo/myPointDetails','post|options');
 
         });
 
@@ -385,6 +397,10 @@ Route::group(['name' => 'admin','prefix' => 'admin/'],function (){
 
     //二维码测试
     Route::rule('WxQrcodeCreate','WxQrcode/create');
+
+    //提现测试
+    Route::rule('txTest','WithdrawMoney/txTest');
+    Route::rule('txToBank','WithdrawMoney/txToBank');
 
 
     //图片上传至本地

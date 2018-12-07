@@ -265,10 +265,10 @@ class Auth extends Controller
             ->where('phone',$phone)
             ->update($params);
 
-        if ($res){
+        if ($res !== false){
             return $this->com_return(true,config("params.SUCCESS"));
         }else{
-            return $this->com_return(true,config("params.FAIL"));
+            return $this->com_return(false,config("params.FAIL"));
         }
     }
 

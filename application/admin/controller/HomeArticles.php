@@ -59,12 +59,12 @@ class HomeArticles extends CommandAction
 
         $data = $res['data'];
 
-        $url = Env::get("WEB_ARTICLE_URL").'page/iframe.html?article=';
+        /*$url = Env::get("WEB_ARTICLE_URL").'page/iframe.html?article=';
 
         for ($i = 0; $i < count($data); $i++){
             $link = $data[$i]["link"];
             $data[$i]["link"] = str_replace("$url","",$link);
-        }
+        }*/
 
         $res['data'] = arrIntToString($data);
 
@@ -215,7 +215,7 @@ class HomeArticles extends CommandAction
         $is_show       = $request->param("is_show","");         //是否显示 0:false;1:true
         $is_top        = $request->param("is_top","");           //是否置顶 0:false;1:true
 
-        $url = Env::get("WEB_ARTICLE_URL").'page/iframe.html';
+//        $url = Env::get("WEB_ARTICLE_URL").'page/iframe.html';
 //        $url = 'http://ls.wap.nana.cn/page/iframe.html';
 
         $rule = [
@@ -244,12 +244,13 @@ class HomeArticles extends CommandAction
 
         $time = time();
 
-        $links = $url."?article=".$link;
+//        $links = $url."?article=".$link;
 
         $update_data = [
             "article_title" => $article_title,
             "article_image" => $article_image,
-            "link"          => $links,
+//            "link"          => $links,
+            "link"          => $link,
             "sort"          => $sort,
             "is_show"       => $is_show,
             "is_top"        => $is_top,
@@ -292,7 +293,7 @@ class HomeArticles extends CommandAction
         $sort          = $request->param("sort","100");         //文章排序
 
 
-        $url = Env::get("WEB_ARTICLE_URL").'page/iframe.html';
+//        $url = Env::get("WEB_ARTICLE_URL").'page/iframe.html';
 //        $url = 'http://ls.wap.nana.cn/page/iframe.html';
 
         $rule = [
@@ -317,14 +318,15 @@ class HomeArticles extends CommandAction
             return $common->com_return(false,$validate->getError(),null);
         }
 
-        $links = $url."?article=".$link;
+//        $links = $url."?article=".$link;
 //        $links = $link;
 
         $update_data = [
             "article_id"    => $article_id,
             "article_title" => $article_title,
             "article_image" => $article_image,
-            "link"          => $links,
+//            "link"          => $links,
+            "link"          => $link,
             "sort"          => $sort,
             "updated_at"    => time(),
         ];

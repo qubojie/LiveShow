@@ -14,6 +14,7 @@ use app\admin\model\MstUserLevel;
 use app\admin\model\TableRevenue;
 use app\admin\model\User;
 use app\services\Sms;
+use app\wechat\model\BcUserInfo;
 use app\wechat\model\BillCardFees;
 use app\wechat\model\BillPay;
 use app\wechat\model\BillPayDetail;
@@ -23,6 +24,7 @@ use app\wechat\model\UserAccountCashGift;
 use app\wechat\model\UserCard;
 use app\wechat\model\UserGiftVoucher;
 use think\Db;
+use think\Exception;
 use think\Request;
 use wxpay\Refund;
 
@@ -41,20 +43,35 @@ class MyInfo extends CommonAction
         $token = $request->header('Token','');
 
         $userModel = new User();
-        $giftVoucherModel = new UserGiftVoucher();
-        $levelModel = new MstUserLevel();
-        $jobUserModel = new JobUser();
-
-
+        $column = $userModel->column;
+        foreach ($column as $key => $val){
+            $column[$key] = "u.".$val;
+        }
         $user_info = $userModel
-            ->where('remember_token',$token)
-            ->field($userModel->column)
-            ->field('created_at',true)
+            ->alias("u")
+            ->join("user_info ui","ui.uid = u.uid","LEFT")
+            ->where('u.remember_token',$token)
+            ->field('ui.birthday')
+            ->field($column)
             ->find();
+
+        /*对生日进行处理 On*/
+        $birthday    = $user_info['birthday'];
+        if (!empty($birthday)){
+            $by = substr($birthday,0,2);
+            if ($by <100 && $by >= 40){
+                $birthday = "19".$birthday;
+            }else{
+                $birthday = "20".$birthday;
+            }
+            $user_info['birthday'] = $birthday;
+        }
+        /*对生日进行处理 Off*/
 
         $uid         = $user_info['uid'];
         $user_status = $user_info['user_status'];
 
+        $jobUserModel = new JobUser();
         $userJobInfo = $jobUserModel
             ->where('uid',$uid)
             ->field("job_balance,job_freeze,job_cash,consume_amount,referrer_num")
@@ -92,6 +109,8 @@ class MyInfo extends CommonAction
             }
         }
 
+        $levelModel = new MstUserLevel();
+
         $level_info =$levelModel
             ->where('level_id', $user_info['level_id'])
             ->field('level_name,level_desc,level_img,point_min')
@@ -103,6 +122,7 @@ class MyInfo extends CommonAction
         $user_info['point_min']  = $level_info['point_min'];
 
         //获取用户礼券数量
+        $giftVoucherModel = new UserGiftVoucher();
         $gift_voucher_num = $giftVoucherModel
             ->where('uid',$uid)
             ->where("status",config("voucher.status")['0']['key'])
@@ -287,7 +307,7 @@ class MyInfo extends CommonAction
             ->join("manage_salesman ms","ms.sid = tr.ssid","LEFT")
             ->where('tr.uid',$uid)
             ->where($where_status)
-            ->field("tr.trid,tr.table_id,tr.table_no,tr.status,tr.reserve_time,tr.subscription,tr.subscription_type,tr.reserve_way,tr.ssid,tr.ssname")
+            ->field("tr.trid,tr.table_id,tr.table_no,tr.status,tr.turnover_limit,tr.reserve_time,tr.subscription,tr.subscription_type,tr.reserve_way,tr.ssid,tr.ssname")
             ->field("ms.phone")
             ->field("tl.location_title")
             ->field("ta.area_title")
@@ -413,6 +433,143 @@ class MyInfo extends CommonAction
 
         }
         return $this->com_return(true,config("params.SUCCESS"),$list);
+    }
+
+    /**
+     * 修改个人信息
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function changeInfo(Request $request)
+    {
+        $params = $request->param();
+        if (empty($params)){
+            return $this->com_return(false,config("params.PARAM_NOT_EMPTY"));
+        }
+
+        $token = $request->header("Token");
+
+        $userInfo = $this->tokenGetUserInfo($token);
+
+        if (empty($userInfo)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+        }
+
+        $uid = $userInfo['uid'];
+
+        Db::startTrans();
+        try{
+
+            /*根据生日处理生肖  On*/
+            if (isset($params['birthday']) && !empty($params['birthday'])){
+                $birthday = $params['birthday'];
+                $birthday = substr($birthday,2,6);
+
+                $constellationObj             = new AgeConstellation();
+                $nxs                          = $constellationObj->getInfo($birthday);
+                $astro                        = $nxs['constellation'];//星座
+                $userInfoParams['birthday']   = $birthday;
+                $userInfoParams['astro']      = $astro;
+                $userInfoParams['updated_at'] = time();
+
+                $userInfoModel = new BcUserInfo();
+
+                $is_ok = $userInfoModel
+                    ->where("uid",$uid)
+                    ->update($userInfoParams);
+
+                if ($is_ok === false){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+                }
+            }
+            /*根据生日处理生肖  Off*/
+
+            if (isset($params['name']) || isset($params['sex'])){
+                if (isset($params['birthday'])){
+                    unset($params['birthday']);
+                }
+                $params['updated_at'] = time();
+                $userModel = new User();
+                $is_true = $userModel
+                    ->where("uid",$uid)
+                    ->update($params);
+                if ($is_true === false){
+                    return $this->com_return(false,config("params.ABNORMAL_ACTION"));
+                }
+            }
+
+            Db::commit();
+            return $this->com_return(true,config("params.SUCCESS"));
+
+        }catch (Exception $e){
+            Db::rollback();
+            return $this->com_return(false,$e->getMessage());
+        }
+    }
+
+    /**
+     * 我的积分以及排行
+     * @param Request $request
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function myPointDetails(Request $request)
+    {
+        $token = $request->header("Token");
+
+        $userModel = new User();
+
+        /*我的积分 On*/
+        $userPointInfo = $userModel
+            ->alias("u")
+            ->join("mst_user_level ul","ul.level_id = u.level_id","LEFT")
+            ->where("u.remember_token",$token)
+            ->field("u.account_point")
+            ->field("ul.level_name")
+            ->find();
+
+        $userPointInfo = json_decode(json_encode($userPointInfo),true);
+
+        if (empty($userPointInfo)){
+            return $this->com_return(false,config("params.ABNORMAL_ACTION")." - 001");
+        }
+
+        $account_point = $userPointInfo['account_point'];
+        $level_name    = $userPointInfo['level_name'];
+        /*我的积分 Off*/
+
+        /*用户积分排行前10位 On*/
+        $userPointInfo = $userModel
+//            ->where("user_status",config("user.user_status")['2']['key'])
+            ->where("account_point",">",0)
+            ->order("account_point DESC")
+            ->field("uid,name,nickname,avatar,sex,account_point")
+            ->limit(10)
+            ->select();
+        $userPointInfo = json_decode(json_encode($userPointInfo),true);
+        /*用户积分排行前10位 Off*/
+
+        /*获取比例 On*/
+        $all_num = $userModel
+            ->count();
+        $lt_num = $userModel
+            ->where("account_point","<",$account_point)
+            ->count();
+
+        $percentage = round($lt_num / ($all_num - 1) * 100,2);
+        /*获取比例 Off*/
+
+        $res['account_point']   = $account_point;
+        $res['level_name']      = $level_name;
+        $res['percentage']      = $percentage;
+        $res['user_point_list'] = $userPointInfo;
+
+        return $this->com_return(true,config("params.SUCCESS"),$res);
     }
 
 }
